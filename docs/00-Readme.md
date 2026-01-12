@@ -1,204 +1,274 @@
-# 📖 Documentation Technique - AgentMeshKafka
+# Documentation Technique - AgentMeshKafka
 
-> **Version :** 1.0.0 | **Dernière mise à jour :** Janvier 2026
+> **Version :** 2.0.0 | **Derniere mise a jour :** Janvier 2026
 
-## 📂 Structure de la Documentation
+## Vue d'Ensemble
+
+Ce dossier contient la **documentation technique complete** du projet AgentMeshKafka. La documentation est organisee de maniere progressive, du concept general aux specifications detaillees.
+
+---
+
+## Structure de la Documentation
 
 ```
 /docs
-  ├── 00-Readme.md                  # Vision et Thèse du projet (ce fichier)
-  ├── 01-ArchitectureDecisions.md   # ADRs (Kafka, Vector DB, LangChain/LangGraph)
-  ├── 02-DataContracts.md           # Définition des schémas (Avro) et Topologie Kafka
-  ├── 03-AgentSpecs.md              # Personas, Outils et Constitutions des Agents
-  ├── 04-EvaluationStrategie.md     # Le "Diamant de l'évaluation" (Test Plan)
-  ├── 05-ThreatModel.md             # AgentSec et analyse des risques
-  ├── 06-Plan.md                    # Plan d'implémentation (Roadmap)
-  └── 07-Constitution.md            # Code de Conduite et Standards d'Ingénierie
+  ├── 00-Readme.md                  # Index et navigation (ce fichier)
+  ├── 01-Architecture.md            # Resume des decisions architecturales (3 ADRs cles)
+  ├── 01-ArchitectureDecisions.md   # ADRs detailles (7 decisions techniques)
+  ├── 02-DataContracts.md           # Schemas Avro et Topologie Kafka
+  ├── 03-AgentSpecs.md              # Specifications des 3 agents
+  ├── 04-Setup.md                   # Guide d'installation par phase
+  ├── 04-EvaluationStrategie.md     # Diamant de l'evaluation (L1-L4)
+  ├── 05-ThreatModel.md             # Modele de menaces et AgentSec
+  ├── 06-Plan.md                    # Roadmap et plan d'implementation
+  ├── 07-Constitution.md            # Code de conduite et standards
+  └── 08-Presentation.pdf           # Slides de presentation (optionnel)
 ```
+
+---
+
+## Guide de Lecture Recommande
+
+| Objectif | Documents a Lire | Temps Estime |
+|----------|------------------|--------------|
+| **Comprendre le projet** | 00-Readme → 01-Architecture | 15 min |
+| **Demarrer rapidement** | 04-Setup → phase0/README.md | 10 min |
+| **Concevoir et etendre** | 01-ArchitectureDecisions → 02-DataContracts → 03-AgentSpecs | 45 min |
+| **Tester et valider** | 04-EvaluationStrategie → phase3/README.md | 20 min |
+| **Securiser** | 05-ThreatModel → 07-Constitution | 30 min |
+| **Planifier** | 06-Plan | 15 min |
 
 ---
 
 # AgentMeshKafka
 
-**Implémentation d'un Maillage Agentique (Agentic Mesh) résilient propulsé par Apache Kafka et les pratiques AgentOps.**
+**Implementation d'un Maillage Agentique (Agentic Mesh) resilient propulse par Apache Kafka et les pratiques AgentOps.**
 
-## 📖 À propos du projet
+## A propos du projet
 
-**AgentMeshKafka** est un projet académique visant à démontrer la faisabilité et la robustesse de l'**Entreprise Agentique**. Contrairement aux approches monolithiques ou aux chatbots isolés, ce projet implémente une architecture décentralisée où des agents autonomes collaborent de manière asynchrone pour exécuter des processus métiers complexes.
+**AgentMeshKafka** est un projet academique visant a demontrer la faisabilite et la robustesse de l'**Entreprise Agentique**. Contrairement aux approches monolithiques ou aux chatbots isoles, ce projet implemente une architecture decentralisee ou des agents autonomes collaborent de maniere asynchrone pour executer des processus metiers complexes.
 
-Ce projet matérialise les concepts d'architecture suivants :
+### Concepts Cles
 
-* **Découplage Temporel & Spatial :** Utilisation d'un backbone événementiel (Kafka) pour relier les agents.
-* **AgentOps & Fiabilité :** Industrialisation des agents via des pipelines d'évaluation (Le Diamant de l'Évaluation).
-* **Gouvernance des Données :** Utilisation de *Schema Registry* pour garantir des contrats de données stricts.
+| Concept | Description | Phase |
+|---------|-------------|-------|
+| **Decouplage Temporel & Spatial** | Backbone evenementiel Kafka | Phase 1+ |
+| **AgentOps & Fiabilite** | Diamant de l'Evaluation (L1-L4) | Phase 3+ |
+| **Gouvernance des Donnees** | Schema Registry + Avro | Phase 4 |
+| **RAG (Retrieval-Augmented Generation)** | ChromaDB pour politiques de credit | Phase 2+ |
+| **AgentSec** | Protection contre prompt injection | Toutes |
 
 ---
 
-## 🏗️ Architecture du Système
+## Architecture du Systeme
 
-L'architecture repose sur trois piliers fondamentaux, inspirés par la biologie organisationnelle :
+L'architecture repose sur **trois piliers fondamentaux**, inspires par la biologie organisationnelle :
 
-### 1. Le Système Nerveux (Communication)
+### 1. Le Systeme Nerveux (Communication)
 
-Le cœur du système n'est pas l'IA, mais le flux de données.
+> Le coeur du systeme n'est pas l'IA, mais le flux de donnees.
 
-* **Technologie :** Apache Kafka (ou Confluent).
-* **Patterns :** Event Sourcing, CQRS, Transactional Outbox.
-* **Rôle :** Assure la persistance immuable des faits et la communication asynchrone entre agents.
+| Aspect | Detail |
+|--------|--------|
+| **Technologie** | Apache Kafka (KRaft mode) |
+| **Patterns** | Event Sourcing, CQRS |
+| **Role** | Persistance immuable, communication asynchrone |
+| **Topics** | 3 topics principaux (application, risk, decision) |
 
 ### 2. Le Cerveau (Cognition)
 
-Les agents sont des entités autonomes utilisant le pattern **ReAct** (Reason + Act), propulsés par la suite **Anthropic Claude**.
+Les agents sont des entites autonomes utilisant le pattern **ReAct** (Reason + Act), propulses par **Anthropic Claude**.
 
-* **Agent 1 (Intake) :** Réception et normalisation des demandes (Claude 3.5 Haiku).
-* **Agent 2 (Analyste Risque) :** RAG (Retrieval-Augmented Generation) sur base documentaire pour évaluer le risque (**Claude Opus 4.5**).
-* **Agent 3 (Décisionnel) :** Synthèse et exécution de l'action finale (Claude 3.5 Sonnet).
+| Agent | Role | Modele LLM | Temperature |
+|-------|------|------------|-------------|
+| **Intake** | Validation et normalisation | Claude 3.5 Haiku | 0.0 |
+| **Risk** | Analyse de risque + RAG | Claude Sonnet 4 / Opus 4.5 | 0.2 |
+| **Decision** | Decision finale | Claude 3.5 Sonnet | 0.1 |
 
-Le développement est assisté par **Claude Code** et l'auto-correction par **Auto Claude** (voir [07-Constitution.md](./07-Constitution.md)).
+### 3. Le Systeme Immunitaire (Securite & Gouvernance)
 
-### 3. Le Système Immunitaire (Sécurité & Gouvernance)
-
-* **AgentSec :** Validation des entrées/sorties pour prévenir les injections de prompt.
-* **Data Contracts :** Schémas Avro stricts pour valider la structure des événements avant publication.
+| Composant | Fonction |
+|-----------|----------|
+| **AgentSec** | Validation entrees/sorties, detection prompt injection |
+| **Data Contracts** | Schemas Avro stricts (Phase 4) |
+| **Zero Trust** | Agents communiquent uniquement via Kafka |
 
 ---
 
-## 📂 Structure du Répertoire
+## Progression des Phases
 
-```bash
-AgentMeshKafka/
-├── docs/                   # Documentation (ADRs, Specs, Threat Model)
-├── schemas/                # Contrats de données (fichiers .avsc Avro)
-├── src/
-│   ├── agents/             # Code source des agents (Python)
-│   │   ├── intake_agent/
-│   │   ├── risk_agent/
-│   │   └── decision_agent/
-│   └── shared/             # Utilitaires partagés (Kafka wrapper, Prompts)
-├── tests/
-│   ├── unit/               # Tests déterministes
-│   └── evaluation/         # Tests cognitifs (LLM-as-a-judge)
-├── docker-compose.yml      # Infrastructure locale (Zookeeper, Kafka, Schema Registry)
-└── README.md
+Le projet est organise en **5 phases progressives** :
 
+```
+Phase 0          Phase 1          Phase 2          Phase 3          Phase 4
+   MVP      →     Kafka      →      RAG       →     Tests     →   Production
+
+ Scripts        Events         Knowledge        Quality        Governance
+ simples       async          augmented        assurance      complete
+```
+
+| Phase | Complexite | Temps Setup | Infrastructure |
+|-------|------------|-------------|----------------|
+| **0** | * | < 5 min | Aucune |
+| **1** | ** | ~15 min | Kafka |
+| **2** | *** | ~20 min | Kafka + ChromaDB |
+| **3** | *** | ~10 min | Kafka + ChromaDB |
+| **4** | **** | ~30 min | Stack complete |
+
+**Pour demarrer :** Consultez [04-Setup.md](./04-Setup.md) ou [../QUICKSTART.md](../QUICKSTART.md).
+
+---
+
+## Scenario de Demonstration
+
+Le projet simule un processus de **Traitement de Demande de Pret Bancaire** :
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    FLUX DE TRAITEMENT                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. Demande JSON                                                 │
+│         │                                                        │
+│         ▼                                                        │
+│  ┌─────────────┐     finance.loan.application.v1                │
+│  │ INTAKE      │ ────────────────────────────────►              │
+│  │ Agent       │                                   │             │
+│  └─────────────┘                                   ▼             │
+│                                             ┌─────────────┐      │
+│                                             │    RISK     │      │
+│                  risk.scoring.result.v1     │    Agent    │      │
+│                  ◄──────────────────────────│  (+ RAG)    │      │
+│         │                                   └─────────────┘      │
+│         ▼                                                        │
+│  ┌─────────────┐                                                │
+│  │ DECISION    │     finance.loan.decision.v1                   │
+│  │ Agent       │ ────────────────────────────────►              │
+│  └─────────────┘                                                │
+│                                                                  │
+│  Resultat: APPROVED | REJECTED | MANUAL_REVIEW_REQUIRED         │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🚀 Scénario de Démonstration
+## Installation Rapide
 
-Le projet simule un processus de **Traitement de Demande de Prêt Bancaire** :
-
-1. Une demande JSON est déposée.
-2. **L'Agent Intake** valide la structure et publie un événement `LoanApplicationReceived`.
-3. **L'Agent Risque** consomme l'événement, consulte sa base de connaissances (politique de crédit), calcule un score et publie `RiskAssessmentCompleted`.
-4. **L'Agent Décision** analyse le score, prend une décision finale (Approuvé/Refusé) et publie `LoanDecisionFinalized`.
-
----
-
-## 🛠️ Installation et Démarrage
-
-### Prérequis
-
-* Docker & Docker Compose
-* Python 3.10+
-* Clé API Anthropic Claude (recommandé) ou OpenAI (voir [07-Constitution.md](./07-Constitution.md) pour la matrice des modèles)
-
-### 1. Lancer l'infrastructure (Système Nerveux)
+### Option A : Demarrage Ultra-Rapide (Phase 0)
 
 ```bash
-docker-compose up -d
-# Ceci démarre Kafka, Zookeeper et le Schema Registry
-
-```
-
-### 2. Initialiser l'environnement
-
-```bash
+cd phase0
 pip install -r requirements.txt
-cp .env.example .env
-# Configurez votre ANTHROPIC_API_KEY (ou OPENAI_API_KEY) dans le fichier .env
-
+# Creer .env avec ANTHROPIC_API_KEY
+python main.py
 ```
 
-### 3. Enregistrer les schémas
+**Temps :** < 5 minutes | **Prerequis :** Python 3.10+, cle API Anthropic
+
+### Option B : Version Evenementielle (Phase 1+)
 
 ```bash
-python scripts/register_schemas.py
-
+cd phase1  # ou phase2, phase3, phase4
+docker-compose up -d
+pip install -r requirements.txt
+python scripts/init_kafka.py
+# Lancer les agents dans des terminaux separes
 ```
 
-### 4. Lancer les Agents
-
-Dans des terminaux séparés :
-
-```bash
-# Terminal 1
-python src/agents/intake_agent/main.py
-
-# Terminal 2
-python src/agents/risk_agent/main.py
-
-# Terminal 3
-python src/agents/decision_agent/main.py
-
-```
+**Pour les details :** Consultez [04-Setup.md](./04-Setup.md).
 
 ---
 
-## 🧪 Stratégie d'Évaluation (AgentOps)
+## Strategie d'Evaluation (AgentOps)
 
-Nous appliquons le **Diamant de l'Évaluation Agentique** pour garantir la qualité :
+Le projet applique le **Diamant de l'Evaluation Agentique** :
 
-1. **Tests Unitaires :** Validation du code Python (connexion Kafka, parsing).
-2. **Évaluation Cognitive :** Utilisation d'un LLM-Juge pour vérifier que l'Agent Risque respecte bien la politique de crédit (Factualité).
-3. **Simulation :** Injection de 50 demandes variées pour observer le comportement global du maillage.
-
-Pour lancer la suite d'évaluation :
+| Niveau | Type | Description | Phase |
+|--------|------|-------------|-------|
+| **L1** | Unitaire | Tests Python deterministes | Phase 3+ |
+| **L2** | Cognitif | LLM-Juge (factualite, conformite) | Phase 3+ |
+| **L3** | Adversite | Prompt injection, red teaming | Phase 4 |
+| **L4** | Simulation | 50+ demandes variees | Phase 4 |
 
 ```bash
-pytest tests/evaluation/
-
+# Lancer les tests
+pytest tests/unit/ -v      # L1
+pytest tests/evaluation/ -v # L2
 ```
 
----
-
-## 🛡️ Sécurité (AgentSec)
-
-* Chaque agent possède une identité propre (Service Account simulé).
-* Les agents ne communiquent jamais directement entre eux (pas d'appels HTTP directs), uniquement via le Broker (Zero Trust Network).
-* Filtrage des inputs pour détecter les tentatives de *Jailbreak*.
+**Pour les details :** Consultez [04-EvaluationStrategie.md](./04-EvaluationStrategie.md).
 
 ---
 
-## 📚 Documentation Complète
+## Securite (AgentSec)
 
-Pour approfondir chaque aspect du projet, consultez :
+Le modele de securite est detaille dans [05-ThreatModel.md](./05-ThreatModel.md).
+
+**Principes cles :**
+
+1. **Zero Trust Network** : Agents communiquent uniquement via Kafka
+2. **Defense en profondeur** : 6 couches de validation
+3. **Delimiteurs XML** : Isolation des donnees utilisateur
+4. **Dead Letter Queue** : Quarantaine des messages invalides
+
+---
+
+## Documentation Complete
 
 | Document | Description |
-| --- | --- |
-| [01-ArchitectureDecisions.md](./01-ArchitectureDecisions.md) | Décisions architecturales (ADRs) justifiant Kafka, Avro, ReAct |
-| [02-DataContracts.md](./02-DataContracts.md) | Schémas Avro et topologie des Topics Kafka |
-| [03-AgentSpecs.md](./03-AgentSpecs.md) | Spécifications cognitives et System Prompts des agents |
-| [04-EvaluationStrategie.md](./04-EvaluationStrategie.md) | Stratégie de test AgentOps (Diamant de l'Évaluation) |
-| [05-ThreatModel.md](./05-ThreatModel.md) | Modèle de menaces et sécurité AgentSec |
-| [06-Plan.md](./06-Plan.md) | **Plan d'implémentation** - Feuille de route détaillée |
-| [07-Constitution.md](./07-Constitution.md) | **Constitution** - Standards et règles fondamentales |
+|----------|-------------|
+| [01-Architecture.md](./01-Architecture.md) | Resume des 3 ADRs cles |
+| [01-ArchitectureDecisions.md](./01-ArchitectureDecisions.md) | 7 ADRs detailles (Kafka, Avro, ReAct, Config, Modeles) |
+| [02-DataContracts.md](./02-DataContracts.md) | Schemas Avro et topologie Kafka |
+| [03-AgentSpecs.md](./03-AgentSpecs.md) | Specifications cognitives des agents |
+| [04-Setup.md](./04-Setup.md) | Guide d'installation par phase |
+| [04-EvaluationStrategie.md](./04-EvaluationStrategie.md) | Diamant de l'Evaluation |
+| [05-ThreatModel.md](./05-ThreatModel.md) | Modele de menaces STRIDE + AgentSec |
+| [06-Plan.md](./06-Plan.md) | Roadmap et plan d'implementation |
+| [07-Constitution.md](./07-Constitution.md) | Standards et regles fondamentales |
 
 ---
 
-## 👥 Auteurs et Références
+## Ressources Complementaires
 
-Projet réalisé dans le cadre académique sur l'architecture des systèmes agentiques.
+### Dans ce Repository
 
-* **Basé sur les travaux de :** André-Guy Bruneau (Architecture – Maillage Agentique et AgentOps).
-* **Stack IA :** Anthropic Claude (Opus 4.5, Sonnet, Haiku) + Claude Code + Auto Claude.
-* **Licence :** MIT.
+| Ressource | Description |
+|-----------|-------------|
+| [../README.md](../README.md) | Vue d'ensemble du projet |
+| [../QUICKSTART.md](../QUICKSTART.md) | Demarrage rapide Phase 0 |
+| [../PHASES.md](../PHASES.md) | Guide de progression entre phases |
+| [../notebooks/](../notebooks/) | Tutoriels Jupyter interactifs |
+| [../examples/](../examples/) | Scripts d'exemple progressifs |
+
+### Externes
+
+| Ressource | Lien |
+|-----------|------|
+| Documentation Anthropic | [docs.anthropic.com](https://docs.anthropic.com) |
+| Apache Kafka | [kafka.apache.org](https://kafka.apache.org) |
+| LangChain | [python.langchain.com](https://python.langchain.com) |
+| ChromaDB | [docs.trychroma.com](https://docs.trychroma.com) |
 
 ---
 
-## 📚 Navigation
+## Auteurs et References
 
-| 🏠 Ce document | ➡️ Suivant |
-|:---:|---:|
-| **Index de la documentation** | [01-ArchitectureDecisions.md](./01-ArchitectureDecisions.md) |
+Projet realise dans le cadre academique sur l'architecture des systemes agentiques.
+
+| Aspect | Detail |
+|--------|--------|
+| **Auteur** | Andre-Guy Bruneau |
+| **Sujet** | Architecture - Maillage Agentique et AgentOps |
+| **Stack IA** | Anthropic Claude (Opus 4.5, Sonnet, Haiku) |
+| **Outils** | Claude Code, LangChain, LangGraph |
+| **Licence** | MIT |
+
+---
+
+## Navigation
+
+| Ce document | Suivant |
+|:-----------:|--------:|
+| **Index de la documentation** | [01-Architecture.md](./01-Architecture.md) |
