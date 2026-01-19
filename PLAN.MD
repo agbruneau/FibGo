@@ -71,6 +71,23 @@ Crée également un fichier .gitignore approprié pour Go, Node.js et Docker.
 Le README.md doit contenir une brève description du projet et les prérequis (Docker Desktop, Go 1.21+, Node.js 20 LTS).
 
 Ne crée pas de code source Go ou React pour l'instant - uniquement la structure et les fichiers de configuration de base.
+
+Crée également un fichier `go.work` à la racine pour le workspace Go monorepo :
+```go
+go 1.21
+
+use (
+    ./pkg/config
+    ./pkg/kafka
+    ./pkg/database
+    ./pkg/events
+    ./pkg/observability
+    ./services/simulator
+    ./services/bancaire
+    ./services/gateway
+    ./tests/integration
+)
+```
 ```
 
 ---
@@ -198,8 +215,12 @@ make help            : Affiche l'aide
 
 Crée également scripts/create-topics.sh qui crée les topics Kafka initiaux :
 - bancaire.compte.ouvert
+- bancaire.compte.ferme
 - bancaire.depot.effectue
+- bancaire.retrait.effectue
 - bancaire.virement.emis
+- bancaire.virement.recu
+- bancaire.paiement-prime.effectue
 - system.dlq
 
 Teste toutes les commandes make pour vérifier qu'elles fonctionnent correctement.
@@ -1530,6 +1551,8 @@ Routes :
 - /api/v1/health        → Health check agrégé
 - /ws                   → WebSocket
 
+Middleware CORS à configurer pour autoriser les requêtes depuis web-ui (localhost:5173 en dev, configurable pour prod).
+
 Fichier : services/gateway/internal/proxy/service_proxy_test.go
 Tests TDD :
 1. TestForwardToSimulator_Success
@@ -2288,6 +2311,60 @@ Ajoute la target Makefile : make validate-mvp
 
 ---
 
+#### Sous-étape 8.1.3 : Tests de performance
+
+**Contexte :** Mesurer les performances et les limites du système.
+
+```text
+PROMPT CLAUDE CODE - Étape 8.1.3
+
+Crée des tests de performance pour mesurer les limites du système.
+
+Fichier : tests/e2e/performance_test.go
+Build tag : //go:build performance
+
+1. TestPerformance_Throughput :
+   - Démarre une simulation à rate=100 events/s
+   - Mesure le throughput réel atteint
+   - Vérifie que throughput >= 90% du rate demandé
+   - Mesure la latence moyenne de traitement
+   - Durée : 60 secondes
+
+2. TestPerformance_Latency :
+   - Produit 1000 événements
+   - Mesure le temps entre production et persistance en base
+   - Calcule P50, P95, P99 des latences
+   - Vérifie P99 < 500ms
+
+3. TestPerformance_Burst :
+   - Produit 1000 événements en burst (1s)
+   - Vérifie que tous sont traités dans les 30s suivantes
+   - Mesure le temps de récupération
+
+4. TestPerformance_Sustained :
+   - Simulation à rate=50 pendant 5 minutes
+   - Vérifie stabilité mémoire (pas de leak)
+   - Vérifie stabilité latence (pas de dégradation)
+
+Fichier : scripts/run-performance-tests.sh
+- Configure les limites de ressources
+- Exécute les tests de performance
+- Génère un rapport avec les métriques
+
+Fichier : infra/grafana/dashboards/performance.json
+Dashboard dédié aux tests de performance :
+- Throughput en temps réel
+- Latences (histogramme)
+- Utilisation mémoire/CPU
+- Consumer lag
+
+Ajoute les targets Makefile :
+- make test-performance : Exécute les tests de performance
+- make report-performance : Génère le rapport de performance
+```
+
+---
+
 ### Étape 8.2 : Documentation finale
 
 #### Sous-étape 8.2.1 : README et guides
@@ -2496,8 +2573,8 @@ consumer.Consume(ctx, handler.Route)
 | 5 - Gateway | 1 | 3 | API + WebSocket |
 | 6 - Observabilité | 2 | 5 | Monitoring |
 | 7 - Web UI | 3 | 7 | Interface |
-| 8 - Intégration | 2 | 5 | Validation |
-| **TOTAL** | **19** | **50** | **MVP complet** |
+| 8 - Intégration | 2 | 6 | Validation + Performance |
+| **TOTAL** | **19** | **51** | **MVP complet** |
 
 ---
 

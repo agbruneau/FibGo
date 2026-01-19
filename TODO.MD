@@ -21,8 +21,8 @@
 | 5 | Service Gateway | 0/3 |
 | 6 | Observabilité | 0/5 |
 | 7 | Web UI | 0/7 |
-| 8 | Intégration finale | 0/5 |
-| **TOTAL** | **MVP** | **0/50** |
+| 8 | Intégration finale | 0/6 |
+| **TOTAL** | **MVP** | **0/51** |
 
 ---
 
@@ -47,6 +47,7 @@
 - [ ] Créer `.gitignore` (Go, Node.js, Docker)
 - [ ] Créer `Makefile` (placeholder)
 - [ ] Créer `README.md` (description + prérequis)
+- [ ] Créer `go.work` pour le workspace Go monorepo
 - [ ] Valider la structure avec `tree` ou `ls -R`
 
 ### 0.1.2 : Docker Compose - Kafka KRaft
@@ -106,8 +107,12 @@
 - [ ] Target : `help`
 - [ ] Créer `scripts/create-topics.sh`
 - [ ] Créer topic `bancaire.compte.ouvert`
+- [ ] Créer topic `bancaire.compte.ferme`
 - [ ] Créer topic `bancaire.depot.effectue`
+- [ ] Créer topic `bancaire.retrait.effectue`
 - [ ] Créer topic `bancaire.virement.emis`
+- [ ] Créer topic `bancaire.virement.recu`
+- [ ] Créer topic `bancaire.paiement-prime.effectue`
 - [ ] Créer topic `system.dlq`
 - [ ] Tester `make infra-up`
 - [ ] Tester `make infra-down`
@@ -731,6 +736,7 @@
 - [ ] Route : /api/v1/bancaire/* → Bancaire
 - [ ] Route : /api/v1/health → Health check agrégé
 - [ ] Route : /ws → WebSocket
+- [ ] Configurer middleware CORS pour web-ui
 - [ ] Créer `services/gateway/internal/proxy/service_proxy_test.go`
 - [ ] Test : TestForwardToSimulator_Success
 - [ ] Test : TestForwardToBancaire_Success
@@ -1081,6 +1087,32 @@
 - [ ] Ajouter target Makefile : validate-mvp
 - [ ] Exécuter validation complète
 
+### 8.1.3 : Tests de performance
+- [ ] Créer `tests/e2e/performance_test.go`
+- [ ] Ajouter build tag //go:build performance
+- [ ] Implémenter TestPerformance_Throughput
+  - [ ] Simulation rate=100 events/s
+  - [ ] Mesurer throughput réel
+  - [ ] Vérifier throughput >= 90%
+  - [ ] Mesurer latence moyenne
+- [ ] Implémenter TestPerformance_Latency
+  - [ ] Produire 1000 événements
+  - [ ] Mesurer temps production → persistance
+  - [ ] Calculer P50, P95, P99
+  - [ ] Vérifier P99 < 500ms
+- [ ] Implémenter TestPerformance_Burst
+  - [ ] Produire 1000 événements en 1s
+  - [ ] Vérifier traitement dans 30s
+  - [ ] Mesurer temps de récupération
+- [ ] Implémenter TestPerformance_Sustained
+  - [ ] Simulation rate=50 pendant 5 min
+  - [ ] Vérifier stabilité mémoire
+  - [ ] Vérifier stabilité latence
+- [ ] Créer `scripts/run-performance-tests.sh`
+- [ ] Créer `infra/grafana/dashboards/performance.json`
+- [ ] Ajouter target Makefile : test-performance
+- [ ] Ajouter target Makefile : report-performance
+
 ## Étape 8.2 : Documentation finale
 
 ### 8.2.1 : README et guides
@@ -1152,6 +1184,7 @@
 - [ ] Tests unitaires passent
 - [ ] Tests d'intégration passent
 - [ ] Tests E2E passent
+- [ ] Tests de performance passent
 - [ ] Script validate-mvp.sh passe
 
 ## Documentation
@@ -1162,5 +1195,5 @@
 
 ---
 
-**Dernière mise à jour :** À remplir lors du suivi
-**Progression totale :** 0/50 sous-étapes (0%)
+**Dernière mise à jour :** 2026-01-19
+**Progression totale :** 0/51 sous-étapes (0%)

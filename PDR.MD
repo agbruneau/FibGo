@@ -201,11 +201,24 @@ Les trois domaines partagent des événements selon les flux suivants :
 
 **Pattern :** `<domaine>.<entite>.<action>`
 
+**Convention de correspondance Événement → Topic :**
+
+| Événement (PascalCase) | Topic (kebab-case) |
+|------------------------|-------------------|
+| `CompteOuvert` | `bancaire.compte.ouvert` |
+| `DepotEffectue` | `bancaire.depot.effectue` |
+| `PaiementPrimeEffectue` | `bancaire.paiement-prime.effectue` |
+
+**Règles :**
+- Les mots composés dans l'entité utilisent le tiret (`paiement-prime`)
+- L'action est toujours en minuscules (`ouvert`, `effectue`, `emis`)
+- Le domaine correspond au service émetteur
+
 ### 6.2 Catalogue des topics
 
 | Domaine | Topics |
 |---------|--------|
-| **Bancaire** | `bancaire.compte.ouvert`, `bancaire.compte.ferme`, `bancaire.depot.effectue`, `bancaire.retrait.effectue`, `bancaire.virement.emis`, `bancaire.virement.recu`, `bancaire.paiement.prime` |
+| **Bancaire** | `bancaire.compte.ouvert`, `bancaire.compte.ferme`, `bancaire.depot.effectue`, `bancaire.retrait.effectue`, `bancaire.virement.emis`, `bancaire.virement.recu`, `bancaire.paiement-prime.effectue` |
 | **Assurance Personne** | `assurance-personne.contrat.souscrit`, `assurance-personne.contrat.resilie`, `assurance-personne.beneficiaire.modifie`, `assurance-personne.prime.appelee`, `assurance-personne.prime.encaissee`, `assurance-personne.sinistre.depose`, `assurance-personne.indemnisation.emise` |
 | **Assurance Dommage** | `assurance-dommage.contrat-auto.souscrit`, `assurance-dommage.contrat-habitation.souscrit`, `assurance-dommage.contrat.resilie`, `assurance-dommage.sinistre-auto.depose`, `assurance-dommage.sinistre-habitation.depose`, `assurance-dommage.expertise.planifiee`, `assurance-dommage.indemnisation.emise` |
 | **Client 360** | `client.profil.cree`, `client.profil.mis-a-jour`, `client.vue-unifiee.generee` |
@@ -430,9 +443,64 @@ eda-lab/
 
 ---
 
-## 12. Documentation
+## 12. Gestion des erreurs et résilience
 
-### 12.1 Structure de la documentation
+### 12.1 Stratégie de retry
+
+| Composant | Stratégie | Configuration |
+|-----------|-----------|---------------|
+| **Producer Kafka** | Retry avec backoff exponentiel | max_retries=3, initial_backoff=100ms, max_backoff=10s |
+| **Consumer Kafka** | Retry avant DLQ | max_attempts=3, delay=1s |
+| **Appels HTTP** | Retry avec circuit breaker | max_retries=3, timeout=5s |
+| **Database** | Retry connexion | max_retries=5, backoff=2s |
+
+### 12.2 Dead Letter Queue (DLQ)
+
+| Élément | Configuration |
+|---------|---------------|
+| **Topic DLQ** | `system.dlq` |
+| **Format** | Message original + métadonnées d'erreur |
+| **Rétention** | 7 jours |
+| **Monitoring** | Alerte si > 10 messages/minute |
+
+**Structure message DLQ :**
+```json
+{
+  "original_topic": "bancaire.compte.ouvert",
+  "original_message": { ... },
+  "error": {
+    "type": "DESERIALIZATION_ERROR",
+    "message": "Invalid Avro schema",
+    "timestamp": "2024-01-01T00:00:00Z",
+    "attempt_count": 3
+  },
+  "metadata": {
+    "service": "bancaire",
+    "consumer_group": "bancaire-group"
+  }
+}
+```
+
+### 12.3 Idempotence
+
+| Événement | Clé d'idempotence | Stratégie |
+|-----------|-------------------|-----------|
+| CompteOuvert | `compte_id` | INSERT ... ON CONFLICT DO NOTHING |
+| DepotEffectue | `event_id` | Table de tracking des événements traités |
+| VirementEmis | `event_id` | Table de tracking des événements traités |
+
+### 12.4 Circuit Breaker
+
+| Service | Seuil ouverture | Timeout demi-ouvert | Seuil fermeture |
+|---------|-----------------|---------------------|-----------------|
+| Gateway → Simulator | 5 erreurs/30s | 30s | 3 succès consécutifs |
+| Gateway → Bancaire | 5 erreurs/30s | 30s | 3 succès consécutifs |
+
+---
+
+## 13. Documentation
+
+### 13.1 Structure de la documentation
 
 | Document | Contenu |
 |----------|---------|
@@ -443,7 +511,7 @@ eda-lab/
 | `adr/*.md` | Architecture Decision Records |
 | `scenarios/*.md` | Documentation des scénarios |
 
-### 12.2 Architecture Decision Records (ADR)
+### 13.2 Architecture Decision Records (ADR)
 
 | ADR | Décision |
 |-----|----------|
@@ -456,9 +524,9 @@ eda-lab/
 
 ---
 
-## 13. Environnement d'exécution
+## 14. Environnement d'exécution
 
-### 13.1 Prérequis
+### 14.1 Prérequis
 
 | Élément | Version minimale |
 |---------|------------------|
@@ -468,7 +536,7 @@ eda-lab/
 | **Go** | 1.21+ |
 | **Node.js** | 20 LTS |
 
-### 13.2 Ressources recommandées
+### 14.2 Ressources recommandées
 
 | Ressource | Minimum | Recommandé |
 |-----------|---------|------------|
@@ -478,9 +546,9 @@ eda-lab/
 
 ---
 
-## 14. Roadmap des itérations
+## 15. Roadmap des itérations
 
-### 14.1 MVP (Itération 1)
+### 15.1 MVP (Itération 1)
 
 | Composant | Statut |
 |-----------|--------|
@@ -489,11 +557,12 @@ eda-lab/
 | Service Simulator | ✅ Inclus |
 | Infrastructure Kafka + Schema Registry | ✅ Inclus |
 | Observabilité de base (Prometheus + Grafana) | ✅ Inclus |
+| _Note: Jaeger et Loki prévus pour Itération 2_ | |
 | Web UI minimale (Start/Stop + React Flow) | ✅ Inclus |
 | Tests unitaires + intégration | ✅ Inclus |
 | Documentation de base | ✅ Inclus |
 
-### 14.2 Itération 2
+### 15.2 Itération 2
 
 | Composant | Statut |
 |-----------|--------|
@@ -502,7 +571,7 @@ eda-lab/
 | Jaeger (traçage distribué) | 🔜 Planifié |
 | Loki (logs centralisés) | 🔜 Planifié |
 
-### 14.3 Itération 3
+### 15.3 Itération 3
 
 | Composant | Statut |
 |-----------|--------|
@@ -510,7 +579,7 @@ eda-lab/
 | Client 360 | 🔜 Planifié |
 | Chaos Engineering | 🔜 Planifié |
 
-### 14.4 Itérations suivantes
+### 15.4 Itérations suivantes
 
 | Composant | Statut |
 |-----------|--------|
@@ -522,7 +591,7 @@ eda-lab/
 
 ---
 
-## 15. Glossaire
+## 16. Glossaire
 
 | Terme | Définition |
 |-------|------------|
@@ -538,7 +607,7 @@ eda-lab/
 
 ---
 
-## 16. Références
+## 17. Références
 
 - [Apache Kafka Documentation](https://kafka.apache.org/documentation/)
 - [Confluent Platform](https://docs.confluent.io/)

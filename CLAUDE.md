@@ -9,8 +9,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Tech Stack (Planned)
 
 - **Backend**: Go
-- **Message Broker**: Confluent Platform Community (KRaft mode) with Schema Registry
-- **Serialization**: Apache Avro
+- **Message Broker**: Confluent Platform Community (KRaft mode)
+- **Schema Registry**: Confluent Schema Registry
+- **Serialization**: Apache Avro (with Schema Registry for governance)
 - **Database**: PostgreSQL
 - **Frontend**: React + React Flow
 - **Observability**: Prometheus, Grafana, Jaeger, Loki
@@ -57,4 +58,13 @@ npm test
 ## Iterative Development
 
 MVP (Iteration 1) focuses on: Pub/Sub pattern, Bancaire domain only, basic observability, minimal Web UI.
-Subsequent iterations add: Event Sourcing, CQRS, Sagas, Chaos Engineering (see PDR.MD section 14).
+Subsequent iterations add: Event Sourcing, CQRS, Sagas, Chaos Engineering (see PDR.MD section 15).
+
+## Project Documentation
+
+| File | Description |
+|------|-------------|
+| `PDR.MD` | Product Definition Record - Complete specifications |
+| `PLAN.MD` | Implementation plan with 51 sub-steps |
+| `TODO.MD` | Detailed task checklist |
+| `CHANGELOG.MD` | Project changelog |
