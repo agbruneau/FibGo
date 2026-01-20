@@ -2575,20 +2575,43 @@ consumer.Consume(ctx, handler.Route)
 
 ---
 
-## Résumé du plan
+## Résumé et suivi de progression
 
-| Phase | Étapes | Sous-étapes | Estimation |
-|-------|--------|-------------|------------|
-| 0 - Infrastructure | 2 | 6 | Fondation |
-| 1 - Fondations Go | 4 | 9 | Core libraries |
-| 2 - Schémas Avro | 1 | 3 | Data contracts |
-| 3 - Simulator | 2 | 6 | Event generation |
-| 4 - Bancaire | 2 | 6 | Event processing |
-| 5 - Gateway | 1 | 3 | API + WebSocket |
-| 6 - Observabilité | 2 | 5 | Monitoring |
-| 7 - Web UI | 3 | 7 | Interface |
-| 8 - Intégration | 2 | 6 | Validation + Performance |
-| **TOTAL** | **19** | **51** | **MVP complet** |
+### Tableau de progression
+
+| Phase | Nom | Sous-étapes | Code | Tests | Statut |
+|-------|-----|-------------|------|-------|--------|
+| 0 | Infrastructure | 6 | ✓ | ⏳ | À valider |
+| 1 | Fondations Go | 9 | ⏳ | ❌ | En cours |
+| 2 | Schémas Avro | 3 | ✓ | ⏳ | À valider |
+| 3 | Simulator | 6 | ✓ | ⏳ | À valider |
+| 4 | Bancaire | 6 | ✓ | ⏳ | À valider |
+| 5 | Gateway | 3 | ✓ | ⏳ | À valider |
+| 6 | Observabilité | 5 | ✓ | ⏳ | À valider |
+| 7 | Web UI | 7 | ✓ | ⏳ | À valider |
+| 8 | Intégration | 6 | ✓ | ⏳ | À valider |
+| **TOTAL** | **MVP** | **51** | **~90%** | **~10%** | **À valider** |
+
+### Légende
+- ✓ = Complété
+- ⏳ = En attente de validation
+- ❌ = Non commencé
+- 🔄 = En cours
+
+### Checklist de validation MVP
+
+```bash
+# Exécuter ces commandes pour valider le MVP:
+make infra-up           # 1. Démarrer infrastructure  [ ]
+make test-infra         # 2. Valider infrastructure   [ ]
+make test-unit          # 3. Tests unitaires          [ ]
+make test-integration   # 4. Tests d'intégration      [ ]
+make services-up        # 5. Démarrer services        [ ]
+./scripts/validate-mvp.sh  # 6. Validation complète   [ ]
+```
+
+### Prochaine étape à implémenter
+> **Phase 1 - Fondations Go** : Compléter les packages partagés (pkg/config, pkg/kafka, pkg/database, pkg/observability)
 
 ---
 
@@ -2600,3 +2623,7 @@ consumer.Consume(ctx, handler.Route)
 4. **Pas de mocks** : Sauf pour les tests unitaires isolés
 5. **Intégration continue** : Chaque sous-étape produit du code fonctionnel
 6. **Validation** : Exécuter les tests après chaque sous-étape
+
+---
+
+**Dernière mise à jour :** 2026-01-20

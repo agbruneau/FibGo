@@ -120,8 +120,7 @@ To implement a new iteration: `Implémente l'Itération [N] du projet EDA-Lab se
 | File | Purpose |
 |------|---------|
 | `PDR.MD` | Product Definition Record - Itérations (EDA patterns) specifications |
-| `PLAN.MD` | Implementation plan - Phases techniques (0-8) for MVP construction |
-| `TODO.MD` | Task checklist with progress tracking (follows PLAN.MD phases) |
+| `PLAN.MD` | Implementation plan - Phases techniques (0-8) with progress tracking |
 | `AGENT.MD` | Agent instructions for implementing iterations |
 | `docs/ARCHITECTURE.md` | C4 diagrams and technical architecture |
 | `docs/adr/` | Architecture Decision Records |
