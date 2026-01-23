@@ -3,13 +3,16 @@ package app
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/agbru/fibcalc/internal/calibration"
 	"github.com/agbru/fibcalc/internal/cli"
 	"github.com/agbru/fibcalc/internal/config"
 	apperrors "github.com/agbru/fibcalc/internal/errors"
@@ -791,10 +794,37 @@ func TestRunAutoCalibrationIfEnabled(t *testing.T) {
 		var outBuf bytes.Buffer
 		factory := createMockFactory(big.NewInt(55), nil)
 
+		// Create a temporary calibration profile with known values
+		// This ensures predictable results since mock calculators don't produce
+		// meaningful timing measurements for the micro-benchmark calibration
+		tmpDir := t.TempDir()
+		profilePath := tmpDir + "/calibration.json"
+
+		// Create a valid profile that matches current hardware
+		wordSize := 32 << (^uint(0) >> 63)
+		profile := calibration.CalibrationProfile{
+			ProfileVersion:           2, // CurrentProfileVersion
+			NumCPU:                   runtime.NumCPU(),
+			GOARCH:                   runtime.GOARCH,
+			WordSize:                 wordSize,
+			OptimalParallelThreshold: 8192,
+			OptimalFFTThreshold:      600000,
+			OptimalStrassenThreshold: 4096,
+			CalibratedAt:             time.Now(),
+		}
+		profileData, err := json.Marshal(profile)
+		if err != nil {
+			t.Fatalf("Failed to marshal profile: %v", err)
+		}
+		if err := os.WriteFile(profilePath, profileData, 0o644); err != nil {
+			t.Fatalf("Failed to create test profile: %v", err)
+		}
+
 		originalCfg := config.AppConfig{
-			AutoCalibrate: true,
-			Timeout:       5 * time.Second,
-			Threshold:     4096,
+			AutoCalibrate:      true,
+			Timeout:            5 * time.Second,
+			Threshold:          4096,
+			CalibrationProfile: profilePath,
 		}
 
 		app := &Application{
@@ -808,9 +838,12 @@ func TestRunAutoCalibrationIfEnabled(t *testing.T) {
 
 		updatedCfg := app.runAutoCalibrationIfEnabled(ctx, &outBuf)
 
-		// Config should be updated if calibration succeeded
-		if updatedCfg.Threshold == 0 {
-			t.Error("Threshold should be set after calibration")
+		// Config should be updated with the cached profile values
+		if updatedCfg.Threshold != 8192 {
+			t.Errorf("Expected Threshold=8192 from cached profile, got %d", updatedCfg.Threshold)
+		}
+		if updatedCfg.FFTThreshold != 600000 {
+			t.Errorf("Expected FFTThreshold=600000 from cached profile, got %d", updatedCfg.FFTThreshold)
 		}
 	})
 
