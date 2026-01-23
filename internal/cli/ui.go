@@ -256,6 +256,77 @@ func DisplayProgress(wg *sync.WaitGroup, progressChan <-chan fibonacci.ProgressU
 	}
 }
 
+// displayResultHeader prints the binary size of the result.
+//
+// Parameters:
+//   - out: The io.Writer for the output.
+//   - bitLen: The number of bits in the result.
+func displayResultHeader(out io.Writer, bitLen int) {
+	fmt.Fprintf(out, "Result binary size: %s%s%s bits.\n",
+		ui.ColorCyan(), formatNumberString(fmt.Sprintf("%d", bitLen)), ui.ColorReset())
+}
+
+// displayDetailedAnalysis prints detailed execution metrics including
+// calculation time, number of digits, and scientific notation for large numbers.
+//
+// Parameters:
+//   - out: The io.Writer for the output.
+//   - result: The calculation result.
+//   - duration: The time taken for the calculation.
+func displayDetailedAnalysis(out io.Writer, result *big.Int, duration time.Duration) {
+	fmt.Fprintf(out, "\n%s--- Detailed result analysis ---%s\n", ui.ColorBold(), ui.ColorReset())
+
+	durationStr := FormatExecutionDuration(duration)
+	if duration == 0 {
+		durationStr = "< 1µs"
+	}
+	fmt.Fprintf(out, "Calculation time        : %s%s%s\n", ui.ColorGreen(), durationStr, ui.ColorReset())
+
+	resultStr := result.String()
+	numDigits := len(resultStr)
+	fmt.Fprintf(out, "Number of digits      : %s%s%s\n",
+		ui.ColorCyan(), formatNumberString(fmt.Sprintf("%d", numDigits)), ui.ColorReset())
+
+	if numDigits > 6 {
+		f := new(big.Float).SetInt(result)
+		fmt.Fprintf(out, "Scientific notation    : %s%.6e%s\n", ui.ColorCyan(), f, ui.ColorReset())
+	}
+}
+
+// displayCalculatedValue prints the Fibonacci value, truncating if necessary.
+//
+// Parameters:
+//   - out: The io.Writer for the output.
+//   - result: The calculation result.
+//   - n: The index of the Fibonacci number calculated.
+//   - verbose: If true, prints the full number regardless of size.
+func displayCalculatedValue(out io.Writer, result *big.Int, n uint64, verbose bool) {
+	resultStr := result.String()
+	numDigits := len(resultStr)
+
+	fmt.Fprintf(out, "\n%s--- Calculated value ---%s\n", ui.ColorBold(), ui.ColorReset())
+
+	if verbose {
+		fmt.Fprintf(out, "F(%s%d%s) =\n%s%s%s\n",
+			ui.ColorMagenta(), n, ui.ColorReset(),
+			ui.ColorGreen(), formatNumberString(resultStr), ui.ColorReset())
+		return
+	}
+
+	if numDigits > TruncationLimit {
+		fmt.Fprintf(out, "F(%s%d%s) (truncated) = %s%s...%s%s\n",
+			ui.ColorMagenta(), n, ui.ColorReset(),
+			ui.ColorGreen(), resultStr[:DisplayEdges], resultStr[numDigits-DisplayEdges:], ui.ColorReset())
+		fmt.Fprintf(out, "(Tip: use the %s-v%s or %s--verbose%s option to display the full value)\n",
+			ui.ColorYellow(), ui.ColorReset(), ui.ColorYellow(), ui.ColorReset())
+		return
+	}
+
+	fmt.Fprintf(out, "F(%s%d%s) = %s%s%s\n",
+		ui.ColorMagenta(), n, ui.ColorReset(),
+		ui.ColorGreen(), formatNumberString(resultStr), ui.ColorReset())
+}
+
 // DisplayResult formats and prints the final calculation result.
 // It provides different levels of detail based on the verbose and details flags,
 // including metadata like binary size, number of digits, and scientific
@@ -271,45 +342,14 @@ func DisplayProgress(wg *sync.WaitGroup, progressChan <-chan fibonacci.ProgressU
 //   - concise: If true, displays the calculated value section (disabled by default).
 //   - out: The io.Writer for the output.
 func DisplayResult(result *big.Int, n uint64, duration time.Duration, verbose, details, concise bool, out io.Writer) {
-	bitLen := result.BitLen()
-	fmt.Fprintf(out, "Result binary size: %s%s%s bits.\n", ui.ColorCyan(), formatNumberString(fmt.Sprintf("%d", bitLen)), ui.ColorReset())
+	displayResultHeader(out, result.BitLen())
 
 	if details {
-		fmt.Fprintf(out, "\n%s--- Detailed result analysis ---%s\n", ui.ColorBold(), ui.ColorReset())
-		durationStr := FormatExecutionDuration(duration)
-		if duration == 0 {
-			durationStr = "< 1µs"
-		}
-		fmt.Fprintf(out, "Calculation time        : %s%s%s\n", ui.ColorGreen(), durationStr, ui.ColorReset())
-
-		resultStr := result.String()
-		numDigits := len(resultStr)
-		fmt.Fprintf(out, "Number of digits      : %s%s%s\n", ui.ColorCyan(), formatNumberString(fmt.Sprintf("%d", numDigits)), ui.ColorReset())
-
-		if numDigits > 6 {
-			f := new(big.Float).SetInt(result)
-			fmt.Fprintf(out, "Scientific notation    : %s%.6e%s\n", ui.ColorCyan(), f, ui.ColorReset())
-		}
+		displayDetailedAnalysis(out, result, duration)
 	}
 
-	// Skip calculated value display unless -c/--calculate flag is set
-	if !concise {
-		return
-	}
-
-	resultStr := result.String()
-	numDigits := len(resultStr)
-
-	fmt.Fprintf(out, "\n%s--- Calculated value ---%s\n", ui.ColorBold(), ui.ColorReset())
-	if verbose {
-		fmt.Fprintf(out, "F(%s%d%s) =\n%s%s%s\n", ui.ColorMagenta(), n, ui.ColorReset(), ui.ColorGreen(), formatNumberString(resultStr), ui.ColorReset())
-	} else if numDigits > TruncationLimit {
-		fmt.Fprintf(out, "F(%s%d%s) (truncated) = %s%s...%s%s\n",
-			ui.ColorMagenta(), n, ui.ColorReset(),
-			ui.ColorGreen(), resultStr[:DisplayEdges], resultStr[numDigits-DisplayEdges:], ui.ColorReset())
-		fmt.Fprintf(out, "(Tip: use the %s-v%s or %s--verbose%s option to display the full value)\n", ui.ColorYellow(), ui.ColorReset(), ui.ColorYellow(), ui.ColorReset())
-	} else {
-		fmt.Fprintf(out, "F(%s%d%s) = %s%s%s\n", ui.ColorMagenta(), n, ui.ColorReset(), ui.ColorGreen(), formatNumberString(resultStr), ui.ColorReset())
+	if concise {
+		displayCalculatedValue(out, result, n, verbose)
 	}
 }
 
@@ -322,7 +362,7 @@ func DisplayResult(result *big.Int, n uint64, duration time.Duration, verbose, d
 // Returns:
 //   - string: The formatted string with comma separators.
 func formatNumberString(s string) string {
-	if len(s) == 0 {
+	if s == "" {
 		return ""
 	}
 	prefix := ""

@@ -48,18 +48,21 @@ Ce plan couvre la refactorisation et l'optimisation du dépôt FibCalc, un calcu
 
 ---
 
-## Phase 3: Réduction de la Complexité Cyclomatique (Risque: MOYEN)
+## Phase 3: Réduction de la Complexité Cyclomatique (Risque: MOYEN) ✅ COMPLÉTÉE
 
-### 3.1 Refactoriser `DisplayResult` dans `cli/ui.go` (CC≈6-7)
-**Fichier**: `internal/cli/ui.go` (lignes 304-345)
-- Extraire `displayResultHeader()`
-- Extraire `displayDetailedAnalysis()`
-- Extraire `displayCalculatedValue()`
+### 3.1 Refactoriser `DisplayResult` dans `cli/ui.go` (CC≈6-7) ✅
+**Fichier**: `internal/cli/ui.go`
+- ✅ Extrait `displayResultHeader()` - affiche la taille binaire
+- ✅ Extrait `displayDetailedAnalysis()` - affiche les métriques détaillées
+- ✅ Extrait `displayCalculatedValue()` - affiche la valeur calculée
+- ✅ Refactorisé `DisplayResult()` pour utiliser les nouvelles fonctions
+- ✅ Corrigé `emptyStringTest` dans `formatNumberString()`
 
-### 3.2 Considérer registre de commandes pour `processCommand` (CC≈10-12)
+### 3.2 Considérer registre de commandes pour `processCommand` (CC≈10-12) - DIFFÉRÉ
 **Fichier**: `internal/cli/repl.go` (lignes 144-184)
 - Option: Convertir switch en `map[string]commandHandler`
-- Priorité basse - structure actuelle acceptable
+- **Décision**: Structure actuelle conservée - le switch est clair et lisible
+- Une refactorisation ajouterait de la complexité pour un gain minimal
 
 ---
 
@@ -111,17 +114,17 @@ Ce plan couvre la refactorisation et l'optimisation du dépôt FibCalc, un calcu
 
 ## Fichiers Critiques à Modifier
 
-| Phase | Fichier | Changement |
-|-------|---------|------------|
-| 1 | `internal/logging/logger_test.go` | CRÉER |
-| 1 | `internal/server/security_test.go` | CRÉER |
-| 1 | `internal/server/metrics_test.go` | CRÉER |
-| 2 | `internal/cli/ui.go` | Supprimer lignes 59-84 |
-| 2 | `internal/cli/repl.go` | Extraire runWithProgress |
-| 2 | `internal/fibonacci/fastdoubling.go` | Supprimer lignes 264-280 |
-| 3 | `internal/cli/ui.go` | Refactoriser DisplayResult |
-| 4 | `internal/bigfft/pool.go` | Utiliser clear() |
-| 4 | `internal/fibonacci/common.go` | Ajouter taskSemaphore |
+| Phase | Fichier | Changement | Statut |
+|-------|---------|------------|--------|
+| 1 | `internal/logging/logger_test.go` | CRÉER | ✅ |
+| 1 | `internal/server/security_test.go` | CRÉER | ✅ |
+| 1 | `internal/server/metrics_test.go` | CRÉER | ✅ |
+| 2 | `internal/cli/ui.go` | Supprimer lignes 59-84 | ✅ |
+| 2 | `internal/cli/repl.go` | Extraire runWithProgress | ✅ |
+| 2 | `internal/fibonacci/fastdoubling.go` | Supprimer lignes 264-280 | ✅ |
+| 3 | `internal/cli/ui.go` | Refactoriser DisplayResult | ✅ |
+| 4 | `internal/bigfft/pool.go` | Utiliser clear() | ⏳ |
+| 4 | `internal/fibonacci/common.go` | Ajouter taskSemaphore | ⏳ |
 
 ---
 
@@ -157,9 +160,9 @@ go run ./cmd/fibcalc --interactive
 ## Ordre d'Implémentation
 
 ```
-Phase 1 (Tests)
-    → Phase 2 (Déduplication)
-        → Phase 3 (Complexité)
+Phase 1 (Tests) ✅
+    → Phase 2 (Déduplication) ✅
+        → Phase 3 (Complexité) ✅
             → Phase 4 (Performance)
                 → Phase 5 (Nommage)
 ```
