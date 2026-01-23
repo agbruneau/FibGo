@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/agbru/fibcalc/internal/fibonacci"
+	"github.com/agbru/fibcalc/internal/ui"
 )
 
 // REPLConfig holds configuration for the REPL session.
@@ -88,7 +89,7 @@ func (r *REPL) Start() {
 	reader := bufio.NewReader(r.in)
 
 	for {
-		fmt.Fprint(r.out, ColorGreen()+"fib> "+ColorReset())
+		fmt.Fprint(r.out, ui.ColorGreen()+"fib> "+ui.ColorReset())
 
 		input, err := reader.ReadString('\n')
 		if err != nil {
@@ -96,7 +97,7 @@ func (r *REPL) Start() {
 				fmt.Fprintln(r.out, "\nGoodbye!")
 				return
 			}
-			fmt.Fprintf(r.out, "%sRead error: %v%s\n", ColorRed(), err, ColorReset())
+			fmt.Fprintf(r.out, "%sRead error: %v%s\n", ui.ColorRed(), err, ui.ColorReset())
 			continue
 		}
 
@@ -113,23 +114,23 @@ func (r *REPL) Start() {
 
 // printBanner displays the REPL welcome banner.
 func (r *REPL) printBanner() {
-	fmt.Fprintf(r.out, "\n%s╔══════════════════════════════════════════════════════════╗%s\n", ColorCyan(), ColorReset())
+	fmt.Fprintf(r.out, "\n%s╔══════════════════════════════════════════════════════════╗%s\n", ui.ColorCyan(), ui.ColorReset())
 	fmt.Fprintf(r.out, "%s║%s     %s🔢 Fibonacci Calculator - Interactive Mode%s            %s║%s\n",
-		ColorCyan(), ColorReset(), ColorBold(), ColorReset(), ColorCyan(), ColorReset())
-	fmt.Fprintf(r.out, "%s╚══════════════════════════════════════════════════════════╝%s\n\n", ColorCyan(), ColorReset())
+		ui.ColorCyan(), ui.ColorReset(), ui.ColorBold(), ui.ColorReset(), ui.ColorCyan(), ui.ColorReset())
+	fmt.Fprintf(r.out, "%s╚══════════════════════════════════════════════════════════╝%s\n\n", ui.ColorCyan(), ui.ColorReset())
 }
 
 // printHelp displays available commands.
 func (r *REPL) printHelp() {
-	fmt.Fprintf(r.out, "%sAvailable commands:%s\n", ColorBold(), ColorReset())
-	fmt.Fprintf(r.out, "  %scalc <n>%s      - Calculate F(n) with current algorithm\n", ColorYellow(), ColorReset())
-	fmt.Fprintf(r.out, "  %salgo <name>%s   - Change algorithm (%s)\n", ColorYellow(), ColorReset(), r.getAlgoList())
-	fmt.Fprintf(r.out, "  %scompare <n>%s   - Compare all algorithms for F(n)\n", ColorYellow(), ColorReset())
-	fmt.Fprintf(r.out, "  %slist%s          - List available algorithms\n", ColorYellow(), ColorReset())
-	fmt.Fprintf(r.out, "  %shex%s           - Toggle hexadecimal display\n", ColorYellow(), ColorReset())
-	fmt.Fprintf(r.out, "  %sstatus%s        - Display current configuration\n", ColorYellow(), ColorReset())
-	fmt.Fprintf(r.out, "  %shelp%s          - Display this help\n", ColorYellow(), ColorReset())
-	fmt.Fprintf(r.out, "  %sexit%s / %squit%s  - Exit interactive mode\n", ColorYellow(), ColorReset(), ColorYellow(), ColorReset())
+	fmt.Fprintf(r.out, "%sAvailable commands:%s\n", ui.ColorBold(), ui.ColorReset())
+	fmt.Fprintf(r.out, "  %scalc <n>%s      - Calculate F(n) with current algorithm\n", ui.ColorYellow(), ui.ColorReset())
+	fmt.Fprintf(r.out, "  %salgo <name>%s   - Change algorithm (%s)\n", ui.ColorYellow(), ui.ColorReset(), r.getAlgoList())
+	fmt.Fprintf(r.out, "  %scompare <n>%s   - Compare all algorithms for F(n)\n", ui.ColorYellow(), ui.ColorReset())
+	fmt.Fprintf(r.out, "  %slist%s          - List available algorithms\n", ui.ColorYellow(), ui.ColorReset())
+	fmt.Fprintf(r.out, "  %shex%s           - Toggle hexadecimal display\n", ui.ColorYellow(), ui.ColorReset())
+	fmt.Fprintf(r.out, "  %sstatus%s        - Display current configuration\n", ui.ColorYellow(), ui.ColorReset())
+	fmt.Fprintf(r.out, "  %shelp%s          - Display this help\n", ui.ColorYellow(), ui.ColorReset())
+	fmt.Fprintf(r.out, "  %sexit%s / %squit%s  - Exit interactive mode\n", ui.ColorYellow(), ui.ColorReset(), ui.ColorYellow(), ui.ColorReset())
 }
 
 // getAlgoList returns a comma-separated list of available algorithms.
@@ -168,15 +169,15 @@ func (r *REPL) processCommand(input string) bool {
 	case "help", "h", "?":
 		r.printHelp()
 	case "exit", "quit", "q":
-		fmt.Fprintf(r.out, "%sGoodbye!%s\n", ColorGreen(), ColorReset())
+		fmt.Fprintf(r.out, "%sGoodbye!%s\n", ui.ColorGreen(), ui.ColorReset())
 		return false
 	default:
 		// Try to interpret as a number for quick calculation
 		if n, err := strconv.ParseUint(cmd, 10, 64); err == nil {
 			r.calculate(n)
 		} else {
-			fmt.Fprintf(r.out, "%sUnknown command: %s%s\n", ColorRed(), cmd, ColorReset())
-			fmt.Fprintf(r.out, "Type %shelp%s to see available commands.\n", ColorYellow(), ColorReset())
+			fmt.Fprintf(r.out, "%sUnknown command: %s%s\n", ui.ColorRed(), cmd, ui.ColorReset())
+			fmt.Fprintf(r.out, "Type %shelp%s to see available commands.\n", ui.ColorYellow(), ui.ColorReset())
 		}
 	}
 
@@ -186,13 +187,13 @@ func (r *REPL) processCommand(input string) bool {
 // cmdCalc handles the "calc" command.
 func (r *REPL) cmdCalc(args []string) {
 	if len(args) == 0 {
-		fmt.Fprintf(r.out, "%sUsage: calc <n>%s\n", ColorRed(), ColorReset())
+		fmt.Fprintf(r.out, "%sUsage: calc <n>%s\n", ui.ColorRed(), ui.ColorReset())
 		return
 	}
 
 	n, err := strconv.ParseUint(args[0], 10, 64)
 	if err != nil {
-		fmt.Fprintf(r.out, "%sInvalid value: %s%s\n", ColorRed(), args[0], ColorReset())
+		fmt.Fprintf(r.out, "%sInvalid value: %s%s\n", ui.ColorRed(), args[0], ui.ColorReset())
 		return
 	}
 
@@ -203,7 +204,7 @@ func (r *REPL) cmdCalc(args []string) {
 func (r *REPL) calculate(n uint64) {
 	calc, ok := r.registry[r.currentAlgo]
 	if !ok {
-		fmt.Fprintf(r.out, "%sAlgorithm not found: %s%s\n", ColorRed(), r.currentAlgo, ColorReset())
+		fmt.Fprintf(r.out, "%sAlgorithm not found: %s%s\n", ui.ColorRed(), r.currentAlgo, ui.ColorReset())
 		return
 	}
 
@@ -211,8 +212,8 @@ func (r *REPL) calculate(n uint64) {
 	defer cancel()
 
 	fmt.Fprintf(r.out, "Calculating F(%s%d%s) with %s%s%s...\n",
-		ColorMagenta(), n, ColorReset(),
-		ColorCyan(), calc.Name(), ColorReset())
+		ui.ColorMagenta(), n, ui.ColorReset(),
+		ui.ColorCyan(), calc.Name(), ui.ColorReset())
 
 	opts := fibonacci.Options{
 		ParallelThreshold: r.config.Threshold,
@@ -234,7 +235,7 @@ func (r *REPL) calculate(n uint64) {
 	wg.Wait()
 
 	if err != nil {
-		fmt.Fprintf(r.out, "%sError: %v%s\n", ColorRed(), err, ColorReset())
+		fmt.Fprintf(r.out, "%sError: %v%s\n", ui.ColorRed(), err, ui.ColorReset())
 		return
 	}
 
@@ -242,21 +243,21 @@ func (r *REPL) calculate(n uint64) {
 	durationStr := FormatExecutionDuration(duration)
 
 	// Display result
-	fmt.Fprintf(r.out, "\n%sResult:%s\n", ColorBold(), ColorReset())
-	fmt.Fprintf(r.out, "  Time: %s%s%s\n", ColorGreen(), durationStr, ColorReset())
-	fmt.Fprintf(r.out, "  Bits:  %s%d%s\n", ColorCyan(), result.BitLen(), ColorReset())
+	fmt.Fprintf(r.out, "\n%sResult:%s\n", ui.ColorBold(), ui.ColorReset())
+	fmt.Fprintf(r.out, "  Time: %s%s%s\n", ui.ColorGreen(), durationStr, ui.ColorReset())
+	fmt.Fprintf(r.out, "  Bits:  %s%d%s\n", ui.ColorCyan(), result.BitLen(), ui.ColorReset())
 
 	resultStr := result.String()
 	numDigits := len(resultStr)
-	fmt.Fprintf(r.out, "  Digits: %s%d%s\n", ColorCyan(), numDigits, ColorReset())
+	fmt.Fprintf(r.out, "  Digits: %s%d%s\n", ui.ColorCyan(), numDigits, ui.ColorReset())
 
 	if r.config.HexOutput {
-		fmt.Fprintf(r.out, "  F(%d) = %s0x%s%s\n", n, ColorGreen(), result.Text(16), ColorReset())
+		fmt.Fprintf(r.out, "  F(%d) = %s0x%s%s\n", n, ui.ColorGreen(), result.Text(16), ui.ColorReset())
 	} else if numDigits > TruncationLimit {
 		fmt.Fprintf(r.out, "  F(%d) = %s%s...%s%s (truncated)\n",
-			n, ColorGreen(), resultStr[:DisplayEdges], resultStr[numDigits-DisplayEdges:], ColorReset())
+			n, ui.ColorGreen(), resultStr[:DisplayEdges], resultStr[numDigits-DisplayEdges:], ui.ColorReset())
 	} else {
-		fmt.Fprintf(r.out, "  F(%d) = %s%s%s\n", n, ColorGreen(), resultStr, ColorReset())
+		fmt.Fprintf(r.out, "  F(%d) = %s%s%s\n", n, ui.ColorGreen(), resultStr, ui.ColorReset())
 	}
 	fmt.Fprintln(r.out)
 }
@@ -264,37 +265,37 @@ func (r *REPL) calculate(n uint64) {
 // cmdAlgo handles the "algo" command.
 func (r *REPL) cmdAlgo(args []string) {
 	if len(args) == 0 {
-		fmt.Fprintf(r.out, "%sUsage: algo <name>%s\n", ColorRed(), ColorReset())
+		fmt.Fprintf(r.out, "%sUsage: algo <name>%s\n", ui.ColorRed(), ui.ColorReset())
 		fmt.Fprintf(r.out, "Available algorithms: %s\n", r.getAlgoList())
 		return
 	}
 
 	name := strings.ToLower(args[0])
 	if _, ok := r.registry[name]; !ok {
-		fmt.Fprintf(r.out, "%sUnknown algorithm: %s%s\n", ColorRed(), name, ColorReset())
+		fmt.Fprintf(r.out, "%sUnknown algorithm: %s%s\n", ui.ColorRed(), name, ui.ColorReset())
 		fmt.Fprintf(r.out, "Available algorithms: %s\n", r.getAlgoList())
 		return
 	}
 
 	r.currentAlgo = name
-	fmt.Fprintf(r.out, "Algorithm changed to: %s%s%s\n", ColorGreen(), r.registry[name].Name(), ColorReset())
+	fmt.Fprintf(r.out, "Algorithm changed to: %s%s%s\n", ui.ColorGreen(), r.registry[name].Name(), ui.ColorReset())
 }
 
 // cmdCompare handles the "compare" command.
 func (r *REPL) cmdCompare(args []string) {
 	if len(args) == 0 {
-		fmt.Fprintf(r.out, "%sUsage: compare <n>%s\n", ColorRed(), ColorReset())
+		fmt.Fprintf(r.out, "%sUsage: compare <n>%s\n", ui.ColorRed(), ui.ColorReset())
 		return
 	}
 
 	n, err := strconv.ParseUint(args[0], 10, 64)
 	if err != nil {
-		fmt.Fprintf(r.out, "%sInvalid value: %s%s\n", ColorRed(), args[0], ColorReset())
+		fmt.Fprintf(r.out, "%sInvalid value: %s%s\n", ui.ColorRed(), args[0], ui.ColorReset())
 		return
 	}
 
-	fmt.Fprintf(r.out, "\n%sComparison for F(%d):%s\n", ColorBold(), n, ColorReset())
-	fmt.Fprintf(r.out, "%s─────────────────────────────────────────────%s\n", ColorCyan(), ColorReset())
+	fmt.Fprintf(r.out, "\n%sComparison for F(%d):%s\n", ui.ColorBold(), n, ui.ColorReset())
+	fmt.Fprintf(r.out, "%s─────────────────────────────────────────────%s\n", ui.ColorCyan(), ui.ColorReset())
 
 	opts := fibonacci.Options{
 		ParallelThreshold: r.config.Threshold,
@@ -323,8 +324,8 @@ func (r *REPL) cmdCompare(args []string) {
 
 		if err != nil {
 			fmt.Fprintf(r.out, "  %s%-20s%s: %sError - %v%s\n",
-				ColorYellow(), name, ColorReset(),
-				ColorRed(), err, ColorReset())
+				ui.ColorYellow(), name, ui.ColorReset(),
+				ui.ColorRed(), err, ui.ColorReset())
 			continue
 		}
 
@@ -337,29 +338,29 @@ func (r *REPL) cmdCompare(args []string) {
 		}
 
 		// Check consistency
-		status := ColorGreen() + "✓" + ColorReset()
+		status := ui.ColorGreen() + "✓" + ui.ColorReset()
 		if resultStr != firstResult {
-			status = ColorRed() + "✗ INCONSISTENT" + ColorReset()
+			status = ui.ColorRed() + "✗ INCONSISTENT" + ui.ColorReset()
 		}
 
 		fmt.Fprintf(r.out, "  %s%-20s%s: %s%12s%s %s\n",
-			ColorYellow(), name, ColorReset(),
-			ColorCyan(), durationStr, ColorReset(),
+			ui.ColorYellow(), name, ui.ColorReset(),
+			ui.ColorCyan(), durationStr, ui.ColorReset(),
 			status)
 	}
 
-	fmt.Fprintf(r.out, "%s─────────────────────────────────────────────%s\n\n", ColorCyan(), ColorReset())
+	fmt.Fprintf(r.out, "%s─────────────────────────────────────────────%s\n\n", ui.ColorCyan(), ui.ColorReset())
 }
 
 // cmdList handles the "list" command.
 func (r *REPL) cmdList() {
-	fmt.Fprintf(r.out, "\n%sAvailable algorithms:%s\n", ColorBold(), ColorReset())
+	fmt.Fprintf(r.out, "\n%sAvailable algorithms:%s\n", ui.ColorBold(), ui.ColorReset())
 	for name, calc := range r.registry {
 		marker := "  "
 		if name == r.currentAlgo {
-			marker = ColorGreen() + "► " + ColorReset()
+			marker = ui.ColorGreen() + "► " + ui.ColorReset()
 		}
-		fmt.Fprintf(r.out, "%s%s%-10s%s - %s\n", marker, ColorYellow(), name, ColorReset(), calc.Name())
+		fmt.Fprintf(r.out, "%s%s%-10s%s - %s\n", marker, ui.ColorYellow(), name, ui.ColorReset(), calc.Name())
 	}
 	fmt.Fprintln(r.out)
 }
@@ -371,20 +372,20 @@ func (r *REPL) cmdHex() {
 	if r.config.HexOutput {
 		status = "enabled"
 	}
-	fmt.Fprintf(r.out, "Hexadecimal display: %s%s%s\n", ColorGreen(), status, ColorReset())
+	fmt.Fprintf(r.out, "Hexadecimal display: %s%s%s\n", ui.ColorGreen(), status, ui.ColorReset())
 }
 
 // cmdStatus displays current REPL configuration.
 func (r *REPL) cmdStatus() {
-	fmt.Fprintf(r.out, "\n%sCurrent configuration:%s\n", ColorBold(), ColorReset())
-	fmt.Fprintf(r.out, "  Algorithm:      %s%s%s\n", ColorCyan(), r.currentAlgo, ColorReset())
-	fmt.Fprintf(r.out, "  Timeout:        %s%s%s\n", ColorCyan(), r.config.Timeout, ColorReset())
-	fmt.Fprintf(r.out, "  Threshold:      %s%d%s bits\n", ColorCyan(), r.config.Threshold, ColorReset())
-	fmt.Fprintf(r.out, "  FFT Threshold:  %s%d%s bits\n", ColorCyan(), r.config.FFTThreshold, ColorReset())
+	fmt.Fprintf(r.out, "\n%sCurrent configuration:%s\n", ui.ColorBold(), ui.ColorReset())
+	fmt.Fprintf(r.out, "  Algorithm:      %s%s%s\n", ui.ColorCyan(), r.currentAlgo, ui.ColorReset())
+	fmt.Fprintf(r.out, "  Timeout:        %s%s%s\n", ui.ColorCyan(), r.config.Timeout, ui.ColorReset())
+	fmt.Fprintf(r.out, "  Threshold:      %s%d%s bits\n", ui.ColorCyan(), r.config.Threshold, ui.ColorReset())
+	fmt.Fprintf(r.out, "  FFT Threshold:  %s%d%s bits\n", ui.ColorCyan(), r.config.FFTThreshold, ui.ColorReset())
 	hexStatus := "no"
 	if r.config.HexOutput {
 		hexStatus = "yes"
 	}
-	fmt.Fprintf(r.out, "  Hexadecimal:    %s%s%s\n", ColorCyan(), hexStatus, ColorReset())
+	fmt.Fprintf(r.out, "  Hexadecimal:    %s%s%s\n", ui.ColorCyan(), hexStatus, ui.ColorReset())
 	fmt.Fprintln(r.out)
 }

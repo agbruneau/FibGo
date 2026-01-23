@@ -2,7 +2,10 @@
 // This file provides a color provider implementation for use with the errors package.
 package cli
 
-import apperrors "github.com/agbru/fibcalc/internal/errors"
+import (
+	apperrors "github.com/agbru/fibcalc/internal/errors"
+	"github.com/agbru/fibcalc/internal/ui"
+)
 
 // Ensure CLIColorProvider implements apperrors.ColorProvider at compile time.
 var _ apperrors.ColorProvider = CLIColorProvider{}
@@ -19,10 +22,10 @@ type CLIColorProvider struct{}
 //
 // Returns:
 //   - string: The ANSI escape code for yellow color.
-func (c CLIColorProvider) Yellow() string { return ColorYellow() }
+func (c CLIColorProvider) Yellow() string { return ui.ColorYellow() }
 
 // Reset returns the reset color code from the current CLI theme.
 //
 // Returns:
 //   - string: The ANSI escape code to reset colors.
-func (c CLIColorProvider) Reset() string { return ColorReset() }
+func (c CLIColorProvider) Reset() string { return ui.ColorReset() }

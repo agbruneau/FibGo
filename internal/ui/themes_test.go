@@ -179,6 +179,24 @@ func TestColorFunctions(t *testing.T) {
 		if ColorRed() != DarkTheme.Error {
 			t.Errorf("ColorRed() = %q, want %q", ColorRed(), DarkTheme.Error)
 		}
+		if ColorYellow() != DarkTheme.Warning {
+			t.Errorf("ColorYellow() = %q, want %q", ColorYellow(), DarkTheme.Warning)
+		}
+		if ColorBlue() != DarkTheme.Primary {
+			t.Errorf("ColorBlue() = %q, want %q", ColorBlue(), DarkTheme.Primary)
+		}
+		if ColorMagenta() != DarkTheme.Info {
+			t.Errorf("ColorMagenta() = %q, want %q", ColorMagenta(), DarkTheme.Info)
+		}
+		if ColorCyan() != DarkTheme.Secondary {
+			t.Errorf("ColorCyan() = %q, want %q", ColorCyan(), DarkTheme.Secondary)
+		}
+		if ColorBold() != DarkTheme.Bold {
+			t.Errorf("ColorBold() = %q, want %q", ColorBold(), DarkTheme.Bold)
+		}
+		if ColorUnderline() != DarkTheme.Underline {
+			t.Errorf("ColorUnderline() = %q, want %q", ColorUnderline(), DarkTheme.Underline)
+		}
 	})
 
 	t.Run("Color functions with NoColorTheme", func(t *testing.T) {
@@ -191,6 +209,24 @@ func TestColorFunctions(t *testing.T) {
 		}
 		if ColorRed() != "" {
 			t.Errorf("ColorRed() with none theme should be empty, got %q", ColorRed())
+		}
+		if ColorYellow() != "" {
+			t.Errorf("ColorYellow() with none theme should be empty, got %q", ColorYellow())
+		}
+		if ColorBlue() != "" {
+			t.Errorf("ColorBlue() with none theme should be empty, got %q", ColorBlue())
+		}
+		if ColorMagenta() != "" {
+			t.Errorf("ColorMagenta() with none theme should be empty, got %q", ColorMagenta())
+		}
+		if ColorCyan() != "" {
+			t.Errorf("ColorCyan() with none theme should be empty, got %q", ColorCyan())
+		}
+		if ColorBold() != "" {
+			t.Errorf("ColorBold() with none theme should be empty, got %q", ColorBold())
+		}
+		if ColorUnderline() != "" {
+			t.Errorf("ColorUnderline() with none theme should be empty, got %q", ColorUnderline())
 		}
 	})
 }

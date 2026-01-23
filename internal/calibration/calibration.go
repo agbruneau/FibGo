@@ -13,6 +13,7 @@ import (
 	"github.com/agbru/fibcalc/internal/config"
 	apperrors "github.com/agbru/fibcalc/internal/errors"
 	"github.com/agbru/fibcalc/internal/fibonacci"
+	"github.com/agbru/fibcalc/internal/ui"
 )
 
 // CalibrationOptions configures the calibration process.
@@ -65,24 +66,24 @@ func RunCalibrationWithOptions(ctx context.Context, out io.Writer, calculatorReg
 		profile, loaded := LoadOrCreateProfile(opts.ProfilePath)
 		if loaded && profile.IsValid() {
 			fmt.Fprintf(out, "%sLoaded existing calibration profile from %s%s\n",
-				cli.ColorGreen(), GetDefaultProfilePath(), cli.ColorReset())
+				ui.ColorGreen(), GetDefaultProfilePath(), ui.ColorReset())
 			fmt.Fprintf(out, "Profile: %s\n", profile.String())
 			fmt.Fprintf(out, "\n%s✅ Using cached calibration: %s--threshold %d%s\n",
-				cli.ColorGreen(), cli.ColorYellow(), profile.OptimalParallelThreshold, cli.ColorReset())
+				ui.ColorGreen(), ui.ColorYellow(), profile.OptimalParallelThreshold, ui.ColorReset())
 			return apperrors.ExitSuccess
 		}
 	}
 
 	calculator := calculatorRegistry["fast"]
 	if calculator == nil {
-		fmt.Fprintf(out, "%sCritical error: the 'fast' algorithm is required for calibration but was not found.%s\n", cli.ColorRed(), cli.ColorReset())
+		fmt.Fprintf(out, "%sCritical error: the 'fast' algorithm is required for calibration but was not found.%s\n", ui.ColorRed(), ui.ColorReset())
 		return apperrors.ExitErrorGeneric
 	}
 
 	// Use adaptive thresholds based on CPU characteristics
 	thresholdsToTest := GenerateParallelThresholds()
 	fmt.Fprintf(out, "%sUsing adaptive thresholds for %d CPU cores%s\n",
-		cli.ColorCyan(), runtime.NumCPU(), cli.ColorReset())
+		ui.ColorCyan(), runtime.NumCPU(), ui.ColorReset())
 
 	results := make([]calibrationResult, 0, len(thresholdsToTest))
 	bestDuration := time.Duration(1<<63 - 1)
@@ -96,7 +97,7 @@ func RunCalibrationWithOptions(ctx context.Context, out io.Writer, calculatorReg
 
 	for _, threshold := range thresholdsToTest {
 		if ctx.Err() != nil {
-			fmt.Fprintf(out, "\n%sCalibration interrupted.%s\n", cli.ColorYellow(), cli.ColorReset())
+			fmt.Fprintf(out, "\n%sCalibration interrupted.%s\n", ui.ColorYellow(), ui.ColorReset())
 			close(progressChan)
 			wg.Wait()
 			return apperrors.ExitErrorCanceled
@@ -107,7 +108,7 @@ func RunCalibrationWithOptions(ctx context.Context, out io.Writer, calculatorReg
 		duration := time.Since(startTime)
 
 		if err != nil {
-			fmt.Fprintf(out, "%s❌ Failure (%v)%s\n", cli.ColorRed(), err, cli.ColorReset())
+			fmt.Fprintf(out, "%s❌ Failure (%v)%s\n", ui.ColorRed(), err, ui.ColorReset())
 			results = append(results, calibrationResult{threshold, 0, err})
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				close(progressChan)
@@ -127,7 +128,7 @@ func RunCalibrationWithOptions(ctx context.Context, out io.Writer, calculatorReg
 
 	// Check if we found any valid result
 	if bestDuration == time.Duration(1<<63-1) {
-		fmt.Fprintf(out, "\n%sCalibration failed: no valid results obtained.%s\n", cli.ColorRed(), cli.ColorReset())
+		fmt.Fprintf(out, "\n%sCalibration failed: no valid results obtained.%s\n", ui.ColorRed(), ui.ColorReset())
 		return apperrors.ExitErrorGeneric
 	}
 
@@ -137,7 +138,7 @@ func RunCalibrationWithOptions(ctx context.Context, out io.Writer, calculatorReg
 	printCalibrationResults(out, results, bestThreshold)
 
 	fmt.Fprintf(out, "\n%s✅ Recommendation for this machine: %s--threshold %d%s\n",
-		cli.ColorGreen(), cli.ColorYellow(), bestThreshold, cli.ColorReset())
+		ui.ColorGreen(), ui.ColorYellow(), bestThreshold, ui.ColorReset())
 
 	// Save profile if requested
 	if opts.SaveProfile {
@@ -150,10 +151,10 @@ func RunCalibrationWithOptions(ctx context.Context, out io.Writer, calculatorReg
 
 		if err := profile.SaveProfile(opts.ProfilePath); err != nil {
 			fmt.Fprintf(out, "%sWarning: failed to save profile: %v%s\n",
-				cli.ColorYellow(), err, cli.ColorReset())
+				ui.ColorYellow(), err, ui.ColorReset())
 		} else {
 			fmt.Fprintf(out, "%sCalibration profile saved to %s%s\n",
-				cli.ColorGreen(), GetDefaultProfilePath(), cli.ColorReset())
+				ui.ColorGreen(), GetDefaultProfilePath(), ui.ColorReset())
 		}
 	}
 
@@ -206,10 +207,10 @@ func AutoCalibrateWithProfile(parentCtx context.Context, cfg config.AppConfig, o
 		updated.StrassenThreshold = profile.OptimalStrassenThreshold
 
 		fmt.Fprintf(out, "%sUsing cached calibration%s: parallelism=%s%d%s bits, FFT=%s%d%s bits, Strassen=%s%d%s bits\n",
-			cli.ColorGreen(), cli.ColorReset(),
-			cli.ColorYellow(), updated.Threshold, cli.ColorReset(),
-			cli.ColorYellow(), updated.FFTThreshold, cli.ColorReset(),
-			cli.ColorYellow(), updated.StrassenThreshold, cli.ColorReset())
+			ui.ColorGreen(), ui.ColorReset(),
+			ui.ColorYellow(), updated.Threshold, ui.ColorReset(),
+			ui.ColorYellow(), updated.FFTThreshold, ui.ColorReset(),
+			ui.ColorYellow(), updated.StrassenThreshold, ui.ColorReset())
 		return updated, true
 	}
 
@@ -222,10 +223,10 @@ func AutoCalibrateWithProfile(parentCtx context.Context, cfg config.AppConfig, o
 		// Keep default Strassen threshold (micro-benchmarks don't test it)
 
 		fmt.Fprintf(out, "%sQuick calibration%s (%v): parallelism=%s%d%s bits, FFT=%s%d%s bits (confidence: %.0f%%)\n",
-			cli.ColorGreen(), cli.ColorReset(),
+			ui.ColorGreen(), ui.ColorReset(),
 			microResults.Duration.Round(time.Millisecond),
-			cli.ColorYellow(), updated.Threshold, cli.ColorReset(),
-			cli.ColorYellow(), updated.FFTThreshold, cli.ColorReset(),
+			ui.ColorYellow(), updated.Threshold, ui.ColorReset(),
+			ui.ColorYellow(), updated.FFTThreshold, ui.ColorReset(),
 			microResults.Confidence*100)
 
 		// Save profile for future use
@@ -325,6 +326,6 @@ func saveCalibrationProfile(cfg config.AppConfig, profilePath string, out io.Wri
 
 	if err := profile.SaveProfile(profilePath); err != nil {
 		fmt.Fprintf(out, "%sWarning: could not save calibration profile: %v%s\n",
-			cli.ColorYellow(), err, cli.ColorReset())
+			ui.ColorYellow(), err, ui.ColorReset())
 	}
 }

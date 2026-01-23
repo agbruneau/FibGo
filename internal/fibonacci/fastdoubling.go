@@ -91,8 +91,8 @@ func (fd *OptimizedFastDoubling) Name() string {
 //   - *big.Int: The calculated Fibonacci number.
 //   - error: An error if one occurred (e.g., context cancellation).
 func (fd *OptimizedFastDoubling) CalculateCore(ctx context.Context, reporter ProgressReporter, n uint64, opts Options) (*big.Int, error) {
-	s := acquireState()
-	defer releaseState(s)
+	s := AcquireState()
+	defer ReleaseState(s)
 
 	// Normalize options to ensure consistent default threshold handling
 	normalizedOpts := normalizeOptions(opts)
@@ -259,22 +259,4 @@ func ReleaseState(s *CalculationState) {
 	}
 
 	statePool.Put(s)
-}
-
-// acquireState is a convenience wrapper for backward compatibility.
-// The returned state must be released using releaseState, preferably with defer:
-//
-//	state := acquireState()
-//	defer releaseState(state)
-func acquireState() *CalculationState {
-	return AcquireState()
-}
-
-// releaseState is a convenience wrapper for backward compatibility.
-// This should be called with defer immediately after acquireState:
-//
-//	state := acquireState()
-//	defer releaseState(state)
-func releaseState(s *CalculationState) {
-	ReleaseState(s)
 }

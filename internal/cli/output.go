@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/agbru/fibcalc/internal/ui"
 )
 
 // OutputConfig holds configuration for result output.
@@ -127,14 +129,14 @@ func DisplayResultWithConfig(out io.Writer, result *big.Int, n uint64, duration 
 
 		// Show hex format if requested
 		if config.HexOutput && !config.Quiet {
-			fmt.Fprintf(out, "\n%sHexadecimal format:%s\n", ColorBold(), ColorReset())
+			fmt.Fprintf(out, "\n%sHexadecimal format:%s\n", ui.ColorBold(), ui.ColorReset())
 			hexStr := result.Text(16)
 			if len(hexStr) > 100 && !config.Verbose {
 				fmt.Fprintf(out, "F(%d) [hex] = %s0x%s...%s%s\n",
-					n, ColorGreen(), hexStr[:40], hexStr[len(hexStr)-40:], ColorReset())
+					n, ui.ColorGreen(), hexStr[:40], hexStr[len(hexStr)-40:], ui.ColorReset())
 			} else {
 				fmt.Fprintf(out, "F(%d) [hex] = %s0x%s%s\n",
-					n, ColorGreen(), hexStr, ColorReset())
+					n, ui.ColorGreen(), hexStr, ui.ColorReset())
 			}
 		}
 	}
@@ -146,7 +148,7 @@ func DisplayResultWithConfig(out io.Writer, result *big.Int, n uint64, duration 
 		}
 		if !config.Quiet {
 			fmt.Fprintf(out, "\n%s✓ Result saved to: %s%s%s\n",
-				ColorGreen(), ColorCyan(), config.OutputFile, ColorReset())
+				ui.ColorGreen(), ui.ColorCyan(), config.OutputFile, ui.ColorReset())
 		}
 	}
 

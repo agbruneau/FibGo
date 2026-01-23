@@ -274,7 +274,7 @@ func (a *Application) analyzeResultsWithOutput(results []orchestration.Calculati
 		}
 		if outputCfg.OutputFile != "" {
 			fmt.Fprintf(out, "\n%s✓ Result saved to: %s%s%s\n",
-				cli.ColorGreen(), cli.ColorCyan(), outputCfg.OutputFile, cli.ColorReset())
+				ui.ColorGreen(), ui.ColorCyan(), outputCfg.OutputFile, ui.ColorReset())
 		}
 	}
 
@@ -321,16 +321,16 @@ func (a *Application) displayHexIfNeeded(res *orchestration.CalculationResult, c
 	if !cfg.HexOutput {
 		return
 	}
-	fmt.Fprintf(out, "\n%s--- Hexadecimal Format ---%s\n", cli.ColorBold(), cli.ColorReset())
+	fmt.Fprintf(out, "\n%s--- Hexadecimal Format ---%s\n", ui.ColorBold(), ui.ColorReset())
 	hexStr := res.Result.Text(16)
 	if len(hexStr) > 100 && !a.Config.Verbose {
 		fmt.Fprintf(out, "F(%s%d%s) [hex] = %s0x%s...%s%s\n",
-			cli.ColorMagenta(), a.Config.N, cli.ColorReset(),
-			cli.ColorGreen(), hexStr[:40], hexStr[len(hexStr)-40:], cli.ColorReset())
+			ui.ColorMagenta(), a.Config.N, ui.ColorReset(),
+			ui.ColorGreen(), hexStr[:40], hexStr[len(hexStr)-40:], ui.ColorReset())
 	} else {
 		fmt.Fprintf(out, "F(%s%d%s) [hex] = %s0x%s%s\n",
-			cli.ColorMagenta(), a.Config.N, cli.ColorReset(),
-			cli.ColorGreen(), hexStr, cli.ColorReset())
+			ui.ColorMagenta(), a.Config.N, ui.ColorReset(),
+			ui.ColorGreen(), hexStr, ui.ColorReset())
 	}
 }
 

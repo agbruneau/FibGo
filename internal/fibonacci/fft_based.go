@@ -45,8 +45,8 @@ func (c *FFTBasedCalculator) Name() string {
 //   - *big.Int: The calculated Fibonacci number.
 //   - error: An error if one occurred (e.g., context cancellation).
 func (c *FFTBasedCalculator) CalculateCore(ctx context.Context, reporter ProgressReporter, n uint64, opts Options) (*big.Int, error) {
-	s := acquireState()
-	defer releaseState(s)
+	s := AcquireState()
+	defer ReleaseState(s)
 
 	// Use framework with FFT-only strategy
 	strategy := &FFTOnlyStrategy{}

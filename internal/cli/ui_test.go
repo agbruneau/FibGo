@@ -184,16 +184,16 @@ func TestColors(t *testing.T) {
 	// Initialize with false (colors enabled if terminal supports)
 	ui.InitTheme(false)
 
-	// Just call them to ensure coverage
-	_ = ColorReset()
-	_ = ColorRed()
-	_ = ColorGreen()
-	_ = ColorYellow()
-	_ = ColorBlue()
-	_ = ColorMagenta()
-	_ = ColorCyan()
-	_ = ColorBold()
-	_ = ColorUnderline()
+	// Just call them to ensure coverage - use ui package directly
+	_ = ui.ColorReset()
+	_ = ui.ColorRed()
+	_ = ui.ColorGreen()
+	_ = ui.ColorYellow()
+	_ = ui.ColorBlue()
+	_ = ui.ColorMagenta()
+	_ = ui.ColorCyan()
+	_ = ui.ColorBold()
+	_ = ui.ColorUnderline()
 }
 
 func TestDisplayProgress(t *testing.T) {
