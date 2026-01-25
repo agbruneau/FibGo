@@ -46,7 +46,7 @@ func (m DashboardModel) buildHelpContent() string {
 	b.WriteString(m.styles.BoxTitle.Render("Navigation"))
 	b.WriteString("\n")
 	b.WriteString(formatHelpLine(m.styles, "Tab / Shift+Tab", "Cycle through sections"))
-	b.WriteString(formatHelpLine(m.styles, "↑ / ↓ / k / j", "Navigate within section"))
+	b.WriteString(formatHelpLine(m.styles, "Up/Down / k/j", "Navigate within section"))
 	b.WriteString(formatHelpLine(m.styles, "Enter", "Confirm / Start calculation"))
 	b.WriteString(formatHelpLine(m.styles, "Esc", "Cancel / Close overlay"))
 	b.WriteString("\n")
@@ -70,7 +70,7 @@ func (m DashboardModel) buildHelpContent() string {
 	b.WriteString("\n")
 
 	// About section
-	b.WriteString(m.styles.Muted.Render("─────────────────────────────────────────────────"))
+	b.WriteString(m.styles.Muted.Render(strings.Repeat("-", 50)))
 	b.WriteString("\n")
 	b.WriteString(m.styles.Muted.Render("FibCalc - High-Performance Fibonacci Calculator"))
 	b.WriteString("\n")
@@ -131,19 +131,36 @@ func (m DashboardModel) renderHeader() string {
 	rightFull := fmt.Sprintf("Theme: %s  [?] Help", theme.Name)
 	rightShort := "[?] Help"
 
-	// Choose right text based on available space
-	right := m.styles.Muted.Render(rightFull)
-	spacing := m.width - lipgloss.Width(left) - lipgloss.Width(right) - 4
-
-	// If not enough space, use shorter version
-	if spacing < 2 {
-		right = m.styles.Muted.Render(rightShort)
-		spacing = m.width - lipgloss.Width(left) - lipgloss.Width(right) - 4
+	// Calculate available width (accounting for header padding)
+	availableWidth := m.width - 6
+	if availableWidth < 20 {
+		availableWidth = 20
 	}
 
-	// If still not enough space, omit right entirely
-	if spacing < 2 {
+	leftWidth := lipgloss.Width(left)
+	rightFullWidth := lipgloss.Width(m.styles.Muted.Render(rightFull))
+	rightShortWidth := lipgloss.Width(m.styles.Muted.Render(rightShort))
+
+	// Choose right text based on available space
+	var right string
+	var spacing int
+
+	if leftWidth+rightFullWidth+2 <= availableWidth {
+		// Full version fits
+		right = m.styles.Muted.Render(rightFull)
+		spacing = availableWidth - leftWidth - rightFullWidth
+	} else if leftWidth+rightShortWidth+2 <= availableWidth {
+		// Short version fits
+		right = m.styles.Muted.Render(rightShort)
+		spacing = availableWidth - leftWidth - rightShortWidth
+	} else {
+		// Nothing fits on right, just show title
 		right = ""
+		spacing = 0
+	}
+
+	// Ensure spacing is never negative
+	if spacing < 0 {
 		spacing = 0
 	}
 
@@ -165,7 +182,7 @@ func (m DashboardModel) renderFooter() string {
 	case SectionInput:
 		hints = append(hints, "Enter:Submit", "Tab:Next")
 	case SectionAlgorithms:
-		hints = append(hints, "Enter:Run", "↑↓:Select", "Tab:Next")
+		hints = append(hints, "Enter:Run", "Up/Down:Select", "Tab:Next")
 	case SectionResults:
 		if m.results.showDetails {
 			hints = append(hints, "d:Hide", "x:Hex", "v:Full", "Ctrl+S:Save", "Tab:Next")
@@ -177,8 +194,17 @@ func (m DashboardModel) renderFooter() string {
 	// Global hints
 	hints = append(hints, "c:Calc", "m:Compare", "t:Theme", "?:Help", "q:Quit")
 
-	// Join hints
+	// Join hints and truncate if too long
 	footer := strings.Join(hints, "  ")
+
+	// Ensure footer doesn't exceed available width
+	maxWidth := m.width - 6
+	if maxWidth < 20 {
+		maxWidth = 20
+	}
+	if len(footer) > maxWidth {
+		footer = footer[:maxWidth-3] + "..."
+	}
 
 	return m.styles.Footer.Width(m.width - 2).Render(footer)
 }

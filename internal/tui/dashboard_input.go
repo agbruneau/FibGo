@@ -198,11 +198,11 @@ func (m DashboardModel) renderInputSection() string {
 	// Build input display with cursor
 	display := m.input.n
 	if m.focusedSection == SectionInput && m.input.inputActive {
-		// Insert cursor
+		// Insert cursor using a pipe character for better terminal compatibility
 		if m.input.cursorPos >= len(display) {
-			display = display + "█"
+			display = display + "|"
 		} else {
-			display = display[:m.input.cursorPos] + "█" + display[m.input.cursorPos:]
+			display = display[:m.input.cursorPos] + "|" + display[m.input.cursorPos:]
 		}
 	}
 	if display == "" {
@@ -225,14 +225,15 @@ func (m DashboardModel) renderInputSection() string {
 		}
 	}
 
-	calcBtn := calcBtnStyle.Render("▶ CALCULATE")
-	compareBtn := compareBtnStyle.Render("⋮ COMPARE ALL")
+	calcBtn := calcBtnStyle.Render("[c] CALCULATE")
+	compareBtn := compareBtnStyle.Render("[m] COMPARE ALL")
 
 	// Status indicator with animation
 	status := ""
 	if m.calculation.active {
 		elapsed := time.Since(m.calculation.startTime).Round(time.Millisecond)
-		spinFrames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+		// Use ASCII-compatible spinner frames for better terminal compatibility
+		spinFrames := []string{"|", "/", "-", "\\"}
 		frameIdx := int(elapsed.Milliseconds()/100) % len(spinFrames)
 		status = m.styles.Info.Render(fmt.Sprintf("  %s Running... %v", spinFrames[frameIdx], elapsed))
 	}

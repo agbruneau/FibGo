@@ -133,9 +133,9 @@ func (m DashboardModel) renderResultsSection() string {
 	// Consistency check
 	if len(m.results.results) > 1 {
 		if m.results.consistent {
-			b.WriteString(m.styles.Success.Bold(true).Render("   ✓ All results consistent"))
+			b.WriteString(m.styles.Success.Bold(true).Render("   [OK] All results consistent"))
 		} else {
-			b.WriteString(m.styles.Error.Bold(true).Render("   ✗ Results inconsistent!"))
+			b.WriteString(m.styles.Error.Bold(true).Render("   [!] Results inconsistent!"))
 		}
 	}
 

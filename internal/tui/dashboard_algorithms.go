@@ -28,6 +28,22 @@ func (m DashboardModel) updateAlgorithms(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// Column widths for the algorithm table (shared between header and rows).
+const (
+	colWidthRank     = 3
+	colWidthName     = 25
+	colWidthProgress = 30
+	colWidthPct      = 8
+	colWidthDur      = 12
+	colWidthStatus   = 8
+)
+
+// calculateTableWidth returns the total width of the algorithm table row.
+func calculateTableWidth() int {
+	// 2 (left pad) + rank + 1 + name + 1 + progress + 1 + pct + 1 + dur + 1 + status
+	return 2 + colWidthRank + 1 + colWidthName + 1 + colWidthProgress + 1 + colWidthPct + 1 + colWidthDur + 1 + colWidthStatus
+}
+
 // renderAlgorithmTable renders the algorithm comparison table.
 func (m DashboardModel) renderAlgorithmTable() string {
 	var b strings.Builder
@@ -40,13 +56,13 @@ func (m DashboardModel) renderAlgorithmTable() string {
 	b.WriteString(titleStyle.Render("ALGORITHMS"))
 	b.WriteString("\n\n")
 
-	// Table header - using same column widths as rows
-	colRank := lipgloss.NewStyle().Width(3)
-	colName := lipgloss.NewStyle().Width(25)
-	colProgress := lipgloss.NewStyle().Width(30)
-	colPct := lipgloss.NewStyle().Width(8).Align(lipgloss.Right)
-	colDur := lipgloss.NewStyle().Width(12).Align(lipgloss.Right)
-	colStatus := lipgloss.NewStyle().Width(6).Align(lipgloss.Center)
+	// Table header - using consistent column widths
+	colRank := lipgloss.NewStyle().Width(colWidthRank)
+	colName := lipgloss.NewStyle().Width(colWidthName)
+	colProgress := lipgloss.NewStyle().Width(colWidthProgress)
+	colPct := lipgloss.NewStyle().Width(colWidthPct).Align(lipgloss.Right)
+	colDur := lipgloss.NewStyle().Width(colWidthDur).Align(lipgloss.Right)
+	colStatus := lipgloss.NewStyle().Width(colWidthStatus).Align(lipgloss.Center)
 
 	header := lipgloss.JoinHorizontal(lipgloss.Center,
 		"  ",
@@ -65,14 +81,8 @@ func (m DashboardModel) renderAlgorithmTable() string {
 	b.WriteString(m.styles.TableHeader.Render(header))
 	b.WriteString("\n")
 
-	// Separator - adapt to terminal width (accounting for box padding)
-	separatorWidth := m.width - 8
-	if separatorWidth < 50 {
-		separatorWidth = 50
-	}
-	if separatorWidth > 120 {
-		separatorWidth = 120
-	}
+	// Separator - match table width exactly
+	separatorWidth := calculateTableWidth()
 	b.WriteString(m.styles.Primary.Render(strings.Repeat("━", separatorWidth)))
 	b.WriteString("\n")
 
@@ -101,12 +111,12 @@ func (m DashboardModel) renderAlgorithmRow(idx int, name string) string {
 		rowStyle = m.styles.MenuItemActive
 	}
 
-	// Column styles with fixed widths
-	colRank := lipgloss.NewStyle().Width(3)
-	colName := lipgloss.NewStyle().Width(25)
-	colPct := lipgloss.NewStyle().Width(8).Align(lipgloss.Right)
-	colDur := lipgloss.NewStyle().Width(12).Align(lipgloss.Right)
-	colStatus := lipgloss.NewStyle().Width(6).Align(lipgloss.Center)
+	// Column styles with fixed widths (matching header)
+	colRank := lipgloss.NewStyle().Width(colWidthRank)
+	colName := lipgloss.NewStyle().Width(colWidthName)
+	colPct := lipgloss.NewStyle().Width(colWidthPct).Align(lipgloss.Right)
+	colDur := lipgloss.NewStyle().Width(colWidthDur).Align(lipgloss.Right)
+	colStatus := lipgloss.NewStyle().Width(colWidthStatus).Align(lipgloss.Center)
 
 	// Rank column - keep as plain text, apply color separately
 	rank := fmt.Sprintf("%d", idx+1)
@@ -124,11 +134,11 @@ func (m DashboardModel) renderAlgorithmRow(idx int, name string) string {
 		}
 	}
 
-	// Truncate algorithm name to 25 characters max
-	displayName := truncateString(name, 25)
+	// Truncate algorithm name to fit column
+	displayName := truncateString(name, colWidthName)
 
-	// Progress bar (always 30 chars wide)
-	bar := m.renderProgressBar(progress, 30)
+	// Progress bar (matching column width)
+	bar := m.renderProgressBar(progress, colWidthProgress)
 
 	// Percentage
 	pct := fmt.Sprintf("%.1f%%", progress*100)
@@ -141,29 +151,35 @@ func (m DashboardModel) renderAlgorithmRow(idx int, name string) string {
 		durStr = "..."
 	}
 
-	// Status indicator
-	var statusStr string
+	// Status indicator - render plain text first, then apply style
+	// This ensures width calculation works correctly
+	var statusText string
+	var statusStyle lipgloss.Style
 	switch status {
 	case StatusIdle:
-		statusStr = m.styles.Muted.Render("IDLE")
+		statusText = "IDLE"
+		statusStyle = colStatus.Foreground(m.styles.Muted.GetForeground())
 	case StatusRunning:
-		statusStr = m.styles.Info.Render("▶")
+		statusText = "RUN"
+		statusStyle = colStatus.Foreground(m.styles.Info.GetForeground())
 	case StatusComplete:
-		statusStr = m.styles.Success.Render("OK")
+		statusText = "OK"
+		statusStyle = colStatus.Foreground(m.styles.Success.GetForeground())
 	case StatusError:
-		statusStr = m.styles.Error.Render("ERR")
+		statusText = "ERR"
+		statusStyle = colStatus.Foreground(m.styles.Error.GetForeground())
 	}
 
-	// Render rank with color applied after width
-	rankRendered := colRank.Render(rank)
+	// Render rank with proper styling
+	rankStyle := colRank
 	if isWinner {
-		rankRendered = colRank.Foreground(m.styles.Success.GetForeground()).Render(rank)
+		rankStyle = colRank.Foreground(m.styles.Success.GetForeground())
 	}
 
-	// Build row using lipgloss for proper alignment with ANSI codes
+	// Build row using lipgloss for proper alignment
 	row := lipgloss.JoinHorizontal(lipgloss.Center,
 		"  ",
-		rankRendered,
+		rankStyle.Render(rank),
 		" ",
 		colName.Render(displayName),
 		" ",
@@ -173,7 +189,7 @@ func (m DashboardModel) renderAlgorithmRow(idx int, name string) string {
 		" ",
 		colDur.Render(durStr),
 		" ",
-		colStatus.Render(statusStr),
+		statusStyle.Render(statusText),
 	)
 
 	return rowStyle.Render(row)
@@ -190,17 +206,24 @@ func truncateString(s string, maxLen int) string {
 	return s[:maxLen-3] + "..."
 }
 
-// renderProgressBar renders a progress bar.
+// renderProgressBar renders a progress bar with exact width.
 func (m DashboardModel) renderProgressBar(progress float64, width int) string {
 	filled := int(progress * float64(width))
 	if filled > width {
 		filled = width
 	}
+	if filled < 0 {
+		filled = 0
+	}
 
 	filledStr := strings.Repeat("█", filled)
 	emptyStr := strings.Repeat("░", width-filled)
 
-	return m.styles.ProgressFilled.Render(filledStr) + m.styles.ProgressEmpty.Render(emptyStr)
+	// Combine without additional styling to preserve exact width
+	bar := m.styles.ProgressFilled.Render(filledStr) + m.styles.ProgressEmpty.Render(emptyStr)
+
+	// Wrap in a fixed-width container to ensure alignment
+	return lipgloss.NewStyle().Width(width).Render(bar)
 }
 
 // formatDuration formats a duration for display.
