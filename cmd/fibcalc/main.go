@@ -11,9 +11,11 @@ import (
 	"sync"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/agbru/fibcalc/internal/cli"
 	apperrors "github.com/agbru/fibcalc/internal/errors"
 	"github.com/agbru/fibcalc/internal/fibonacci"
+	"github.com/agbru/fibcalc/internal/tui"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -35,6 +37,11 @@ func init() {
 }
 
 func run() int {
+	// No arguments: launch the TUI
+	if len(os.Args) == 1 {
+		return runTUI()
+	}
+
 	n := flag.Uint64("n", 250_000_000, "Index of the Fibonacci number to calculate")
 	algo := flag.String("algo", "all", "Algorithm to use: fast, matrix, fft, or all")
 	timeout := flag.Duration("timeout", 5*time.Minute, "Timeout for the calculation")
@@ -139,4 +146,15 @@ func run() int {
 	}
 
 	return exitCode
+}
+
+func runTUI() int {
+	factory := fibonacci.NewDefaultFactory()
+	m := tui.NewModel(factory, Version)
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	if _, err := p.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "TUI error: %v\n", err)
+		return apperrors.ExitErrorGeneric
+	}
+	return apperrors.ExitSuccess
 }
