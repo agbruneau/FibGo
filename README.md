@@ -33,8 +33,6 @@ make build
 # Calculate the 10-millionth Fibonacci number
 ./build/fibcalc -n 10000000
 
-# Interactive REPL mode
-./build/fibcalc --interactive
 ```
 
 ---
@@ -65,29 +63,18 @@ fibcalc [flags]
 | `--n` | `-n` | `250,000,000` | Fibonacci index to calculate. |
 | `--algo` | | `all` | Algorithm: `fast`, `matrix`, `fft`, or `all`. |
 | `--output` | `-o` | | Write result to a file. |
-| `--hex` | | `false` | Display result in hexadecimal. |
 | `--calculate` | `-c` | `false` | Print the full value. |
-| `--interactive` | | `false` | Start interactive REPL mode. |
 | `--timeout` | | `5m` | Maximum calculation time. |
 | `--threshold` | | `4096` | Parallelism threshold in bits. |
 | `--fft-threshold` | | `500000` | FFT multiplication threshold in bits. |
 | `--strassen-threshold` | | `3072` | Strassen algorithm threshold in bits. |
 | `--quiet` | `-q` | `false` | Quiet mode for scripting. |
-| `--no-color` | | `false` | Disable colored output. |
-| `--completion` | | | Generate shell completion script (bash, zsh, fish, powershell). |
 
 ### Examples
 
 ```bash
 # Compare all algorithms with detailed stats
 fibcalc -n 10000000 --algo all --details
-
-# Interactive session
-fibcalc --interactive
-# fib> calc 100
-# fib> algo matrix
-# fib> compare 50000
-# fib> exit
 
 # Force FFT with lower threshold
 fibcalc -n 5000000 --algo fast --fft-threshold 100000
@@ -104,7 +91,7 @@ fibcalc -n 1000 --quiet
 internal/
 ├── fibonacci/   # Core algorithms (Fast Doubling, Matrix, FFT-based)
 ├── bigfft/      # FFT multiplication for big.Int
-├── cli/         # CLI output, REPL, progress bar, spinner
+├── cli/         # CLI output, progress bar, spinner
 ├── errors/      # Custom error types with exit codes
 ├── parallel/    # Concurrency utilities
 └── ui/          # Terminal colors, NO_COLOR support
@@ -114,7 +101,7 @@ internal/
 |---------|----------------|
 | `internal/fibonacci` | Calculator interface, algorithm implementations, strategy pattern |
 | `internal/bigfft` | FFT arithmetic for `big.Int` with memory pooling |
-| `internal/cli` | REPL, progress bar, spinner, output formatting |
+| `internal/cli` | Progress bar, spinner, output formatting |
 | `internal/errors` | Structured error types with standardized exit codes |
 | `internal/parallel` | Concurrency utilities |
 | `internal/ui` | ANSI color codes, `NO_COLOR` support |
