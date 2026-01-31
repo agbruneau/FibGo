@@ -1,32 +1,54 @@
-// Package ui provides theme and color support for the application's user interface.
+// Package ui provides terminal color utilities with NO_COLOR support.
 package ui
 
-// Color functions return ANSI escape codes from the current theme.
-// These functions provide a simple API for consistent color usage across the application.
+import "os"
 
-// ColorReset returns the reset escape code from the current theme.
-func ColorReset() string { return GetCurrentTheme().Reset }
+// noColor indicates whether color output is disabled.
+var noColor bool
 
-// ColorRed returns the error color from the current theme.
-func ColorRed() string { return GetCurrentTheme().Error }
+func init() {
+	// Respect NO_COLOR environment variable (https://no-color.org/)
+	if _, ok := os.LookupEnv("NO_COLOR"); ok {
+		noColor = true
+	}
+}
 
-// ColorGreen returns the success color from the current theme.
-func ColorGreen() string { return GetCurrentTheme().Success }
+// InitTheme initializes color support. When noColorFlag is true, all color
+// functions return empty strings.
+func InitTheme(noColorFlag bool) {
+	noColor = noColorFlag
+}
 
-// ColorYellow returns the warning color from the current theme.
-func ColorYellow() string { return GetCurrentTheme().Warning }
+func color(code string) string {
+	if noColor {
+		return ""
+	}
+	return code
+}
 
-// ColorBlue returns the primary color from the current theme.
-func ColorBlue() string { return GetCurrentTheme().Primary }
+// ColorReset returns the ANSI reset code.
+func ColorReset() string { return color("\033[0m") }
 
-// ColorMagenta returns the info color from the current theme.
-func ColorMagenta() string { return GetCurrentTheme().Info }
+// ColorRed returns the ANSI red color code.
+func ColorRed() string { return color("\033[31m") }
 
-// ColorCyan returns the secondary color from the current theme.
-func ColorCyan() string { return GetCurrentTheme().Secondary }
+// ColorGreen returns the ANSI green color code.
+func ColorGreen() string { return color("\033[32m") }
 
-// ColorBold returns the bold escape code from the current theme.
-func ColorBold() string { return GetCurrentTheme().Bold }
+// ColorYellow returns the ANSI yellow color code.
+func ColorYellow() string { return color("\033[33m") }
 
-// ColorUnderline returns the underline escape code from the current theme.
-func ColorUnderline() string { return GetCurrentTheme().Underline }
+// ColorBlue returns the ANSI blue color code.
+func ColorBlue() string { return color("\033[34m") }
+
+// ColorMagenta returns the ANSI magenta color code.
+func ColorMagenta() string { return color("\033[35m") }
+
+// ColorCyan returns the ANSI cyan color code.
+func ColorCyan() string { return color("\033[36m") }
+
+// ColorBold returns the ANSI bold code.
+func ColorBold() string { return color("\033[1m") }
+
+// ColorUnderline returns the ANSI underline code.
+func ColorUnderline() string { return color("\033[4m") }

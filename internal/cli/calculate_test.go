@@ -3,8 +3,8 @@ package cli
 import (
 	"bytes"
 	"testing"
+	"time"
 
-	"github.com/agbru/fibcalc/internal/config"
 	"github.com/agbru/fibcalc/internal/fibonacci"
 )
 
@@ -15,7 +15,7 @@ func TestGetCalculatorsToRun(t *testing.T) {
 
 	t.Run("Single algorithm returns one calculator", func(t *testing.T) {
 		t.Parallel()
-		cfg := config.AppConfig{Algo: "fast"}
+		cfg := ExecutionConfig{Algo: "fast"}
 		calculators := GetCalculatorsToRun(cfg, factory)
 
 		if len(calculators) != 1 {
@@ -29,7 +29,7 @@ func TestGetCalculatorsToRun(t *testing.T) {
 
 	t.Run("All algorithms returns multiple calculators", func(t *testing.T) {
 		t.Parallel()
-		cfg := config.AppConfig{Algo: "all"}
+		cfg := ExecutionConfig{Algo: "all"}
 		calculators := GetCalculatorsToRun(cfg, factory)
 
 		if len(calculators) < 2 {
@@ -39,7 +39,7 @@ func TestGetCalculatorsToRun(t *testing.T) {
 
 	t.Run("Matrix algorithm", func(t *testing.T) {
 		t.Parallel()
-		cfg := config.AppConfig{Algo: "matrix"}
+		cfg := ExecutionConfig{Algo: "matrix"}
 		calculators := GetCalculatorsToRun(cfg, factory)
 
 		if len(calculators) != 1 {
@@ -52,9 +52,9 @@ func TestGetCalculatorsToRun(t *testing.T) {
 func TestPrintExecutionConfig(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	cfg := config.AppConfig{
+	cfg := ExecutionConfig{
 		N:            1000,
-		Timeout:      60000000000, // 1 minute
+		Timeout:      time.Minute,
 		Threshold:    4096,
 		FFTThreshold: 1000000,
 	}
@@ -93,7 +93,7 @@ func TestPrintExecutionMode(t *testing.T) {
 	t.Run("Multiple calculators mode", func(t *testing.T) {
 		t.Parallel()
 		var buf bytes.Buffer
-		cfg := config.AppConfig{Algo: "all"}
+		cfg := ExecutionConfig{Algo: "all"}
 		calculators := GetCalculatorsToRun(cfg, factory)
 
 		PrintExecutionMode(calculators, &buf)

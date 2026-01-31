@@ -4,11 +4,20 @@ import (
 	"fmt"
 	"io"
 	"runtime"
+	"time"
 
-	"github.com/agbru/fibcalc/internal/config"
 	"github.com/agbru/fibcalc/internal/fibonacci"
 	"github.com/agbru/fibcalc/internal/ui"
 )
+
+// ExecutionConfig holds the parameters needed for CLI execution display.
+type ExecutionConfig struct {
+	N            uint64
+	Algo         string
+	Timeout      time.Duration
+	Threshold    int
+	FFTThreshold int
+}
 
 // GetCalculatorsToRun determines which calculators should be executed based on
 // the configuration. Returns calculators in alphabetically sorted order for
@@ -20,7 +29,7 @@ import (
 //
 // Returns:
 //   - []fibonacci.Calculator: A slice of calculators to execute.
-func GetCalculatorsToRun(cfg config.AppConfig, factory fibonacci.CalculatorFactory) []fibonacci.Calculator {
+func GetCalculatorsToRun(cfg ExecutionConfig, factory fibonacci.CalculatorFactory) []fibonacci.Calculator {
 	if cfg.Algo == "all" {
 		keys := factory.List() // List() returns sorted keys
 		calculators := make([]fibonacci.Calculator, 0, len(keys))
@@ -44,7 +53,7 @@ func GetCalculatorsToRun(cfg config.AppConfig, factory fibonacci.CalculatorFacto
 // Parameters:
 //   - cfg: The application configuration.
 //   - out: The writer for standard output.
-func PrintExecutionConfig(cfg config.AppConfig, out io.Writer) {
+func PrintExecutionConfig(cfg ExecutionConfig, out io.Writer) {
 	writeOut(out, "--- Execution Configuration ---\n")
 	writeOut(out, "Calculating %sF(%d)%s with a timeout of %s%s%s.\n",
 		ui.ColorMagenta(), cfg.N, ui.ColorReset(), ui.ColorYellow(), cfg.Timeout, ui.ColorReset())

@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/agbru/fibcalc/internal/testutil"
 	"github.com/agbru/fibcalc/internal/ui"
 )
 
@@ -52,7 +51,7 @@ func TestDisplayResult_Golden(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			DisplayResult(tt.result, tt.n, tt.duration, tt.verbose, tt.details, tt.concise, &buf)
-			got := testutil.StripAnsiCodes(buf.String())
+			got := stripAnsiCodes(buf.String())
 
 			// Normalize line endings if needed
 			if got != tt.expected {

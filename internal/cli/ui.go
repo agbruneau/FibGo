@@ -4,7 +4,6 @@
 // readable presentation.
 package cli
 
-//go:generate mockgen -source=ui.go -destination=mocks/mock_ui.go -package=mocks
 
 import (
 	"fmt"

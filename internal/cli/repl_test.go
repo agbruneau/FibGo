@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/agbru/fibcalc/internal/fibonacci"
-	"github.com/agbru/fibcalc/internal/testutil"
 )
 
 func TestNewREPL(t *testing.T) {
@@ -59,7 +58,7 @@ func TestProcessCommand(t *testing.T) {
 	repl.SetOutput(&out)
 
 	// Strip colors for testing
-	strip := testutil.StripAnsiCodes
+	strip := stripAnsiCodes
 
 	t.Run("calc", func(t *testing.T) {
 		repl.processCommand("calc 10")
@@ -195,7 +194,7 @@ func TestREPLStart(t *testing.T) {
 
 	repl.Start()
 
-	output := testutil.StripAnsiCodes(out.String())
+	output := stripAnsiCodes(out.String())
 	if !strings.Contains(output, "F(5) = 5") {
 		t.Errorf("Expected calculation output, got %s", output)
 	}

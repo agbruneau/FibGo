@@ -2,181 +2,46 @@
 
 ![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?style=for-the-badge&logo=go)
 ![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge&logo=apache)
-![Coverage](https://img.shields.io/badge/Coverage-80%25-green?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-Production--Ready-success?style=for-the-badge)
 
-**FibCalc** is a state-of-the-art command-line tool and library designed for computing arbitrarily large Fibonacci numbers with extreme speed and efficiency. Written in Go, it leverages advanced algorithmic optimizations—including Fast Doubling, Matrix Exponentiation with Strassen's algorithm, and FFT-based multiplication—to handle indices in the hundreds of millions.
-
-> **"The fastest, most over-engineered Fibonacci calculator you will ever use."**
-
----
-
-## Table of Contents
-
-1. [Overview](#overview)
-2. [Key Features](#key-features)
-3. [Quick Start](#quick-start)
-4. [Mathematical Background](#mathematical-background)
-5. [Architecture](#architecture)
-6. [Installation](#installation)
-7. [Usage Guide](#usage-guide)
-8. [Performance Benchmarks](#performance-benchmarks)
-9. [Troubleshooting](#troubleshooting)
-10. [Configuration](#configuration)
-11. [Development](#development)
-12. [Contributing](#contributing)
-13. [License](#license)
-
----
-
-## Overview
-
-FibCalc serves as both a practical high-performance tool and a reference implementation for advanced software engineering patterns in Go. It demonstrates how to handle extreme computational workloads, optimize memory usage via zero-allocation strategies, and structure a clean, testable application.
-
-### Why FibCalc?
-
-- **Extreme Performance**: Calculates $F(250,000,000)$ in minutes, not hours.
-- **Precision**: Handles numbers with millions of digits without precision loss.
-- **Educational**: Implements and visualizes complex algorithms (Fast Doubling, Strassen, FFT).
+**FibCalc** is a command-line tool for computing arbitrarily large Fibonacci numbers with extreme speed and efficiency. Written in Go, it leverages advanced algorithmic optimizations -- including Fast Doubling, Matrix Exponentiation with Strassen's algorithm, and FFT-based multiplication -- to handle indices in the hundreds of millions.
 
 ---
 
 ## Key Features
 
-### Advanced Algorithms
+### Algorithms
 
-- **Fast Doubling** (Default): The fastest known method ($O(\log n)$), utilizing the identity $F(2k) = F(k)(2F(k+1) - F(k))$.
-- **Matrix Exponentiation**: Classic $O(\log n)$ approach enhanced with **Strassen's Algorithm** for large matrices and symmetric squaring optimizations.
-- **FFT-Based Multiplication**: Automatically switches to Fast Fourier Transform for multiplication when numbers exceed a configurable threshold (default ~500k bits), reducing complexity from $O(n^{1.585})$ to $O(n \log n)$.
-- **GMP Support**: Optional build tag to use the GNU Multiple Precision Arithmetic Library for maximum raw performance on supported systems.
+- **Fast Doubling** (Default): $O(\log n)$ using $F(2k) = F(k)(2F(k+1) - F(k))$.
+- **Matrix Exponentiation**: $O(\log n)$ with Strassen's algorithm for large matrices.
+- **FFT-Based Multiplication**: Switches to FFT when numbers exceed ~500k bits, reducing complexity from $O(n^{1.585})$ to $O(n \log n)$.
+- **GMP Support**: Optional build tag for GNU Multiple Precision Arithmetic Library.
 
-### High-Performance Engineering
+### Performance
 
-- **Zero-Allocation Strategy**: Extensive use of `sync.Pool` to recycle `big.Int` objects and custom calculation states, reducing Garbage Collector pressure by over 95%.
-- **Adaptive Parallelism**: Automatically parallelizes recursive branches and matrix operations across CPU cores based on input size and hardware capabilities.
-- **Concurrency Limiting**: Task semaphore limits concurrent goroutines to `runtime.NumCPU()*2`, preventing contention and memory pressure during parallel multiplication.
-- **Optimized Memory Zeroing**: Uses Go 1.21+ `clear()` builtin for efficient slice zeroing in FFT operations.
-- **Atomic Pre-Warming**: Optimized memory pool initialization ensures resources are ready before the first request.
-
-### Robust Architecture
-
-- **Clean Architecture**: Strict separation of concerns (Core Logic, Orchestration, Interface, Infrastructure) with interface-based decoupling.
-- **Interface-Based Decoupling**: The orchestration layer uses `ProgressReporter` and `ResultPresenter` interfaces to avoid depending on CLI, enabling testability and alternative presentations.
-- **Interactive REPL**: A dedicated shell for performing multiple calculations, comparisons, and conversions without reloading the binary.
-- **Modern CLI**: Features progress spinners, ETA calculation, formatted output, and colour themes.
-- **Observability**: Structured logging (zerolog) and Prometheus metrics.
+- **Object Pooling**: `sync.Pool` for `big.Int` recycling, reducing GC pressure by over 95%.
+- **Adaptive Parallelism**: Automatic parallelization based on input size and hardware.
+- **Concurrency Limiting**: Task semaphore capped at `runtime.NumCPU()*2`.
 
 ---
 
 ## Quick Start
 
-### Using Go
-
 ```bash
+# Build
+make build
+
 # Calculate the 10-millionth Fibonacci number
-go run ./cmd/fibcalc -n 10000000
+./build/fibcalc -n 10000000
+
+# Interactive REPL mode
+./build/fibcalc --interactive
 ```
-
-### Using Docker
-
-```bash
-# Run a one-off calculation
-docker run --rm fibcalc -n 10000000
-```
-
----
-
-## Mathematical Background
-
-FibCalc implements several sophisticated mathematical concepts to achieve its performance.
-
-### 1. Fast Doubling Identities
-
-The most efficient algorithm avoids matrix operations entirely and computes $F(n)$ and $F(n+1)$ directly using the following recursive identities derived from the matrix form:
-
-$$
-\begin{aligned}
-F(2k) &= F(k) \times (2F(k+1) - F(k)) \\
-F(2k+1) &= F(k+1)^2 + F(k)^2
-\end{aligned}
-$$
-
-This reduces the complexity to $O(\log n)$ operations. Each step roughly doubles the index, hence "Fast Doubling".
-
-### 2. Matrix Exponentiation & Strassen's Algorithm
-
-The Fibonacci sequence can be generated by raising the "Q-matrix" to the power of $n$:
-
-$$
-\begin{pmatrix} F_{n+1} & F_n \\ F_n & F_{n-1} \end{pmatrix} = \begin{pmatrix} 1 & 1 \\ 1 & 0 \end{pmatrix}^n
-$$
-
-For large matrices, FibCalc employs **Strassen's Algorithm**, which reduces the number of multiplications in a $2 \times 2$ matrix product from 8 to 7. While this introduces more additions, it is beneficial when multiplication is significantly more expensive than addition (i.e., for very large `big.Int` values).
-
-### 3. FFT-Based Multiplication
-
-For extremely large numbers (hundreds of thousands of bits), standard Karatsuba multiplication ($O(n^{1.585})$) becomes the bottleneck. FibCalc switches to **FFT multiplication** ($O(n \log n)$) based on the Convolution Theorem:
-
-$$
-A \times B = \text{IDFT}(\text{DFT}(A) \cdot \text{DFT}(B))
-$$
-
-This allows calculating numbers with billions of digits feasible.
-
----
-
-## Architecture
-
-FibCalc follows **Clean Architecture** principles to ensure modularity and testability.
-
-```mermaid
-graph TD
-    User[User/Client] --> Entry{Entry Point}
-    Entry -->|CLI Flags| Config[Configuration]
-    Entry -->|--interactive| REPL[REPL Mode]
-    Entry -->|Default| Runner[Orchestration]
-
-    Runner --> AlgoFactory[Calculator Factory]
-    AlgoFactory --> Fast[Fast Doubling]
-    AlgoFactory --> Matrix[Matrix Exponentiation]
-    AlgoFactory --> FFT[FFT-Based]
-
-    Fast & Matrix & FFT --> BigFFT[BigFFT / Math.Big]
-    Fast & Matrix & FFT --> Pool[Memory Pool]
-
-    REPL --> Runner
-```
-
-### Core Components
-
-| Component | Responsibility |
-|-----------|----------------|
-| `cmd/fibcalc` | Application composition root and entry point. |
-| `internal/fibonacci` | Core domain logic. Implements the `Calculator` interface and algorithms. |
-| `internal/bigfft` | Specialized FFT arithmetic for `big.Int` with memory pooling. |
-| `internal/orchestration` | Manages concurrent execution, result aggregation, and defines `ProgressReporter`/`ResultPresenter` interfaces for Clean Architecture decoupling. |
-| `internal/cli` | REPL, progress bar, spinner, and output formatting (Display*/Format*/Write*). |
-| `internal/logging` | Structured logging with zerolog adapters. |
-| `internal/app` | Application composition root, lifecycle management, dependency injection. |
-| `internal/ui` | Color themes, terminal formatting, NO_COLOR environment variable support. |
-| `internal/config` | Configuration parsing, validation, and environment variable support. |
-| `internal/errors` | Custom error types with standardized exit codes. |
 
 ---
 
 ## Installation
 
-### Option 1: Install from Source (Recommended)
-
 Requires **Go 1.25** or later.
-
-```bash
-go install ./cmd/fibcalc@latest
-```
-
-### Option 2: Build Manually
-
-Clone the repository and build using the provided Makefile.
 
 ```bash
 git clone https://github.com/agbru/fibcalc.git
@@ -185,116 +50,93 @@ make build
 # Binary is located at ./build/fibcalc
 ```
 
-### Option 3: Docker Image
-
-```bash
-make docker-build
-```
-
 ---
 
-## Usage Guide
-
-### Command Synopsis
+## Usage
 
 ```text
 fibcalc [flags]
 ```
 
-### Common Flags
+### Flags
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
-| `--n` | `-n` | `250,000,000` | The Fibonacci index to calculate. |
+| `--n` | `-n` | `250,000,000` | Fibonacci index to calculate. |
 | `--algo` | | `all` | Algorithm: `fast`, `matrix`, `fft`, or `all`. |
 | `--output` | `-o` | | Write result to a file. |
-| `--json` | | `false` | Output results in JSON format. |
 | `--hex` | | `false` | Display result in hexadecimal. |
-| `--calculate` | `-c` | `false` | Print the full value (auto-suppressed for large $N$). |
-| `--interactive` | | `false` | Start the interactive REPL mode. |
-| `--timeout` | | `5m` | Maximum calculation time (e.g. "10s", "1h"). |
+| `--calculate` | `-c` | `false` | Print the full value. |
+| `--interactive` | | `false` | Start interactive REPL mode. |
+| `--timeout` | | `5m` | Maximum calculation time. |
 | `--threshold` | | `4096` | Parallelism threshold in bits. |
 | `--fft-threshold` | | `500000` | FFT multiplication threshold in bits. |
 | `--strassen-threshold` | | `3072` | Strassen algorithm threshold in bits. |
+| `--quiet` | `-q` | `false` | Quiet mode for scripting. |
+| `--no-color` | | `false` | Disable colored output. |
+| `--completion` | | | Generate shell completion script (bash, zsh, fish, powershell). |
 
 ### Examples
 
-**1. Compare Algorithms with Detail**
-Run all algorithms and compare their performance for $F(10,000,000)$, outputting detailed stats.
-
 ```bash
+# Compare all algorithms with detailed stats
 fibcalc -n 10000000 --algo all --details
-```
 
-**2. Interactive Session (REPL)**
-Enter the REPL to experiment with different algorithms without restarting.
-
-```bash
+# Interactive session
 fibcalc --interactive
 # fib> calc 100
 # fib> algo matrix
 # fib> compare 50000
 # fib> exit
-```
 
-**3. Large Number with FFT Tuning**
-Force FFT usage for a smaller threshold to test performance on lower-end hardware.
-
-```bash
+# Force FFT with lower threshold
 fibcalc -n 5000000 --algo fast --fft-threshold 100000
+
+# Quiet mode for scripting
+fibcalc -n 1000 --quiet
 ```
 
-**4. JSON Output for Scripting**
+---
 
-```bash
-fibcalc -n 1000 --json --quiet
+## Architecture
+
 ```
+internal/
+├── fibonacci/   # Core algorithms (Fast Doubling, Matrix, FFT-based)
+├── bigfft/      # FFT multiplication for big.Int
+├── cli/         # CLI output, REPL, progress bar, spinner
+├── errors/      # Custom error types with exit codes
+├── parallel/    # Concurrency utilities
+└── ui/          # Terminal colors, NO_COLOR support
+```
+
+| Package | Responsibility |
+|---------|----------------|
+| `internal/fibonacci` | Calculator interface, algorithm implementations, strategy pattern |
+| `internal/bigfft` | FFT arithmetic for `big.Int` with memory pooling |
+| `internal/cli` | REPL, progress bar, spinner, output formatting |
+| `internal/errors` | Structured error types with standardized exit codes |
+| `internal/parallel` | Concurrency utilities |
+| `internal/ui` | ANSI color codes, `NO_COLOR` support |
 
 ---
 
 ## Performance Benchmarks
 
-FibCalc is optimized for speed. Below is a summary of performance characteristics on a standard workstation (AMD Ryzen 9 5900X).
+Results on AMD Ryzen 9 5900X:
 
-| Index ($N$) | Fast Doubling | Matrix Exp. | FFT-Based | Result (digits) |
+| Index ($N$) | Fast Doubling | Matrix Exp. | FFT-Based | Digits |
 | :--- | :--- | :--- | :--- | :--- |
 | **10,000** | 180us | 220us | 350us | 2,090 |
 | **1,000,000** | 85ms | 110ms | 95ms | 208,988 |
 | **100,000,000** | 45s | 62s | 48s | 20,898,764 |
 | **250,000,000** | 3m 12s | 4m 25s | 3m 28s | 52,246,909 |
 
-### Algorithm Selection Guide
+### Algorithm Selection
 
-- **Use `fast` (Fast Doubling)** for general purpose high performance. It is consistently the fastest across all ranges.
-- **Use `matrix`** for educational purposes or verification.
-- **Use `fft`** primarily for benchmarking the multiplication engine itself, or for $N > 100,000,000$ where it becomes very competitive.
-
----
-
-## Troubleshooting
-
-Common issues and their solutions.
-
-### 1. `runtime: out of memory`
-Calculating huge Fibonacci numbers requires significant RAM. $F(1,000,000,000)$ requires ~25 GB of RAM.
-**Solution**: Reduce $N$, add swap space, or use a machine with more RAM.
-
-### 2. Calculation hangs / Timeout
-For very large $N$, the calculation might exceed the default 5-minute timeout.
-**Solution**: Increase the timeout with `--timeout 30m`.
-
----
-
-## Configuration
-
-Environment variables can override CLI flags.
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `FIBCALC_THRESHOLD` | Bit size to trigger parallel multiplication | 4096 |
-| `FIBCALC_FFT_THRESHOLD` | Bit size to switch to FFT multiplication | 500,000 |
-| `FIBCALC_STRASSEN_THRESHOLD` | Bit size for Strassen's algorithm | 3072 |
-| `FIBCALC_TIMEOUT` | Calculation timeout | 5m |
+- **`fast`** (Fast Doubling): Best general-purpose performance across all ranges.
+- **`matrix`**: Educational purposes or verification.
+- **`fft`**: Competitive for $N > 100,000,000$.
 
 ---
 
@@ -304,7 +146,7 @@ Environment variables can override CLI flags.
 - Go 1.25+
 - Make
 
-### Key Commands
+### Commands
 
 ```bash
 make build       # Compile binary to ./build/fibcalc
@@ -317,26 +159,19 @@ make benchmark   # Run performance benchmarks
 make clean       # Remove build artifacts
 ```
 
-### Project Structure
-- `cmd/`: Main entry points.
-- `internal/`: Private application code.
-
 ---
 
-## Contributing
+## Troubleshooting
 
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests.
+### `runtime: out of memory`
+Large Fibonacci numbers require significant RAM. $F(1,000,000,000)$ needs ~25 GB.
+Reduce $N$, add swap space, or use a machine with more RAM.
+
+### Calculation timeout
+For very large $N$, increase the timeout: `--timeout 30m`.
 
 ---
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
-
----
-
-## Acknowledgments
-
-- The Go team for the `math/big` package.
-- The open-source community for the underlying FFT research.
-- All contributors who have optimized these algorithms over the years.
+This project is licensed under the Apache License 2.0 -- see the [LICENSE](LICENSE) file for details.
