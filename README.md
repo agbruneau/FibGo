@@ -30,9 +30,14 @@
 # Build
 make build
 
-# Calculate the 10-millionth Fibonacci number
-./build/fibcalc -n 10000000
+# Run with defaults (F(250,000,000), all algorithms)
+./build/fibcalc
 
+# Or run directly without building
+go run ./cmd/fibcalc/
+
+# Calculate the 10-millionth Fibonacci number with fast doubling
+./build/fibcalc -n 10000000 -algo fast
 ```
 
 ---
@@ -58,29 +63,34 @@ fibcalc [flags]
 
 ### Flags
 
-| Flag | Short | Default | Description |
-|------|-------|---------|-------------|
-| `--n` | `-n` | `250,000,000` | Fibonacci index to calculate. |
-| `--algo` | | `all` | Algorithm: `fast`, `matrix`, `fft`, or `all`. |
-| `--output` | `-o` | | Write result to a file. |
-| `--calculate` | `-c` | `false` | Print the full value. |
-| `--timeout` | | `5m` | Maximum calculation time. |
-| `--threshold` | | `4096` | Parallelism threshold in bits. |
-| `--fft-threshold` | | `500000` | FFT multiplication threshold in bits. |
-| `--strassen-threshold` | | `3072` | Strassen algorithm threshold in bits. |
-| `--quiet` | `-q` | `false` | Quiet mode for scripting. |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-n` | `250,000,000` | Fibonacci index to calculate. |
+| `-algo` | `all` | Algorithm: `fast`, `matrix`, `fft`, or `all`. |
+| `-timeout` | `5m` | Maximum calculation time. |
+| `-threshold` | `4096` | Parallelism threshold in bits. |
+| `-fft-threshold` | `500000` | FFT multiplication threshold in bits. |
+| `-v` | `false` | Display the full (non-truncated) result. |
+| `-d` | `false` | Display detailed execution metrics. |
+| `-c` | `false` | Display the calculated value. |
+| `-version` | `false` | Display version information and exit. |
+
+Results are sorted by performance (fastest algorithm first).
 
 ### Examples
 
 ```bash
+# Run with defaults: compare all algorithms on F(250,000,000)
+fibcalc
+
 # Compare all algorithms with detailed stats
-fibcalc -n 10000000 --algo all --details
+fibcalc -n 10000000 -algo all -d
+
+# Single algorithm with full value output
+fibcalc -n 1000 -algo fast -c -v
 
 # Force FFT with lower threshold
-fibcalc -n 5000000 --algo fast --fft-threshold 100000
-
-# Quiet mode for scripting
-fibcalc -n 1000 --quiet
+fibcalc -n 5000000 -algo fft -fft-threshold 100000
 ```
 
 ---
@@ -88,6 +98,8 @@ fibcalc -n 1000 --quiet
 ## Architecture
 
 ```
+cmd/
+└── fibcalc/     # CLI entry point (main.go)
 internal/
 ├── fibonacci/   # Core algorithms (Fast Doubling, Matrix, FFT-based)
 ├── bigfft/      # FFT multiplication for big.Int
