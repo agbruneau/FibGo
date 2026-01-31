@@ -29,8 +29,6 @@ const (
 	DefaultN uint64 = 100_000_000
 	// DefaultTimeout is the default calculation timeout.
 	DefaultTimeout = 5 * time.Minute
-	// DefaultPort is the default server port.
-	DefaultPort = "8080"
 	// DefaultAlgo is the default algorithm selection.
 	DefaultAlgo = "all"
 	// DefaultThreshold is the default parallelism threshold in bits.
@@ -61,22 +59,8 @@ type AppConfig struct {
 	FFTThreshold int
 	// StrassenThreshold controls when matrix multiplication switches to Strassen.
 	StrassenThreshold int
-	// Calibrate, if true, runs the application in calibration mode to find the
-	// optimal parallelism threshold.
-	Calibrate bool
-	// AutoCalibrate, if true, runs a short automatic calibration at startup to
-	// refine Threshold and FFTThreshold for the current machine.
-	AutoCalibrate bool
-	// CalibrationProfile is the path to a calibration profile file.
-	// If set, the application will load/save calibration results from/to this file.
-	// If empty, uses the default path (~/.fibcalc_calibration.json).
-	CalibrationProfile string
 	// JSONOutput, if true, outputs the result in JSON format.
 	JSONOutput bool
-	// ServerMode, if true, starts the application as an HTTP server.
-	ServerMode bool
-	// Port specifies the port to listen on in server mode.
-	Port string
 	// NoColor, if true, disables all color output in the CLI.
 	// Also respects the NO_COLOR environment variable.
 	NoColor bool
@@ -96,10 +80,6 @@ type AppConfig struct {
 	// Concise, if false (default), suppresses the display of the calculated value section.
 	// Set to true with -c/--calculate to display the calculated value.
 	Concise bool
-	// TUIMode, if true, starts the application in interactive TUI mode.
-	// The TUI provides a rich terminal interface with navigation, progress bars,
-	// and interactive algorithm selection.
-	TUIMode bool
 }
 
 // ToCalculationOptions converts the application configuration into
@@ -181,12 +161,7 @@ func ParseConfig(programName string, args []string, errorWriter io.Writer, avail
 	fs.IntVar(&config.Threshold, "threshold", DefaultThreshold, "Threshold (in bits) for activating parallelism in multiplications.")
 	fs.IntVar(&config.FFTThreshold, "fft-threshold", DefaultFFTThreshold, "Threshold (in bits) to enable FFT multiplication (0 to disable).")
 	fs.IntVar(&config.StrassenThreshold, "strassen-threshold", DefaultStrassenThreshold, "Threshold (in bits) to switch to Strassen's algorithm in matrix multiplication.")
-	fs.BoolVar(&config.Calibrate, "calibrate", false, "Runs calibration mode to determine the optimal parallelism threshold.")
-	fs.BoolVar(&config.AutoCalibrate, "auto-calibrate", false, "Enables quick automatic calibration at startup (may increase loading time).")
-	fs.StringVar(&config.CalibrationProfile, "calibration-profile", "", "Path to calibration profile file (default: ~/.fibcalc_calibration.json).")
 	fs.BoolVar(&config.JSONOutput, "json", false, "Output results in JSON format.")
-	fs.BoolVar(&config.ServerMode, "server", false, "Start in HTTP server mode.")
-	fs.StringVar(&config.Port, "port", DefaultPort, "Port to listen on in server mode.")
 	fs.BoolVar(&config.NoColor, "no-color", false, "Disable colored output (also respects NO_COLOR env var).")
 
 	// New CLI enhancement flags
@@ -199,8 +174,6 @@ func ParseConfig(programName string, args []string, errorWriter io.Writer, avail
 	fs.StringVar(&config.Completion, "completion", "", "Generate shell completion script (bash, zsh, fish, powershell).")
 	fs.BoolVar(&config.Concise, "calculate", false, "Display the calculated value (disabled by default).")
 	fs.BoolVar(&config.Concise, "c", false, "Display the calculated value (shorthand).")
-	fs.BoolVar(&config.TUIMode, "tui", false, "Start in interactive TUI mode with rich terminal interface.")
-
 	setCustomUsage(fs)
 
 	if err := fs.Parse(args); err != nil {

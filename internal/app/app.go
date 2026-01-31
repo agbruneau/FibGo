@@ -11,21 +11,18 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/agbru/fibcalc/internal/calibration"
 	"github.com/agbru/fibcalc/internal/cli"
 	"github.com/agbru/fibcalc/internal/config"
 	apperrors "github.com/agbru/fibcalc/internal/errors"
 	"github.com/agbru/fibcalc/internal/fibonacci"
 	"github.com/agbru/fibcalc/internal/orchestration"
-	"github.com/agbru/fibcalc/internal/server"
-	"github.com/agbru/fibcalc/internal/tui"
 	"github.com/agbru/fibcalc/internal/ui"
 	"github.com/rs/zerolog"
 )
 
 // Application represents the fibcalc application instance.
 // It encapsulates the configuration and provides methods to run
-// the application in various modes (CLI, server, REPL).
+// the application in various modes (CLI, REPL).
 type Application struct {
 	// Config holds the parsed application configuration.
 	Config config.AppConfig
@@ -63,16 +60,6 @@ func New(args []string, errWriter io.Writer) (*Application, error) {
 		return nil, err
 	}
 
-	// Try to load cached calibration profile first
-	// This allows the application to use optimal thresholds found in previous runs
-	if cfgWithProfile, loaded := calibration.LoadCachedCalibration(cfg, cfg.CalibrationProfile); loaded {
-		cfg = cfgWithProfile
-	} else {
-		// Fallback to adaptive thresholds based on hardware characteristics
-		// This provides automatic optimization without requiring --auto-calibrate
-		cfg = applyAdaptiveThresholds(cfg)
-	}
-
 	return &Application{
 		Config:    cfg,
 		Factory:   factory,
@@ -80,43 +67,8 @@ func New(args []string, errWriter io.Writer) (*Application, error) {
 	}, nil
 }
 
-// applyAdaptiveThresholds adjusts the configuration thresholds based on
-// hardware characteristics (CPU cores, architecture) when default values
-// are detected. This provides automatic performance optimization without
-// requiring explicit calibration.
-//
-// The function only modifies thresholds that are set to their static default
-// values, preserving any user-specified overrides via command-line flags.
-//
-// Parameters:
-//   - cfg: The initial configuration with potentially default threshold values.
-//
-// Returns:
-//   - config.AppConfig: The configuration with adaptive thresholds applied.
-func applyAdaptiveThresholds(cfg config.AppConfig) config.AppConfig {
-	// Only adjust thresholds if they're at the static default values.
-	// This preserves explicit user overrides via --threshold, --fft-threshold, etc.
-
-	// Parallel threshold: adapt based on CPU core count
-	if cfg.Threshold == fibonacci.DefaultParallelThreshold {
-		cfg.Threshold = calibration.EstimateOptimalParallelThreshold()
-	}
-
-	// FFT threshold: adapt based on architecture (32-bit vs 64-bit)
-	if cfg.FFTThreshold == fibonacci.DefaultFFTThreshold {
-		cfg.FFTThreshold = calibration.EstimateOptimalFFTThreshold()
-	}
-
-	// Strassen threshold: adapt based on CPU core count
-	if cfg.StrassenThreshold == fibonacci.DefaultStrassenThreshold {
-		cfg.StrassenThreshold = calibration.EstimateOptimalStrassenThreshold()
-	}
-
-	return cfg
-}
-
 // Run executes the application based on the configured mode.
-// It dispatches to the appropriate handler (completion, server, REPL, or CLI).
+// It dispatches to the appropriate handler (completion, REPL, or CLI).
 //
 // Parameters:
 //   - ctx: The context for managing cancellation and timeouts.
@@ -131,34 +83,15 @@ func (a *Application) Run(ctx context.Context, out io.Writer) int {
 	}
 
 	// Disable trace-level logging by default to avoid polluting CLI output.
-	// Server mode may override this to enable more verbose logging.
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
 	// Initialize CLI theme (respects --no-color flag and NO_COLOR env var)
 	ui.InitTheme(a.Config.NoColor)
 
-	// Server mode
-	if a.Config.ServerMode {
-		return a.runServer()
-	}
-
-	// TUI mode
-	if a.Config.TUIMode {
-		return a.runTUI()
-	}
-
 	// Interactive REPL mode
 	if a.Config.Interactive {
 		return a.runREPL()
 	}
-
-	// Calibration mode
-	if a.Config.Calibrate {
-		return a.runCalibration(ctx, out)
-	}
-
-	// Run auto-calibration if enabled
-	a.Config = a.runAutoCalibrationIfEnabled(ctx, out)
 
 	// Standard CLI calculation mode
 	return a.runCalculate(ctx, out)
@@ -174,16 +107,6 @@ func (a *Application) runCompletion(out io.Writer) int {
 	return apperrors.ExitSuccess
 }
 
-// runServer starts the HTTP server mode.
-func (a *Application) runServer() int {
-	srv := server.NewServer(a.Factory, a.Config)
-	if err := srv.Start(); err != nil {
-		fmt.Fprintf(a.ErrWriter, "Server error: %v\n", err)
-		return apperrors.ExitErrorGeneric
-	}
-	return apperrors.ExitSuccess
-}
-
 // runREPL starts the interactive REPL mode.
 func (a *Application) runREPL() int {
 	repl := cli.NewREPL(a.Factory.GetAll(), cli.REPLConfig{
@@ -195,27 +118,6 @@ func (a *Application) runREPL() int {
 	})
 	repl.Start()
 	return apperrors.ExitSuccess
-}
-
-// runTUI starts the interactive TUI mode using Bubbletea.
-func (a *Application) runTUI() int {
-	return tui.Run(a.Config, a.Factory.GetAll())
-}
-
-// runCalibration runs the full calibration mode.
-func (a *Application) runCalibration(ctx context.Context, out io.Writer) int {
-	return calibration.RunCalibration(ctx, out, a.Factory.GetAll())
-}
-
-// runAutoCalibrationIfEnabled runs auto-calibration if enabled in the configuration.
-// Returns the potentially updated configuration with calibrated threshold values.
-func (a *Application) runAutoCalibrationIfEnabled(ctx context.Context, out io.Writer) config.AppConfig {
-	if a.Config.AutoCalibrate {
-		if updated, ok := calibration.AutoCalibrate(ctx, a.Config, out, a.Factory.GetAll()); ok {
-			return updated
-		}
-	}
-	return a.Config
 }
 
 // runCalculate orchestrates the execution of the CLI calculation command.

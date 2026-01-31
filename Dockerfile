@@ -26,9 +26,6 @@ FROM alpine:3.19
 # Create a non-root user
 RUN adduser -D -g '' appuser
 
-# Install CA certificates for HTTPS support
-RUN apk add --no-cache ca-certificates
-
 # Set working directory
 WORKDIR /app
 
@@ -38,11 +35,5 @@ COPY --from=builder /app/fibcalc .
 # Use non-root user
 USER appuser
 
-# Expose default port
-EXPOSE 8080
-
 # Define entrypoint
 ENTRYPOINT ["./fibcalc"]
-
-# Default arguments
-CMD ["--server", "--port", "8080"]

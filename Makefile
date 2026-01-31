@@ -169,14 +169,6 @@ run: build
 run-fast: build
 	$(BUILD_DIR)/$(BINARY_NAME) -n 1000 -algo fast -d
 
-## run-server: Run in server mode
-run-server: build
-	$(BUILD_DIR)/$(BINARY_NAME) --server --port 8080
-
-## run-calibrate: Run calibration mode
-run-calibrate: build
-	$(BUILD_DIR)/$(BINARY_NAME) --calibrate
-
 ## lint: Run linter (golangci-lint)
 lint:
 	@echo "Running linter..."
@@ -238,7 +230,7 @@ docker-build:
 ## docker-run: Run Docker container
 docker-run:
 	@echo "Running Docker container..."
-	docker run -p 8080:8080 $(BINARY_NAME):$(VERSION)
+	docker run $(BINARY_NAME):$(VERSION)
 
 ## help: Display this help message
 help:

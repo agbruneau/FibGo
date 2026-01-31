@@ -260,20 +260,8 @@ func TestParseConfigDefaults(t *testing.T) {
 	if cfg.StrassenThreshold != 3072 {
 		t.Errorf("Default StrassenThreshold: expected 3072, got %d", cfg.StrassenThreshold)
 	}
-	if cfg.Calibrate {
-		t.Error("Default Calibrate should be false")
-	}
-	if cfg.AutoCalibrate {
-		t.Error("Default AutoCalibrate should be false")
-	}
 	if cfg.JSONOutput {
 		t.Error("Default JSONOutput should be false")
-	}
-	if cfg.ServerMode {
-		t.Error("Default ServerMode should be false")
-	}
-	if cfg.Port != "8080" {
-		t.Errorf("Default Port: expected '8080', got '%s'", cfg.Port)
 	}
 	if cfg.NoColor {
 		t.Error("Default NoColor should be false")
@@ -295,12 +283,7 @@ func TestParseConfigAllFlags(t *testing.T) {
 		"-threshold", "8192",
 		"-fft-threshold", "2000000",
 		"-strassen-threshold", "512",
-		"-calibrate",
-		"-auto-calibrate",
-		"-calibration-profile", "/path/to/profile.json",
 		"-json",
-		"-server",
-		"-port", "9090",
 		"-no-color",
 	}
 
@@ -334,23 +317,8 @@ func TestParseConfigAllFlags(t *testing.T) {
 	if cfg.StrassenThreshold != 512 {
 		t.Errorf("StrassenThreshold: expected 512, got %d", cfg.StrassenThreshold)
 	}
-	if !cfg.Calibrate {
-		t.Error("Calibrate should be true")
-	}
-	if !cfg.AutoCalibrate {
-		t.Error("AutoCalibrate should be true")
-	}
-	if cfg.CalibrationProfile != "/path/to/profile.json" {
-		t.Errorf("CalibrationProfile: expected '/path/to/profile.json', got '%s'", cfg.CalibrationProfile)
-	}
 	if !cfg.JSONOutput {
 		t.Error("JSONOutput should be true")
-	}
-	if !cfg.ServerMode {
-		t.Error("ServerMode should be true")
-	}
-	if cfg.Port != "9090" {
-		t.Errorf("Port: expected '9090', got '%s'", cfg.Port)
 	}
 	if !cfg.NoColor {
 		t.Error("NoColor should be true")

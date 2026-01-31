@@ -3,16 +3,13 @@ package app
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"os"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/agbru/fibcalc/internal/calibration"
 	"github.com/agbru/fibcalc/internal/cli"
 	"github.com/agbru/fibcalc/internal/config"
 	apperrors "github.com/agbru/fibcalc/internal/errors"
@@ -424,29 +421,6 @@ func TestHexOutput(t *testing.T) {
 	}
 }
 
-// TestRunAutoCalibrationDisabled tests that auto-calibration doesn't run when disabled.
-func TestRunAutoCalibrationDisabled(t *testing.T) {
-	t.Parallel()
-	var outBuf bytes.Buffer
-	factory := createMockFactory(big.NewInt(55), nil)
-	app := &Application{
-		Config: config.AppConfig{
-			N:             10,
-			Algo:          "fast",
-			Timeout:       1 * time.Minute,
-			AutoCalibrate: false, // Disabled
-		},
-		Factory:   factory,
-		ErrWriter: &bytes.Buffer{},
-	}
-
-	exitCode := app.Run(context.Background(), &outBuf)
-
-	if exitCode != apperrors.ExitSuccess {
-		t.Errorf("Expected exit code %d, got %d", apperrors.ExitSuccess, exitCode)
-	}
-}
-
 // TestMultipleAlgorithms tests running all algorithms.
 func TestMultipleAlgorithms(t *testing.T) {
 	t.Parallel()
@@ -489,48 +463,6 @@ func TestSetupSignals(t *testing.T) {
 
 	// Stop should not panic
 	stop()
-}
-
-func TestApplyAdaptiveThresholds(t *testing.T) {
-	t.Parallel()
-	// Test case where defaults are present and should be replaced
-	t.Run("ReplaceDefaults", func(t *testing.T) {
-		t.Parallel()
-		cfg := config.AppConfig{
-			Threshold:         fibonacci.DefaultParallelThreshold,
-			FFTThreshold:      fibonacci.DefaultFFTThreshold,
-			StrassenThreshold: fibonacci.DefaultStrassenThreshold,
-		}
-
-		// Since we can't easily check internal calls without mocking,
-		// we mainly check that it runs safely and returns a valid config.
-		// The thresholds might remain default if the environment matches the defaults,
-		// or change if it differs.
-		newCfg := applyAdaptiveThresholds(cfg)
-		_ = newCfg
-	})
-
-	// Test case where user overrides should be preserved
-	t.Run("PreserveOverrides", func(t *testing.T) {
-		t.Parallel()
-		cfg := config.AppConfig{
-			Threshold:         1234,
-			FFTThreshold:      5678,
-			StrassenThreshold: 9012,
-		}
-
-		newCfg := applyAdaptiveThresholds(cfg)
-
-		if newCfg.Threshold != 1234 {
-			t.Errorf("Threshold changed, want %d, got %d", 1234, newCfg.Threshold)
-		}
-		if newCfg.FFTThreshold != 5678 {
-			t.Errorf("FFTThreshold changed, want %d, got %d", 5678, newCfg.FFTThreshold)
-		}
-		if newCfg.StrassenThreshold != 9012 {
-			t.Errorf("StrassenThreshold changed, want %d, got %d", 9012, newCfg.StrassenThreshold)
-		}
-	})
 }
 
 func TestAnalyzeResultsWithOutputFile(t *testing.T) {
@@ -645,54 +577,6 @@ func TestPrintJSONResultsError(t *testing.T) {
 	}
 }
 
-// TestRunServer tests the runServer method.
-func TestRunServer(t *testing.T) {
-	t.Parallel()
-
-	t.Run("Server starts successfully", func(t *testing.T) {
-		t.Parallel()
-		var errBuf bytes.Buffer
-		factory := createMockFactory(big.NewInt(55), nil)
-
-		app := &Application{
-			Config: config.AppConfig{
-				ServerMode: true,
-				Port:       "0", // Use port 0 for automatic port assignment
-			},
-			Factory:   factory,
-			ErrWriter: &errBuf,
-		}
-
-		// Start server in a goroutine and stop it quickly
-		done := make(chan int, 1)
-		go func() {
-			done <- app.runServer()
-		}()
-
-		// Give server time to start, then signal shutdown
-		time.Sleep(50 * time.Millisecond)
-
-		// The server will block waiting for shutdown signal
-		// Since we can't easily send signals in tests, we'll just verify
-		// that the function doesn't panic and returns eventually
-		// In a real scenario, we'd send SIGTERM
-		select {
-		case exitCode := <-done:
-			if exitCode != apperrors.ExitSuccess && exitCode != apperrors.ExitErrorGeneric {
-				t.Errorf("Expected exit code %d or %d, got %d",
-					apperrors.ExitSuccess, apperrors.ExitErrorGeneric, exitCode)
-			}
-		case <-time.After(100 * time.Millisecond):
-			// Server is running, which is expected behavior
-			// We can't easily test graceful shutdown without signals
-		}
-	})
-
-	// Note: Testing server error handling with invalid port is difficult because
-	// the server uses logger.Fatalf which calls os.Exit(1), causing the test to fail.
-	// The server error handling is tested in internal/server package tests.
-}
-
 // TestRunREPL tests the runREPL method.
 func TestRunREPL(t *testing.T) {
 	t.Parallel()
@@ -726,220 +610,9 @@ func TestRunREPL(t *testing.T) {
 	})
 }
 
-// TestRunCalibration tests the runCalibration method.
-func TestRunCalibration(t *testing.T) {
-	t.Parallel()
-
-	t.Run("Calibration runs successfully", func(t *testing.T) {
-		t.Parallel()
-		var outBuf bytes.Buffer
-		factory := createMockFactory(big.NewInt(55), nil)
-
-		app := &Application{
-			Config: config.AppConfig{
-				Calibrate: true,
-				Timeout:   5 * time.Second,
-			},
-			Factory:   factory,
-			ErrWriter: &bytes.Buffer{},
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-
-		exitCode := app.runCalibration(ctx, &outBuf)
-
-		// Calibration may succeed or timeout, both are valid
-		if exitCode != apperrors.ExitSuccess &&
-			exitCode != apperrors.ExitErrorTimeout &&
-			exitCode != apperrors.ExitErrorCanceled {
-			t.Errorf("Expected exit code %d, %d, or %d, got %d",
-				apperrors.ExitSuccess, apperrors.ExitErrorTimeout,
-				apperrors.ExitErrorCanceled, exitCode)
-		}
-	})
-
-	t.Run("Calibration with context cancellation", func(t *testing.T) {
-		t.Parallel()
-		var outBuf bytes.Buffer
-		factory := createMockFactory(big.NewInt(55), nil)
-
-		app := &Application{
-			Config: config.AppConfig{
-				Calibrate: true,
-				Timeout:   1 * time.Minute,
-			},
-			Factory:   factory,
-			ErrWriter: &bytes.Buffer{},
-		}
-
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel() // Cancel immediately
-
-		exitCode := app.runCalibration(ctx, &outBuf)
-
-		if exitCode != apperrors.ExitErrorCanceled {
-			t.Errorf("Expected exit code %d (canceled), got %d",
-				apperrors.ExitErrorCanceled, exitCode)
-		}
-	})
-}
-
-// TestRunAutoCalibrationIfEnabled tests the runAutoCalibrationIfEnabled method.
-func TestRunAutoCalibrationIfEnabled(t *testing.T) {
-	t.Parallel()
-
-	t.Run("Auto-calibration enabled and succeeds", func(t *testing.T) {
-		t.Parallel()
-		var outBuf bytes.Buffer
-		factory := createMockFactory(big.NewInt(55), nil)
-
-		// Create a temporary calibration profile with known values
-		// This ensures predictable results since mock calculators don't produce
-		// meaningful timing measurements for the micro-benchmark calibration
-		tmpDir := t.TempDir()
-		profilePath := tmpDir + "/calibration.json"
-
-		// Create a valid profile that matches current hardware
-		wordSize := 32 << (^uint(0) >> 63)
-		profile := calibration.CalibrationProfile{
-			ProfileVersion:           2, // CurrentProfileVersion
-			NumCPU:                   runtime.NumCPU(),
-			GOARCH:                   runtime.GOARCH,
-			WordSize:                 wordSize,
-			OptimalParallelThreshold: 8192,
-			OptimalFFTThreshold:      600000,
-			OptimalStrassenThreshold: 4096,
-			CalibratedAt:             time.Now(),
-		}
-		profileData, err := json.Marshal(profile)
-		if err != nil {
-			t.Fatalf("Failed to marshal profile: %v", err)
-		}
-		if err := os.WriteFile(profilePath, profileData, 0o644); err != nil {
-			t.Fatalf("Failed to create test profile: %v", err)
-		}
-
-		originalCfg := config.AppConfig{
-			AutoCalibrate:      true,
-			Timeout:            5 * time.Second,
-			Threshold:          4096,
-			CalibrationProfile: profilePath,
-		}
-
-		app := &Application{
-			Config:    originalCfg,
-			Factory:   factory,
-			ErrWriter: &bytes.Buffer{},
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-
-		updatedCfg := app.runAutoCalibrationIfEnabled(ctx, &outBuf)
-
-		// Config should be updated with the cached profile values
-		if updatedCfg.Threshold != 8192 {
-			t.Errorf("Expected Threshold=8192 from cached profile, got %d", updatedCfg.Threshold)
-		}
-		if updatedCfg.FFTThreshold != 600000 {
-			t.Errorf("Expected FFTThreshold=600000 from cached profile, got %d", updatedCfg.FFTThreshold)
-		}
-	})
-
-	t.Run("Auto-calibration enabled but fails", func(t *testing.T) {
-		t.Parallel()
-		var outBuf bytes.Buffer
-		// Use a factory with no calculators to force failure
-		emptyFactory := fibonacci.NewTestFactory(map[string]fibonacci.Calculator{})
-
-		// Use a temporary profile path to avoid loading existing profiles
-		tmpProfile := t.TempDir() + "/profile.json"
-
-		originalCfg := config.AppConfig{
-			AutoCalibrate:      true,
-			Timeout:            1 * time.Second,
-			Threshold:          4096,
-			CalibrationProfile: tmpProfile,
-		}
-
-		app := &Application{
-			Config:    originalCfg,
-			Factory:   emptyFactory,
-			ErrWriter: &bytes.Buffer{},
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-		defer cancel()
-
-		updatedCfg := app.runAutoCalibrationIfEnabled(ctx, &outBuf)
-
-		// Config should remain unchanged if calibration fails
-		if updatedCfg.Threshold != originalCfg.Threshold {
-			t.Errorf("Threshold should remain %d when calibration fails, got %d",
-				originalCfg.Threshold, updatedCfg.Threshold)
-		}
-	})
-
-	t.Run("Auto-calibration disabled", func(t *testing.T) {
-		t.Parallel()
-		var outBuf bytes.Buffer
-		factory := createMockFactory(big.NewInt(55), nil)
-
-		originalCfg := config.AppConfig{
-			AutoCalibrate: false,
-			Threshold:     4096,
-		}
-
-		app := &Application{
-			Config:    originalCfg,
-			Factory:   factory,
-			ErrWriter: &bytes.Buffer{},
-		}
-
-		updatedCfg := app.runAutoCalibrationIfEnabled(context.Background(), &outBuf)
-
-		// Config should remain unchanged when auto-calibration is disabled
-		if updatedCfg.Threshold != originalCfg.Threshold {
-			t.Errorf("Threshold should remain %d when auto-calibration is disabled, got %d",
-				originalCfg.Threshold, updatedCfg.Threshold)
-		}
-	})
-}
-
-// TestRunAllModes tests the Run method with all different modes.
+// TestRunAllModes tests the Run method with different modes.
 func TestRunAllModes(t *testing.T) {
 	t.Parallel()
-
-	t.Run("Server mode", func(t *testing.T) {
-		t.Parallel()
-		var outBuf bytes.Buffer
-		factory := createMockFactory(big.NewInt(55), nil)
-
-		app := &Application{
-			Config: config.AppConfig{
-				ServerMode: true,
-				Port:       "0",
-			},
-			Factory:   factory,
-			ErrWriter: &bytes.Buffer{},
-		}
-
-		done := make(chan int, 1)
-		go func() {
-			done <- app.Run(context.Background(), &outBuf)
-		}()
-
-		select {
-		case exitCode := <-done:
-			if exitCode != apperrors.ExitSuccess && exitCode != apperrors.ExitErrorGeneric {
-				t.Errorf("Expected exit code %d or %d, got %d",
-					apperrors.ExitSuccess, apperrors.ExitErrorGeneric, exitCode)
-			}
-		case <-time.After(100 * time.Millisecond):
-			// Server is running, which is expected
-		}
-	})
 
 	t.Run("REPL mode", func(t *testing.T) {
 		t.Parallel()
@@ -960,34 +633,6 @@ func TestRunAllModes(t *testing.T) {
 
 		if exitCode != apperrors.ExitSuccess {
 			t.Errorf("Expected exit code %d, got %d", apperrors.ExitSuccess, exitCode)
-		}
-	})
-
-	t.Run("Calibration mode", func(t *testing.T) {
-		t.Parallel()
-		var outBuf bytes.Buffer
-		factory := createMockFactory(big.NewInt(55), nil)
-
-		app := &Application{
-			Config: config.AppConfig{
-				Calibrate: true,
-				Timeout:   2 * time.Second,
-			},
-			Factory:   factory,
-			ErrWriter: &bytes.Buffer{},
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-
-		exitCode := app.Run(ctx, &outBuf)
-
-		if exitCode != apperrors.ExitSuccess &&
-			exitCode != apperrors.ExitErrorTimeout &&
-			exitCode != apperrors.ExitErrorCanceled {
-			t.Errorf("Expected exit code %d, %d, or %d, got %d",
-				apperrors.ExitSuccess, apperrors.ExitErrorTimeout,
-				apperrors.ExitErrorCanceled, exitCode)
 		}
 	})
 }

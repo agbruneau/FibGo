@@ -42,7 +42,7 @@ _fibcalc_completions() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # Main options
-    opts="--help -h --version -V -n -v -d --details --timeout --algo --threshold --fft-threshold --strassen-threshold --calibrate --auto-calibrate --calibration-profile --json --server --port --no-color --output -o --quiet -q --hex --interactive --completion"
+    opts="--help -h --version -V -n -v -d --details --timeout --algo --threshold --fft-threshold --strassen-threshold --json --no-color --output -o --quiet -q --hex --interactive --completion --calculate -c"
 
     # Available algorithms
     algorithms="%s all"
@@ -56,13 +56,9 @@ _fibcalc_completions() {
             COMPREPLY=( $(compgen -W "bash zsh fish powershell" -- "${cur}") )
             return 0
             ;;
-        --output|-o|--calibration-profile)
+        --output|-o)
             # File/directory completion
             COMPREPLY=( $(compgen -f -- "${cur}") )
-            return 0
-            ;;
-        --port)
-            COMPREPLY=( $(compgen -W "8080 3000 5000 9000" -- "${cur}") )
             return 0
             ;;
         --timeout)
@@ -117,17 +113,13 @@ _fibcalc() {
         '--threshold[Parallelism threshold in bits]:bits:(1024 2048 4096 8192 16384)' \
         '--fft-threshold[FFT threshold in bits]:bits:(100000 500000 1000000)' \
         '--strassen-threshold[Strassen threshold in bits]:bits:(1024 2048 3072 4096)' \
-        '--calibrate[Run calibration mode]' \
-        '--auto-calibrate[Enable auto-calibration]' \
-        '--calibration-profile[Calibration profile file]:file:_files' \
         '--json[Output in JSON format]' \
-        '--server[Start HTTP server mode]' \
-        '--port[Server port]:port:(8080 3000 5000 9000)' \
         '--no-color[Disable colored output]' \
         '(-o --output)'{-o,--output}'[Output file path]:file:_files' \
         '(-q --quiet)'{-q,--quiet}'[Quiet mode for scripts]' \
         '--hex[Display result in hexadecimal]' \
         '--interactive[Start interactive REPL mode]' \
+        '(-c --calculate)'{-c,--calculate}'[Display the calculated value]' \
         '--completion[Generate completion script]:shell:(bash zsh fish powershell)'
 }
 
@@ -167,21 +159,13 @@ complete -c fibcalc -l threshold -d 'Parallelism threshold in bits' -xa '1024 20
 complete -c fibcalc -l fft-threshold -d 'FFT threshold in bits' -xa '100000 500000 1000000'
 complete -c fibcalc -l strassen-threshold -d 'Strassen threshold' -xa '1024 2048 3072 4096'
 
-# Calibration
-complete -c fibcalc -l calibrate -d 'Run calibration mode'
-complete -c fibcalc -l auto-calibrate -d 'Enable auto-calibration'
-complete -c fibcalc -l calibration-profile -d 'Calibration profile file' -rF
-
 # Output options
 complete -c fibcalc -l json -d 'Output in JSON format'
 complete -c fibcalc -s o -l output -d 'Output file path' -rF
 complete -c fibcalc -s q -l quiet -d 'Quiet mode for scripts'
 complete -c fibcalc -l hex -d 'Display result in hexadecimal'
 complete -c fibcalc -l no-color -d 'Disable colored output'
-
-# Server mode
-complete -c fibcalc -l server -d 'Start HTTP server mode'
-complete -c fibcalc -l port -d 'Server port' -xa '8080 3000 5000 9000'
+complete -c fibcalc -s c -l calculate -d 'Display the calculated value'
 
 # Interactive and completion
 complete -c fibcalc -l interactive -d 'Start interactive REPL mode'
@@ -223,12 +207,7 @@ Register-ArgumentCompleter -CommandName 'fibcalc' -Native -ScriptBlock {
         @{Name = '--threshold'; Description = 'Parallelism threshold in bits' }
         @{Name = '--fft-threshold'; Description = 'FFT threshold in bits' }
         @{Name = '--strassen-threshold'; Description = 'Strassen threshold' }
-        @{Name = '--calibrate'; Description = 'Run calibration mode' }
-        @{Name = '--auto-calibrate'; Description = 'Enable auto-calibration' }
-        @{Name = '--calibration-profile'; Description = 'Calibration profile file' }
         @{Name = '--json'; Description = 'Output in JSON format' }
-        @{Name = '--server'; Description = 'Start HTTP server mode' }
-        @{Name = '--port'; Description = 'Server port' }
         @{Name = '--no-color'; Description = 'Disable colored output' }
         @{Name = '-o'; Description = 'Output file path' }
         @{Name = '--output'; Description = 'Output file path' }
@@ -236,6 +215,8 @@ Register-ArgumentCompleter -CommandName 'fibcalc' -Native -ScriptBlock {
         @{Name = '--quiet'; Description = 'Quiet mode for scripts' }
         @{Name = '--hex'; Description = 'Display result in hexadecimal' }
         @{Name = '--interactive'; Description = 'Start interactive REPL mode' }
+        @{Name = '-c'; Description = 'Display the calculated value' }
+        @{Name = '--calculate'; Description = 'Display the calculated value' }
         @{Name = '--completion'; Description = 'Generate completion script' }
     )
 
@@ -259,12 +240,6 @@ Register-ArgumentCompleter -CommandName 'fibcalc' -Native -ScriptBlock {
         }
         '--timeout' {
             @('1m', '5m', '10m', '30m', '1h') | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
-                [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
-            }
-            return
-        }
-        '--port' {
-            @('8080', '3000', '5000', '9000') | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
                 [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
             }
             return
