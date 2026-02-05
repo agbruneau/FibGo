@@ -1,7 +1,7 @@
 # Fast Doubling Algorithm
 
-> **Complexity**: O(log n) arithmetic operations  
-> **Actual Complexity**: O(log n × M(n)) where M(n) is the multiplication cost
+> **Complexity**: O(log n) arithmetic operations
+> **Actual Complexity**: O(log n * M(n)) where M(n) is the multiplication cost
 
 ## Introduction
 
@@ -26,9 +26,9 @@ This relation is known as the **Fibonacci Q matrix**.
 By squaring the matrix for F(k), we obtain the matrix for F(2k):
 
 ```
-[ F(k+1)  F(k)  ]²   [ F(k+1)² + F(k)²        F(k+1)F(k) + F(k)F(k-1) ]
-[               ]  = [                                                 ]
-[ F(k)    F(k-1)]    [ F(k)F(k+1) + F(k-1)F(k)   F(k)² + F(k-1)²       ]
+[ F(k+1)  F(k)  ]^2   [ F(k+1)^2 + F(k)^2        F(k+1)F(k) + F(k)F(k-1) ]
+[               ]    = [                                                     ]
+[ F(k)    F(k-1)]     [ F(k)F(k+1) + F(k-1)F(k)   F(k)^2 + F(k-1)^2       ]
 ```
 
 Which corresponds to:
@@ -42,21 +42,21 @@ Which corresponds to:
 From this equality, we extract the **Fast Doubling identities**:
 
 ```
-F(2k)   = F(k) × [2×F(k+1) - F(k)]
-F(2k+1) = F(k+1)² + F(k)²
+F(2k)   = F(k) * [2*F(k+1) - F(k)]
+F(2k+1) = F(k+1)^2 + F(k)^2
 ```
 
 ### Formal Proof by Induction
 
-We prove the Fast Doubling identities using mathematical induction on the matrix power $Q^n$.
+We prove the Fast Doubling identities using mathematical induction on the matrix power Q^n.
 
 **Definitions**:
 $$Q = \begin{pmatrix} 1 & 1 \\ 1 & 0 \end{pmatrix}, \quad Q^n = \begin{pmatrix} F_{n+1} & F_n \\ F_n & F_{n-1} \end{pmatrix}$$
 
-**Goal**: Derive $F_{2n}$ and $F_{2n+1}$ in terms of $F_n$ and $F_{n+1}$.
+**Goal**: Derive F(2n) and F(2n+1) in terms of F(n) and F(n+1).
 
 **Step 1: Matrix Squaring**
-From the property $Q^{2n} = (Q^n)^2$:
+From the property Q^(2n) = (Q^n)^2:
 $$ \begin{pmatrix} F_{2n+1} & F_{2n} \\ F_{2n} & F_{2n-1} \end{pmatrix} = \begin{pmatrix} F_{n+1} & F_n \\ F_n & F_{n-1} \end{pmatrix}^2 $$
 
 **Step 2: Expansion**
@@ -66,34 +66,34 @@ $$ \begin{pmatrix} F_{n+1} & F_n \\ F_n & F_{n-1} \end{pmatrix} \times \begin{pm
 **Step 3: Equating Terms**
 By comparing the elements of the matrices:
 
-1.  **Top-left element ($F_{2n+1}$)**:
+1.  **Top-left element (F(2n+1))**:
     $$ F_{2n+1} = F_{n+1}^2 + F_n^2 $$
     *(This is the second Fast Doubling identity)*
 
-2.  **Top-right element ($F_{2n}$)**:
+2.  **Top-right element (F(2n))**:
     $$ F_{2n} = F_n(F_{n+1} + F_{n-1}) $$
-    Substituting $F_{n-1} = F_{n+1} - F_n$:
+    Substituting F(n-1) = F(n+1) - F(n):
     $$ F_{2n} = F_n(F_{n+1} + F_{n+1} - F_n) $$
     $$ F_{2n} = F_n(2F_{n+1} - F_n) $$
     *(This is the first Fast Doubling identity)*
 
 **Conclusion**:
-The identities hold for all $n \ge 1$ by the properties of matrix exponentiation.
+The identities hold for all n >= 1 by the properties of matrix exponentiation.
 
 ## Visualization
 
-The algorithm iterates through the bits of $N$ from MSB to LSB.
+The algorithm iterates through the bits of N from MSB to LSB.
 
 ```mermaid
 graph TD
-    Start([Start]) --> Init[Initialize Fk=0, Fk1=1]
+    Start([Start]) --> Init[Initialize FK=0, FK1=1]
     Init --> CheckBits{Bits left?}
-    CheckBits -- No --> Done([Return Fk])
-    CheckBits -- Yes --> Doubling[Doubling Step<br/>a = Fk, b = Fk1<br/>F2k = a * (2b - a)<br/>F2k+1 = a^2 + b^2]
-    Doubling --> UpdateState[Update Fk, Fk1]
+    CheckBits -- No --> Done([Return FK])
+    CheckBits -- Yes --> Doubling[Doubling Step<br/>a = FK, b = FK1<br/>F2k = a * (2b - a)<br/>F2k+1 = a^2 + b^2]
+    Doubling --> UpdateState[Update FK, FK1]
     UpdateState --> IsBitSet{Current Bit == 1?}
     IsBitSet -- No --> NextBit[Next Bit]
-    IsBitSet -- Yes --> Addition[Addition Step<br/>Fk, Fk1 = Fk1, Fk + Fk1]
+    IsBitSet -- Yes --> Addition[Addition Step<br/>FK, FK1 = FK1, FK + FK1]
     Addition --> NextBit
     NextBit --> CheckBits
 ```
@@ -106,12 +106,12 @@ graph TD
 FastDoubling(n):
     if n == 0:
         return (0, 1)  // (F(0), F(1))
-    
+
     (a, b) = FastDoubling(n // 2)  // (F(k), F(k+1)) where k = n/2
-    
-    c = a × (2×b - a)      // F(2k)
-    d = a² + b²            // F(2k+1)
-    
+
+    c = a * (2*b - a)      // F(2k)
+    d = a^2 + b^2          // F(2k+1)
+
     if n is even:
         return (c, d)   // (F(n), F(n+1))
     else:
@@ -125,19 +125,19 @@ func FastDoublingSimple(n uint64) (*big.Int, *big.Int) {
     if n == 0 {
         return big.NewInt(0), big.NewInt(1)
     }
-    
+
     a, b := FastDoublingSimple(n / 2)
-    
-    // c = a × (2b - a) = F(2k)
+
+    // c = a * (2b - a) = F(2k)
     c := new(big.Int).Lsh(b, 1)     // 2b
     c.Sub(c, a)                      // 2b - a
-    c.Mul(c, a)                      // a × (2b - a)
-    
-    // d = a² + b² = F(2k+1)
+    c.Mul(c, a)                      // a * (2b - a)
+
+    // d = a^2 + b^2 = F(2k+1)
     a2 := new(big.Int).Mul(a, a)
     b2 := new(big.Int).Mul(b, b)
     d := new(big.Int).Add(a2, b2)
-    
+
     if n%2 == 0 {
         return c, d
     }
@@ -147,81 +147,80 @@ func FastDoublingSimple(n uint64) (*big.Int, *big.Int) {
 
 ## Implemented Optimizations
 
-### 1. Iterative Version
+### 1. DoublingFramework with Strategy Pattern
 
-The recursive version is converted to iterative to avoid function call overhead:
+The recursive version is converted to an iterative `DoublingFramework` that accepts a pluggable `MultiplicationStrategy`:
 
 ```go
-func (fd *OptimizedFastDoubling) CalculateCore(...) (*big.Int, error) {
-    numBits := bits.Len64(n)
-    
-    for i := numBits - 1; i >= 0; i-- {
-        // Doubling step
-        t2.Lsh(f_k1, 1).Sub(t2, f_k)       // t2 = 2×F(k+1) - F(k)
-        
-        t3 = smartMultiply(t3, f_k, t2)    // F(2k) = F(k) × t2
-        t1 = smartMultiply(t1, f_k1, f_k1) // F(k+1)²
-        t4 = smartMultiply(t4, f_k, f_k)   // F(k)²
-        t2.Add(t1, t4)                      // F(2k+1) = F(k+1)² + F(k)²
-        
-        f_k, f_k1 = t3, t2
-        
-        // Addition step (if bit = 1)
-        if (n >> i) & 1 == 1 {
-            t1.Add(f_k, f_k1)
-            f_k, f_k1 = f_k1, t1
-        }
-    }
-    
-    return f_k, nil
+type DoublingFramework struct {
+    strategy         MultiplicationStrategy
+    dynamicThreshold *DynamicThresholdManager
 }
+
+// Create framework with a strategy
+framework := NewDoublingFramework(strategy)
+
+// Execute the main loop
+result, err := framework.ExecuteDoublingLoop(ctx, reporter, n, opts, state, inParallel)
 ```
+
+The `OptimizedFastDoubling` calculator uses an `AdaptiveStrategy` that selects between standard, Karatsuba, and FFT multiplication based on operand size. The `FFTBasedCalculator` uses an `FFTOnlyStrategy` that forces FFT for all operations.
 
 ### 2. Zero-Allocation with sync.Pool
 
-Calculation states are recycled:
+Calculation states are recycled via a `sync.Pool`. The `CalculationState` type is public and holds six `*big.Int` temporaries:
 
 ```go
-type calculationState struct {
-    f_k, f_k1, t1, t2, t3, t4 *big.Int
+type CalculationState struct {
+    FK, FK1, T1, T2, T3, T4 *big.Int
 }
 
-var statePool = sync.Pool{
-    New: func() interface{} {
-        return &calculationState{
-            f_k:  new(big.Int),
-            f_k1: new(big.Int),
-            // ...
-        }
-    },
+// Acquire a state from the pool (resets FK=0, FK1=1)
+state := AcquireState()
+defer ReleaseState(state)
+```
+
+Objects exceeding `MaxPooledBitLen` (4M bits) are left for GC rather than returned to the pool.
+
+### 3. Parallel Multiplication via Strategy
+
+The `MultiplicationStrategy.ExecuteStep` method performs the three multiplications required for a doubling step. The strategy decides whether to parallelize based on the `ParallelThreshold` in `Options`:
+
+```go
+type MultiplicationStrategy interface {
+    Multiply(z, x, y *big.Int, opts Options) (*big.Int, error)
+    Square(z, x *big.Int, opts Options) (*big.Int, error)
+    Name() string
+    ExecuteStep(state *CalculationState, opts Options) error
 }
 ```
 
-### 3. Multiplication Parallelism
+Parallelism considerations:
+- **Activation threshold**: `ParallelThreshold` (default: 4096 bits)
+- **Disabled with FFT**: FFT already saturates CPU cores
+- **Re-enabled for very large numbers**: Above `ParallelFFTThreshold` (10,000,000 bits)
 
-The three multiplications are executed in parallel on multi-core:
+### 4. 3-Tier Adaptive Multiplication
 
-```go
-func parallelMultiply3Optimized(s *calculationState, fftThreshold int) {
-    var wg sync.WaitGroup
-    wg.Add(2)
-    go func() { s.t3 = smartMultiply(s.t3, s.f_k, s.t2, fftThreshold); wg.Done() }()
-    go func() { s.t1 = smartMultiply(s.t1, s.f_k1, s.f_k1, fftThreshold); wg.Done() }()
-    s.t4 = smartMultiply(s.t4, s.f_k, s.f_k, fftThreshold)
-    wg.Wait()
-}
-```
-
-### 4. Adaptive Multiplication
-
-Automatic switching between Karatsuba and FFT:
+The `smartMultiply` function selects the optimal multiplication algorithm based on operand size:
 
 ```go
-func smartMultiply(z, x, y *big.Int, threshold int) *big.Int {
-    if threshold > 0 && x.BitLen() > threshold && y.BitLen() > threshold {
-        return bigfft.MulTo(z, x, y)  // FFT: O(n log n)
+func smartMultiply(z, x, y *big.Int, fftThreshold, karatsubaThreshold int) (*big.Int, error) {
+    bx := x.BitLen()
+    by := y.BitLen()
+
+    // Tier 1: FFT — O(n log n), for very large operands
+    if fftThreshold > 0 && bx > fftThreshold && by > fftThreshold {
+        return bigfft.MulTo(z, x, y)
     }
-    return z.Mul(x, y)  // Karatsuba: O(n^1.585)
+
+    // Tier 2: Karatsuba — O(n^1.585), for medium operands
+    if karatsubaThreshold > 0 && bx > karatsubaThreshold && by > karatsubaThreshold {
+        return bigfft.KaratsubaMultiplyTo(z, x, y), nil
+    }
+
+    // Tier 3: Standard math/big — O(n^2), for small operands
+    return z.Mul(x, y), nil
 }
 ```
 
@@ -236,40 +235,53 @@ At each iteration of the main loop:
 - 1 addition (O(n) bits)
 - Potentially 1 additional addition (if bit = 1)
 
-Number of iterations: log₂(n)
+Number of iterations: log2(n)
 
 ### Multiplication Cost
 
 The cost of each multiplication depends on the operand size:
-- F(n) has approximately n × log₂(φ) ≈ 0.694 × n bits
+- F(n) has approximately n * log2(phi) ~ 0.694 * n bits
+- Standard: O(n^2)
 - Karatsuba: O(n^1.585)
 - FFT: O(n log n)
 
 ### Total Complexity
 
-- **With Karatsuba**: O(log n × n^1.585)
-- **With FFT**: O(log n × n log n)
+- **With standard math/big**: O(log n * n^2)
+- **With Karatsuba**: O(log n * n^1.585)
+- **With FFT**: O(log n * n log n)
 
 ## Comparison with Other Methods
 
 | Method | Complexity | Multiplications/iteration | Advantage |
 |--------|------------|---------------------------|-----------|
-| Fast Doubling | O(log n × M(n)) | 3 | Fastest |
-| Matrix Exp. | O(log n × M(n)) | 4-8 | More intuitive |
-| Naive recursion | O(φⁿ) | 0 | Simple but impractical |
+| Fast Doubling | O(log n * M(n)) | 3 | Fastest |
+| Matrix Exp. | O(log n * M(n)) | 4-8 | More intuitive |
+| Naive recursion | O(phi^n) | 0 | Simple but impractical |
 | Iteration | O(n) | 0 | Simple, slow for large n |
 
 ## Usage
 
+### Go API
+
+```go
+factory := fibonacci.GlobalFactory()
+calc, _ := factory.Get("fast")
+result, _ := calc.Calculate(ctx, progressChan, 0, n, fibonacci.Options{
+    ParallelThreshold: 4096,
+    FFTThreshold:      500_000,
+    KaratsubaThreshold: 2048,
+})
+```
+
+### Benchmarks
+
 ```bash
-# Calculation with Fast Doubling
-./fibcalc -n 1000000 -algo fast -d
+# Run Fast Doubling benchmarks
+go test -bench=BenchmarkFastDoubling -benchmem ./internal/fibonacci/
 
-# With parallelism enabled (default)
-./fibcalc -n 10000000 -algo fast --threshold 4096
-
-# Force sequential mode
-./fibcalc -n 1000000 -algo fast --threshold 0
+# Compare with other algorithms
+go test -bench='Benchmark(FastDoubling|Matrix|FFT)' -benchmem ./internal/fibonacci/
 ```
 
 ## References
