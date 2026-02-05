@@ -45,12 +45,12 @@ func GetCalculatorsToRun(cfg config.AppConfig, factory fibonacci.CalculatorFacto
 //   - cfg: The application configuration.
 //   - out: The writer for standard output.
 func PrintExecutionConfig(cfg config.AppConfig, out io.Writer) {
-	writeOut(out, "--- Execution Configuration ---\n")
-	writeOut(out, "Calculating %sF(%d)%s with a timeout of %s%s%s.\n",
+	fmt.Fprintf(out, "--- Execution Configuration ---\n")
+	fmt.Fprintf(out, "Calculating %sF(%d)%s with a timeout of %s%s%s.\n",
 		ui.ColorMagenta(), cfg.N, ui.ColorReset(), ui.ColorYellow(), cfg.Timeout, ui.ColorReset())
-	writeOut(out, "Environment: %s%d%s logical processors, Go %s%s%s.\n",
+	fmt.Fprintf(out, "Environment: %s%d%s logical processors, Go %s%s%s.\n",
 		ui.ColorCyan(), runtime.NumCPU(), ui.ColorReset(), ui.ColorCyan(), runtime.Version(), ui.ColorReset())
-	writeOut(out, "Optimization thresholds: Parallelism=%s%d%s bits, FFT=%s%d%s bits.\n",
+	fmt.Fprintf(out, "Optimization thresholds: Parallelism=%s%d%s bits, FFT=%s%d%s bits.\n",
 		ui.ColorCyan(), cfg.Threshold, ui.ColorReset(), ui.ColorCyan(), cfg.FFTThreshold, ui.ColorReset())
 }
 
@@ -67,18 +67,7 @@ func PrintExecutionMode(calculators []fibonacci.Calculator, out io.Writer) {
 		modeDesc = fmt.Sprintf("Single calculation with the %s%s%s algorithm",
 			ui.ColorGreen(), calculators[0].Name(), ui.ColorReset())
 	}
-	writeOut(out, "Execution mode: %s.\n", modeDesc)
-	writeOut(out, "\n--- Starting Execution ---\n")
+	fmt.Fprintf(out, "Execution mode: %s.\n", modeDesc)
+	fmt.Fprintf(out, "\n--- Starting Execution ---\n")
 }
 
-// writeOut writes a formatted string to the output writer.
-// It uses zerolog for structured output if configured, or falls back to
-// direct writing if the output is not a logger.
-//
-// Parameters:
-//   - out: The destination writer.
-//   - format: The format string (see fmt.Printf).
-//   - a: Arguments for the format string.
-func writeOut(out io.Writer, format string, a ...any) {
-	fmt.Fprintf(out, format, a...)
-}
