@@ -1,11 +1,11 @@
 # FFT Multiplication for Large Integers
 
-> **Complexity**: O(n log n) for multiplying two numbers of n bits  
+> **Complexity**: O(n log n) for multiplying two numbers of n bits
 > **Used by**: Fast Doubling and Matrix Exp. for very large numbers
 
 ## Introduction
 
-The **Fast Fourier Transform (FFT)** allows multiplying two large integers in O(n log n) instead of O(n²) for naive multiplication or O(n^1.585) for Karatsuba. This optimization becomes crucial for numbers exceeding approximately 500,000 bits.
+The **Fast Fourier Transform (FFT)** allows multiplying two large integers in O(n log n) instead of O(n^2) for naive multiplication or O(n^1.585) for Karatsuba. This optimization becomes crucial for numbers exceeding approximately 500,000 bits.
 
 ## Mathematical Principle
 
@@ -14,27 +14,27 @@ The **Fast Fourier Transform (FFT)** allows multiplying two large integers in O(
 Multiplication of two integers can be viewed as a **convolution** of their digits:
 
 ```
-A = Σᵢ aᵢ × B^i
-B = Σⱼ bⱼ × B^j
+A = Sum_i a_i * B^i
+B = Sum_j b_j * B^j
 
-A × B = Σₖ cₖ × B^k  where  cₖ = Σᵢ aᵢ × b(k-i)
+A * B = Sum_k c_k * B^k  where  c_k = Sum_i a_i * b(k-i)
 ```
 
-The term cₖ is the **discrete convolution** of sequences {aᵢ} and {bⱼ}.
+The term c_k is the **discrete convolution** of sequences {a_i} and {b_j}.
 
 ### Convolution Theorem
 
 The convolution theorem states that:
 
 ```
-DFT(a * b) = DFT(a) × DFT(b)  (pointwise multiplication)
+DFT(a * b) = DFT(a) * DFT(b)  (pointwise multiplication)
 ```
 
 Where `*` is convolution and DFT is the Discrete Fourier Transform.
 
 Therefore:
 ```
-a * b = IDFT(DFT(a) × DFT(b))
+a * b = IDFT(DFT(a) * DFT(b))
 ```
 
 ### Visualization
@@ -67,26 +67,46 @@ sequenceDiagram
 
 ## Implementation in FibCalc
 
-### `internal/bigfft` Module
-
-The bigfft module implements specialized FFT multiplication for `big.Int`:
+### `internal/bigfft` Public API
 
 ```go
-// mulFFT performs x × y via FFT
-func mulFFT(x, y *big.Int) *big.Int {
-    return bigfft.Mul(x, y)
-}
+// Multiply two big.Int values using FFT
+func Mul(x, y *big.Int) (res *big.Int, err error)
 
-// smartMultiply chooses the optimal method
-func smartMultiply(z, x, y *big.Int, threshold int) *big.Int {
-    if threshold > 0 {
-        bx := x.BitLen()
-        by := y.BitLen()
-        if bx > threshold && by > threshold {
-            return bigfft.MulTo(z, x, y)  // FFT
-        }
+// Multiply with destination reuse
+func MulTo(z, x, y *big.Int) (res *big.Int, err error)
+
+// Optimized squaring (saves ~33% FFT computation)
+func Sqr(x *big.Int) (res *big.Int, err error)
+
+// Squaring with destination reuse
+func SqrTo(z, x *big.Int) (res *big.Int, err error)
+
+// Karatsuba multiplication with destination reuse
+func KaratsubaMultiplyTo(z, x, y *big.Int) *big.Int
+```
+
+### 3-Tier Multiplication Selection
+
+The `smartMultiply` function in `internal/fibonacci/fft.go` selects the optimal algorithm:
+
+```go
+func smartMultiply(z, x, y *big.Int, fftThreshold, karatsubaThreshold int) (*big.Int, error) {
+    bx := x.BitLen()
+    by := y.BitLen()
+
+    // Tier 1: FFT — both operands > FFTThreshold
+    if fftThreshold > 0 && bx > fftThreshold && by > fftThreshold {
+        return bigfft.MulTo(z, x, y)
     }
-    return z.Mul(x, y)  // Karatsuba (math/big)
+
+    // Tier 2: Karatsuba — both operands > KaratsubaThreshold
+    if karatsubaThreshold > 0 && bx > karatsubaThreshold && by > karatsubaThreshold {
+        return bigfft.KaratsubaMultiplyTo(z, x, y), nil
+    }
+
+    // Tier 3: Standard math/big
+    return z.Mul(x, y), nil
 }
 ```
 
@@ -94,11 +114,22 @@ func smartMultiply(z, x, y *big.Int, threshold int) *big.Int {
 
 ```
 internal/bigfft/
-├── fft.go      # Main FFT algorithm
-├── fermat.go   # Modular arithmetic for FFT
-├── scan.go     # Conversion between big.Int and FFT representation
-├── pool.go     # Object pools for performance
-└── arith_decl.go  # Low-level arithmetic declarations
++-- fft.go              # Public API: Mul, MulTo, Sqr, SqrTo
++-- fft_core.go         # Core FFT algorithm implementation
++-- fft_recursion.go    # Recursive FFT decomposition
++-- fft_poly.go         # Polynomial operations for FFT
++-- fft_cache.go        # FFT transform caching
++-- fermat.go           # Modular arithmetic (Fermat number ring)
++-- karatsuba.go        # KaratsubaMultiplyTo implementation
++-- pool.go             # sync.Pool-based object pools with size classes
++-- allocator.go        # Memory allocator abstraction
++-- bump.go             # Bump allocator for batch allocations
++-- memory_est.go       # Memory estimation for pre-allocation
++-- scan.go             # Conversion between big.Int and FFT representation
++-- arith_amd64.go      # Assembly-optimized arithmetic (Go glue)
++-- arith_amd64.s       # AVX2/AVX-512 assembly routines
++-- arith_decl.go       # Architecture-independent function declarations
++-- cpu_amd64.go        # Runtime CPU feature detection
 ```
 
 ### Fermat FFT
@@ -113,16 +144,16 @@ The implementation uses a **Fermat FFT** operating in the ring Z/(2^k + 1):
 
 ### Configuration
 
-```bash
-# Default threshold: 500,000 bits
-./fibcalc -n 100000000 --fft-threshold 500000
+The FFT threshold is configured via the `fibonacci.Options` struct:
 
-# Force later FFT (numbers > 1,000,000 bits)
-./fibcalc -n 100000000 --fft-threshold 1000000
-
-# Disable FFT
-./fibcalc -n 100000000 --fft-threshold 0
+```go
+opts := fibonacci.Options{
+    FFTThreshold:       500_000,  // Default: 500,000 bits
+    KaratsubaThreshold: 2048,     // Default: 2,048 bits
+}
 ```
+
+Setting `FFTThreshold` to 0 disables FFT multiplication entirely.
 
 ### Threshold Selection
 
@@ -130,15 +161,11 @@ The optimal threshold depends on several factors:
 
 | Factor | Impact |
 |--------|--------|
-| L3 cache size | Larger cache → lower threshold |
-| CPU frequency | Faster → slightly higher threshold |
-| Number of cores | More cores → FFT less advantageous (saturating) |
+| L3 cache size | Larger cache -> lower threshold |
+| CPU frequency | Faster -> slightly higher threshold |
+| Number of cores | More cores -> FFT less advantageous (saturating) |
 
-To determine the optimal threshold:
-
-```bash
-./fibcalc --calibrate
-```
+The calibration system (`internal/calibration`) can determine optimal thresholds for your hardware programmatically.
 
 ## Interaction with Parallelism
 
@@ -148,11 +175,13 @@ The FFT algorithm tends to **saturate CPU resources** as it performs many parall
 
 ### Implemented Solution
 
+The `DoublingFramework` disables external parallelism when FFT is active, except for very large numbers:
+
 ```go
 // Disable external parallelism when FFT is used
 // except for very very large numbers
 if opts.FFTThreshold > 0 {
-    minBitLen := s.f_k.BitLen()
+    minBitLen := s.FK.BitLen()
     if minBitLen > opts.FFTThreshold {
         // FFT will be used - disable parallelism
         // except if numbers > ParallelFFTThreshold (10M bits)
@@ -163,24 +192,23 @@ if opts.FFTThreshold > 0 {
 
 ## FFT-Based Calculator
 
-The `fft` calculator forces FFT use for all multiplications:
+The `"fft"` calculator uses the `DoublingFramework` with an `FFTOnlyStrategy`:
 
 ```go
 type FFTBasedCalculator struct{}
 
 func (c *FFTBasedCalculator) Name() string {
-    return "FFT-Based Doubling (O(log n), FFT Mul)"
+    return "FFT-Based Doubling"
 }
 
 func (c *FFTBasedCalculator) CalculateCore(ctx context.Context, reporter ProgressReporter,
     n uint64, opts Options) (*big.Int, error) {
-    
-    // Force FFT by setting threshold very low
-    opts.FFTThreshold = 1
-    
-    // Uses the same algorithm as Fast Doubling
-    fd := &OptimizedFastDoubling{}
-    return fd.CalculateCore(ctx, reporter, n, opts)
+    s := AcquireState()
+    defer ReleaseState(s)
+
+    strategy := &FFTOnlyStrategy{}
+    framework := NewDoublingFramework(strategy)
+    return framework.ExecuteDoublingLoop(ctx, reporter, n, opts, s, false)
 }
 ```
 
@@ -195,7 +223,7 @@ This calculator is primarily used for:
 
 | Algorithm | Complexity | Hidden constant |
 |-----------|------------|-----------------|
-| Naive | O(n²) | Low |
+| Naive | O(n^2) | Low |
 | Karatsuba | O(n^1.585) | Medium |
 | Toom-Cook 3 | O(n^1.465) | High |
 | FFT | O(n log n) | Very high |
@@ -203,41 +231,47 @@ This calculator is primarily used for:
 ### Crossover Point
 
 ```
-                    │
-    Calculation     │     /
-     time           │    /  ← Karatsuba O(n^1.585)
-                    │   /
-                    │  /
-                    │ /          ← FFT O(n log n)
-                    │/     _______
-                    └─────────────────────
+                    |
+    Calculation     |     /
+     time           |    /  <- Karatsuba O(n^1.585)
+                    |   /
+                    |  /
+                    | /          <- FFT O(n log n)
+                    |/     _______
+                    +------------------
                           ~1M bits      Size (bits)
 ```
 
 ### FFT Overhead
 
 FFT overhead comes from:
-1. Conversion big.Int → FFT representation
+1. Conversion big.Int -> FFT representation
 2. Padding to next power of 2
 3. Forward and inverse FFT
 4. Carry propagation
 
 ## Usage
 
+### Go API
+
+```go
+factory := fibonacci.GlobalFactory()
+calc, _ := factory.Get("fft")
+result, _ := calc.Calculate(ctx, progressChan, 0, 100_000_000, fibonacci.Options{})
+```
+
+### Benchmarks
+
 ```bash
-# Force FFT use for all multiplications
-./fibcalc -n 10000000 -algo fft -d
+# Benchmark FFT-based calculator
+go test -bench=BenchmarkFFT -benchmem ./internal/fibonacci/
 
-# Adjust FFT threshold for Fast Doubling
-./fibcalc -n 100000000 -algo fast --fft-threshold 800000
-
-# Comparative benchmark
-./fibcalc -n 50000000 -algo all -d
+# Benchmark bigfft package directly
+go test -bench=. -benchmem ./internal/bigfft/
 ```
 
 ## References
 
 1. Cooley, J. W., & Tukey, J. W. (1965). "An algorithm for the machine calculation of complex Fourier series". *Mathematics of Computation*.
-2. Schönhage, A., & Strassen, V. (1971). "Schnelle Multiplikation großer Zahlen". *Computing*.
+2. Schonhage, A., & Strassen, V. (1971). "Schnelle Multiplikation grosser Zahlen". *Computing*.
 3. [GMP Library - FFT Multiplication](https://gmplib.org/manual/FFT-Multiplication)
-4. [Go bigfft package documentation](https://pkg.go.dev/github.com/ncw/gmp)
