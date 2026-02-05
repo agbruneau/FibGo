@@ -7,7 +7,7 @@
 *.dll
 *.so
 *.dylib
-fibcalc
+/fibcalc
 
 # Build directory
 build/
