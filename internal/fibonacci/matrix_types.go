@@ -69,7 +69,7 @@ func (m *matrix) SetBaseQ() {
 }
 
 // matrixState aggregates variables for the matrix exponentiation algorithm.
-// The temporary variables (p1-p7, s1-s10) are specifically designed to support
+// The temporary variables (p1-p7, s1-s8) are specifically designed to support
 // the memory requirements of Strassen's matrix multiplication algorithm,
 // allowing the entire operation to proceed without any memory allocations in the
 // hot path.
@@ -78,7 +78,7 @@ type matrixState struct {
 	// Temporaries for Strassen's algorithm products
 	p1, p2, p3, p4, p5, p6, p7 *big.Int
 	// Temporaries for Strassen's algorithm sums/differences
-	s1, s2, s3, s4, s5, s6, s7, s8, s9, s10 *big.Int
+	s1, s2, s3, s4, s5, s6, s7, s8 *big.Int
 	// General purpose temporaries for symmetric squaring
 	t1, t2, t3, t4, t5 *big.Int
 }
@@ -117,8 +117,6 @@ var matrixStatePool = sync.Pool{
 			s6:         new(big.Int),
 			s7:         new(big.Int),
 			s8:         new(big.Int),
-			s9:         new(big.Int),
-			s10:        new(big.Int),
 			t1:         new(big.Int),
 			t2:         new(big.Int),
 			t3:         new(big.Int),
@@ -161,8 +159,7 @@ func releaseMatrixState(s *matrixState) {
 		checkLimit(s.p7) ||
 		checkLimit(s.s1) || checkLimit(s.s2) || checkLimit(s.s3) ||
 		checkLimit(s.s4) || checkLimit(s.s5) || checkLimit(s.s6) ||
-		checkLimit(s.s7) || checkLimit(s.s8) || checkLimit(s.s9) ||
-		checkLimit(s.s10) ||
+		checkLimit(s.s7) || checkLimit(s.s8) ||
 		checkLimit(s.t1) || checkLimit(s.t2) || checkLimit(s.t3) ||
 		checkLimit(s.t4) || checkLimit(s.t5) ||
 		checkMatrixLimit(s.res) || checkMatrixLimit(s.p) || checkMatrixLimit(s.tempMatrix) {

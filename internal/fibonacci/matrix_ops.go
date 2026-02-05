@@ -88,13 +88,13 @@ func multiplyMatrixStrassen(dest, m1, m2 *matrix, state *matrixState, inParallel
 
 	// 2. Execute the 7 multiplications using the generic task executor
 	tasks := []multiplicationTask{
-		{&p1, s2, s6, fftThreshold, 0},
-		{&p2, m1.a, m2.a, fftThreshold, 0},
-		{&p3, m1.b, m2.c, fftThreshold, 0},
-		{&p4, s3, s7, fftThreshold, 0},
-		{&p5, s1, s5, fftThreshold, 0},
-		{&p6, s4, m2.d, fftThreshold, 0},
-		{&p7, m1.d, s8, fftThreshold, 0},
+		{&p1, s2, s6, fftThreshold},
+		{&p2, m1.a, m2.a, fftThreshold},
+		{&p3, m1.b, m2.c, fftThreshold},
+		{&p4, s3, s7, fftThreshold},
+		{&p5, s1, s5, fftThreshold},
+		{&p6, s4, m2.d, fftThreshold},
+		{&p7, m1.d, s8, fftThreshold},
 	}
 	if err := executeTasks[multiplicationTask, *multiplicationTask](tasks, inParallel); err != nil {
 		return err
@@ -186,14 +186,14 @@ func squareSymmetricMatrix(dest, mat *matrix, state *matrixState, inParallel boo
 
 	// Execute the 3 squaring operations using optimized squaring
 	sqrTasks := []squaringTask{
-		{&a2, mat.a, fftThreshold, 0},
-		{&b2, mat.b, fftThreshold, 0},
-		{&d2, mat.d, fftThreshold, 0},
+		{&a2, mat.a, fftThreshold},
+		{&b2, mat.b, fftThreshold},
+		{&d2, mat.d, fftThreshold},
 	}
 
 	// Execute the 1 general multiplication (b * (a+d))
 	mulTasks := []multiplicationTask{
-		{&bAd, mat.b, ad, fftThreshold, 0},
+		{&bAd, mat.b, ad, fftThreshold},
 	}
 
 	// Use unified execution function for both parallel and sequential cases
@@ -237,14 +237,14 @@ func multiplyMatrix2x2(dest, m1, m2 *matrix, state *matrixState, inParallel bool
 
 	// Execute the 8 multiplications using the generic task executor
 	tasks := []multiplicationTask{
-		{&ae, m1.a, m2.a, fftThreshold, 0},
-		{&bg, m1.b, m2.c, fftThreshold, 0},
-		{&af, m1.a, m2.b, fftThreshold, 0},
-		{&bh, m1.b, m2.d, fftThreshold, 0},
-		{&ce, m1.c, m2.a, fftThreshold, 0},
-		{&dg, m1.d, m2.c, fftThreshold, 0},
-		{&cf, m1.c, m2.b, fftThreshold, 0},
-		{&dh, m1.d, m2.d, fftThreshold, 0},
+		{&ae, m1.a, m2.a, fftThreshold},
+		{&bg, m1.b, m2.c, fftThreshold},
+		{&af, m1.a, m2.b, fftThreshold},
+		{&bh, m1.b, m2.d, fftThreshold},
+		{&ce, m1.c, m2.a, fftThreshold},
+		{&dg, m1.d, m2.c, fftThreshold},
+		{&cf, m1.c, m2.b, fftThreshold},
+		{&dh, m1.d, m2.d, fftThreshold},
 	}
 	if err := executeTasks[multiplicationTask, *multiplicationTask](tasks, inParallel); err != nil {
 		return err

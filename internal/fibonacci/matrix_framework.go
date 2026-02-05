@@ -15,11 +15,8 @@ import (
 // The framework manages the binary exponentiation loop and progress reporting.
 type MatrixFramework struct{}
 
-// Internal function variables to allow mocking in tests.
-var (
-	multiplyMatricesFunc      = multiplyMatrices
-	squareSymmetricMatrixFunc = squareSymmetricMatrix
-)
+// squareSymmetricMatrixFunc allows mocking in tests.
+var squareSymmetricMatrixFunc = squareSymmetricMatrix
 
 // NewMatrixFramework creates a new Matrix Exponentiation framework.
 func NewMatrixFramework() *MatrixFramework {
@@ -65,7 +62,7 @@ func (f *MatrixFramework) ExecuteMatrixLoop(ctx context.Context, reporter Progre
 		if (exponent>>uint(i))&1 == 1 {
 			// Decide on parallelism based on the max size of the operands involved
 			inParallel := useParallel && maxBitLenMatrix(state.p) > normalizedOpts.ParallelThreshold
-			if err := multiplyMatricesFunc(state.tempMatrix, state.res, state.p, state, inParallel, normalizedOpts.FFTThreshold, normalizedOpts.StrassenThreshold); err != nil {
+			if err := multiplyMatrices(state.tempMatrix, state.res, state.p, state, inParallel, normalizedOpts.FFTThreshold, normalizedOpts.StrassenThreshold); err != nil {
 				return nil, fmt.Errorf("matrix multiplication failed at bit %d/%d: %w", i, numBits-1, err)
 			}
 			state.res, state.tempMatrix = state.tempMatrix, state.res
