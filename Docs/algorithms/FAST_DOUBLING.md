@@ -89,7 +89,7 @@ graph TD
     Start([Start]) --> Init[Initialize FK=0, FK1=1]
     Init --> CheckBits{Bits left?}
     CheckBits -- No --> Done([Return FK])
-    CheckBits -- Yes --> Doubling[Doubling Step<br/>a = FK, b = FK1<br/>F2k = a * (2b - a)<br/>F2k+1 = a^2 + b^2]
+    CheckBits -- Yes --> Doubling["Doubling Step<br/>a = FK, b = FK1<br/>F(2k) = a * (2b - a)<br/>F(2k+1) = a² + b²"]
     Doubling --> UpdateState[Update FK, FK1]
     UpdateState --> IsBitSet{Current Bit == 1?}
     IsBitSet -- No --> NextBit[Next Bit]
