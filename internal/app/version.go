@@ -24,7 +24,7 @@ var (
 )
 
 // HasVersionFlag checks if any argument is a version flag.
-// This allows --version to work in any position (e.g., "fibcalc --server --version").
+// This allows --version to work in any position (e.g., "fibcalc -n 100000 --version").
 //
 // Parameters:
 //   - args: The command-line arguments to check (typically os.Args[1:]).
