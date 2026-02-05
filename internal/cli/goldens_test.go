@@ -23,7 +23,7 @@ func TestDisplayResult_Golden(t *testing.T) {
 		duration time.Duration
 		verbose  bool
 		details  bool
-		concise  bool
+		showValue bool
 		expected string
 	}{
 		{
@@ -33,7 +33,7 @@ func TestDisplayResult_Golden(t *testing.T) {
 			duration: 1 * time.Millisecond,
 			verbose:  false,
 			details:  false,
-			concise:  true,
+			showValue: true,
 			expected: "Result binary size: 6 bits.\n\n--- Calculated value ---\nF(10) = 55\n",
 		},
 		{
@@ -43,7 +43,7 @@ func TestDisplayResult_Golden(t *testing.T) {
 			duration: 0, // 0 duration -> < 1µs
 			verbose:  false,
 			details:  true,
-			concise:  false,
+			showValue: false,
 			expected: "Result binary size: 6 bits.\n\n--- Detailed result analysis ---\nCalculation time        : < 1µs\nNumber of digits      : 2\n",
 		},
 	}
@@ -51,7 +51,7 @@ func TestDisplayResult_Golden(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			DisplayResult(tt.result, tt.n, tt.duration, tt.verbose, tt.details, tt.concise, &buf)
+			DisplayResult(tt.result, tt.n, tt.duration, tt.verbose, tt.details, tt.showValue, &buf)
 			got := testutil.StripAnsiCodes(buf.String())
 
 			// Normalize line endings if needed

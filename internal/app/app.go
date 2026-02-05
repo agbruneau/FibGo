@@ -212,7 +212,7 @@ func (a *Application) runCalculate(ctx context.Context, out io.Writer) int {
 		HexOutput:  a.Config.HexOutput,
 		Quiet:      a.Config.Quiet,
 		Verbose:    a.Config.Verbose,
-		Concise:    a.Config.Concise,
+		ShowValue:  a.Config.ShowValue,
 	}
 
 	return a.analyzeResultsWithOutput(results, outputCfg, out)

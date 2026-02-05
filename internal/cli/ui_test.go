@@ -86,7 +86,7 @@ func TestDisplayResult(t *testing.T) {
 		duration time.Duration
 		verbose  bool
 		details  bool
-		concise  bool
+		showValue bool
 		contains []string
 	}{
 		{
@@ -96,17 +96,17 @@ func TestDisplayResult(t *testing.T) {
 			duration: time.Millisecond,
 			verbose:  false,
 			details:  true,
-			concise:  false,
+			showValue: false,
 			contains: []string{"Result binary size:", "Detailed result analysis", "Calculation time", "Number of digits"},
 		},
 		{
-			name:     "Concise Output",
+			name:     "ShowValue Output",
 			result:   big.NewInt(12345),
 			n:        10,
 			duration: time.Millisecond,
 			verbose:  false,
 			details:  false,
-			concise:  true,
+			showValue: true,
 			contains: []string{"Calculated value", "F(", ") =", "12,345"},
 		},
 		{
@@ -116,7 +116,7 @@ func TestDisplayResult(t *testing.T) {
 			duration: time.Millisecond,
 			verbose:  false,
 			details:  false,
-			concise:  true,
+			showValue: true,
 			contains: []string{"(truncated)", "Tip: use"},
 		},
 		{
@@ -126,7 +126,7 @@ func TestDisplayResult(t *testing.T) {
 			duration: time.Millisecond,
 			verbose:  true,
 			details:  false,
-			concise:  true,
+			showValue: true,
 			contains: []string{"F(", ") ="}, // Should not contain truncated
 		},
 	}
@@ -134,7 +134,7 @@ func TestDisplayResult(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			DisplayResult(tt.result, tt.n, tt.duration, tt.verbose, tt.details, tt.concise, &buf)
+			DisplayResult(tt.result, tt.n, tt.duration, tt.verbose, tt.details, tt.showValue, &buf)
 			output := buf.String()
 			for _, s := range tt.contains {
 				if !strings.Contains(output, s) {

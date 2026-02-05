@@ -71,9 +71,9 @@ type ResultPresenter interface {
 	//   - n: The Fibonacci index calculated.
 	//   - verbose: Whether to display full result.
 	//   - details: Whether to display detailed metrics.
-	//   - concise: Whether to display the calculated value section.
+	//   - showValue: Whether to display the calculated value section.
 	//   - out: The writer for output.
-	PresentResult(result CalculationResult, n uint64, verbose, details, concise bool, out io.Writer)
+	PresentResult(result CalculationResult, n uint64, verbose, details, showValue bool, out io.Writer)
 
 	// FormatDuration formats a duration for display.
 	//

@@ -85,9 +85,8 @@ type AppConfig struct {
 	// Completion, if set, generates shell completion script for the specified shell.
 	// Valid values are: "bash", "zsh", "fish", "powershell".
 	Completion string
-	// Concise, if false (default), suppresses the display of the calculated value section.
-	// Set to true with -c/--calculate to display the calculated value.
-	Concise bool
+	// ShowValue, if true, displays the calculated Fibonacci value. Set with -c/--calculate.
+	ShowValue bool
 }
 
 // ToCalculationOptions converts the application configuration into
@@ -182,8 +181,8 @@ func ParseConfig(programName string, args []string, errorWriter io.Writer, avail
 	fs.BoolVar(&config.Quiet, "q", false, "Quiet mode (shorthand).")
 	fs.BoolVar(&config.HexOutput, "hex", false, "Display result in hexadecimal format.")
 	fs.StringVar(&config.Completion, "completion", "", "Generate shell completion script (bash, zsh, fish, powershell).")
-	fs.BoolVar(&config.Concise, "calculate", false, "Display the calculated value (disabled by default).")
-	fs.BoolVar(&config.Concise, "c", false, "Display the calculated value (shorthand).")
+	fs.BoolVar(&config.ShowValue, "calculate", false, "Display the calculated value (disabled by default).")
+	fs.BoolVar(&config.ShowValue, "c", false, "Display the calculated value (shorthand).")
 	setCustomUsage(fs)
 
 	if err := fs.Parse(args); err != nil {

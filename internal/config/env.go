@@ -181,6 +181,6 @@ func applyBooleanOverrides(config *AppConfig, fs *flag.FlagSet) {
 		config.AutoCalibrate = getEnvBool("AUTO_CALIBRATE", config.AutoCalibrate)
 	}
 	if !isFlagSetAny(fs, "calculate", "c") {
-		config.Concise = getEnvBool("CALCULATE", config.Concise)
+		config.ShowValue = getEnvBool("CALCULATE", config.ShowValue)
 	}
 }

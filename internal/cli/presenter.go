@@ -90,8 +90,8 @@ func padRight(s string, length int) string {
 
 // PresentResult displays the final calculation result using the CLI's
 // DisplayResult function.
-func (CLIResultPresenter) PresentResult(result orchestration.CalculationResult, n uint64, verbose, details, concise bool, out io.Writer) {
-	DisplayResult(result.Result, n, result.Duration, verbose, details, concise, out)
+func (CLIResultPresenter) PresentResult(result orchestration.CalculationResult, n uint64, verbose, details, showValue bool, out io.Writer) {
+	DisplayResult(result.Result, n, result.Duration, verbose, details, showValue, out)
 }
 
 // FormatDuration formats a duration for display using the CLI's standard

@@ -342,16 +342,16 @@ func displayCalculatedValue(out io.Writer, result *big.Int, n uint64, verbose bo
 //   - duration: The time taken for the calculation.
 //   - verbose: If true, prints the full number regardless of size.
 //   - details: If true, prints detailed execution metrics.
-//   - concise: If true, displays the calculated value section (disabled by default).
+//   - showValue: If true, displays the calculated value section (disabled by default).
 //   - out: The io.Writer for the output.
-func DisplayResult(result *big.Int, n uint64, duration time.Duration, verbose, details, concise bool, out io.Writer) {
+func DisplayResult(result *big.Int, n uint64, duration time.Duration, verbose, details, showValue bool, out io.Writer) {
 	displayResultHeader(out, result.BitLen())
 
 	if details {
 		displayDetailedAnalysis(out, result, duration)
 	}
 
-	if concise {
+	if showValue {
 		displayCalculatedValue(out, result, n, verbose)
 	}
 }

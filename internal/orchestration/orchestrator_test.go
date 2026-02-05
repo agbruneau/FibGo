@@ -17,7 +17,7 @@ import (
 type MockResultPresenter struct{}
 
 func (MockResultPresenter) PresentComparisonTable(results []CalculationResult, out io.Writer) {}
-func (MockResultPresenter) PresentResult(result CalculationResult, n uint64, verbose, details, concise bool, out io.Writer) {
+func (MockResultPresenter) PresentResult(result CalculationResult, n uint64, verbose, details, showValue bool, out io.Writer) {
 }
 func (MockResultPresenter) FormatDuration(d time.Duration) string { return d.String() }
 func (MockResultPresenter) HandleError(err error, duration time.Duration, out io.Writer) int {
