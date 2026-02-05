@@ -1,7 +1,7 @@
 # Matrix Exponentiation
 
-> **Complexity**: O(log n) matrix operations  
-> **Actual Complexity**: O(log n × M(n)) where M(n) is the multiplication cost
+> **Complexity**: O(log n) matrix operations
+> **Actual Complexity**: O(log n * M(n)) where M(n) is the multiplication cost
 
 ## Introduction
 
@@ -15,7 +15,7 @@ The Fibonacci sequence satisfies the matrix relation:
 
 ```
 [ F(n+1) ]   [ 1  1 ]   [ F(n)   ]
-[        ] = [      ] × [        ]
+[        ] = [      ] * [        ]
 [ F(n)   ]   [ 1  0 ]   [ F(n-1) ]
 ```
 
@@ -31,36 +31,34 @@ The matrix `Q = [[1,1], [1,0]]` is called the **Fibonacci Q matrix**.
 
 ### Formal Proof of Q-matrix Power Property
 
-We prove by induction that $Q^n = \begin{pmatrix} F_{n+1} & F_n \\ F_n & F_{n-1} \end{pmatrix}$.
+We prove by induction that Q^n has F(n+1), F(n), F(n), F(n-1) as its elements.
 
 **Base Case (n=1)**:
 $$ Q^1 = \begin{pmatrix} 1 & 1 \\ 1 & 0 \end{pmatrix} = \begin{pmatrix} F_2 & F_1 \\ F_1 & F_0 \end{pmatrix} $$
-Since $F_2=1, F_1=1, F_0=0$, the base case holds.
+Since F(2)=1, F(1)=1, F(0)=0, the base case holds.
 
 **Inductive Step**:
-Assume the property holds for $k$: $Q^k = \begin{pmatrix} F_{k+1} & F_k \\ F_k & F_{k-1} \end{pmatrix}$.
-We want to show it holds for $k+1$.
+Assume the property holds for k: Q^k has elements F(k+1), F(k), F(k), F(k-1).
+We want to show it holds for k+1.
 
 $$ Q^{k+1} = Q^k \times Q = \begin{pmatrix} F_{k+1} & F_k \\ F_k & F_{k-1} \end{pmatrix} \times \begin{pmatrix} 1 & 1 \\ 1 & 0 \end{pmatrix} $$
 
 Performing the multiplication:
-$$ Q^{k+1} = \begin{pmatrix} F_{k+1}\cdot 1 + F_k\cdot 1 & F_{k+1}\cdot 1 + F_k\cdot 0 \\ F_k\cdot 1 + F_{k-1}\cdot 1 & F_k\cdot 1 + F_{k-1}\cdot 0 \end{pmatrix} $$
+$$ Q^{k+1} = \begin{pmatrix} F_{k+1} + F_k & F_{k+1} \\ F_k + F_{k-1} & F_k \end{pmatrix} $$
 
-Using Fibonacci recurrence $F_{m} = F_{m-1} + F_{m-2}$:
-- Top-left: $F_{k+1} + F_k = F_{k+2}$
-- Top-right: $F_{k+1}$
-- Bottom-left: $F_k + F_{k-1} = F_{k+1}$
-- Bottom-right: $F_k$
+Using the Fibonacci recurrence F(m) = F(m-1) + F(m-2):
+- Top-left: F(k+1) + F(k) = F(k+2)
+- Top-right: F(k+1)
+- Bottom-left: F(k) + F(k-1) = F(k+1)
+- Bottom-right: F(k)
 
-$$ Q^{k+1} = \begin{pmatrix} F_{k+2} & F_{k+1} \\ F_{k+1} & F_k \end{pmatrix} $$
-
-This matches the formula for $n=k+1$. Thus, the property holds for all $n \ge 1$.
+This matches the formula for n=k+1. The property holds for all n >= 1.
 
 ### Properties of Q
 
 1. **Determinant**: det(Q^n) = (-1)^n
 2. **Symmetry**: Q^n is always a symmetric matrix (Q^n[0][1] = Q^n[1][0])
-3. **Cassini's Identity**: F(n+1)×F(n-1) - F(n)² = (-1)^n
+3. **Cassini's Identity**: F(n+1)*F(n-1) - F(n)^2 = (-1)^n
 
 ## Algorithm
 
@@ -69,12 +67,12 @@ This matches the formula for $n=k+1$. Thus, the property holds for all $n \ge 1$
 The key idea is to use binary decomposition of the exponent:
 
 ```
-n = Σ bᵢ × 2^i  (where bᵢ ∈ {0, 1})
+n = Sum b_i * 2^i  (where b_i in {0, 1})
 ```
 
 Then:
 ```
-Q^n = Q^(Σ bᵢ × 2^i) = Π Q^(bᵢ × 2^i)
+Q^n = Q^(Sum b_i * 2^i) = Product Q^(b_i * 2^i)
 ```
 
 ### Visualization
@@ -98,79 +96,73 @@ graph TD
 MatrixFibonacci(n):
     if n == 0:
         return 0
-    
+
     result = identity matrix I
     base = Q = [[1,1], [1,0]]
-    
+
     exponent = n - 1
-    
+
     while exponent > 0:
         if exponent is odd:
-            result = result × base
-        base = base × base  // Squaring
+            result = result * base
+        base = base * base  // Squaring
         exponent = exponent / 2
-    
+
     return result[0][0]  // This is F(n)
 ```
 
 ### Go Implementation
 
+The implementation uses the `MatrixFramework` to encapsulate the exponentiation loop:
+
 ```go
-func (c *MatrixExponentiation) CalculateCore(ctx context.Context, reporter ProgressReporter, 
+type MatrixExponentiation struct{}
+
+func (c *MatrixExponentiation) Name() string {
+    return "Matrix Exponentiation (O(log n), Parallel, Zero-Alloc)"
+}
+
+func (c *MatrixExponentiation) CalculateCore(ctx context.Context, reporter ProgressReporter,
     n uint64, opts Options) (*big.Int, error) {
-    
-    if n == 0 {
-        return big.NewInt(0), nil
-    }
-    
     state := acquireMatrixState()
     defer releaseMatrixState(state)
-    
-    exponent := n - 1
-    numBits := bits.Len64(exponent)
-    
-    // state.res = identity matrix
-    // state.p = Q matrix = [[1,1],[1,0]]
-    
-    for i := 0; i < numBits; i++ {
-        if (exponent >> i) & 1 == 1 {
-            multiplyMatrices(state.tempMatrix, state.res, state.p, state, ...)
-            state.res, state.tempMatrix = state.tempMatrix, state.res
-        }
-        
-        if i < numBits - 1 {
-            squareSymmetricMatrix(state.tempMatrix, state.p, state, ...)
-            state.p, state.tempMatrix = state.tempMatrix, state.p
-        }
-    }
-    
-    return new(big.Int).Set(state.res.a), nil
+
+    framework := NewMatrixFramework()
+    return framework.ExecuteMatrixLoop(ctx, reporter, n, opts, state)
 }
+```
+
+The `matrix` type (defined in `matrix_types.go`) represents a 2x2 matrix:
+
+```go
+type matrix struct{ a, b, c, d *big.Int }
+// Layout: [ a b ]
+//         [ c d ]
 ```
 
 ## Implemented Optimizations
 
 ### 1. Strassen Algorithm
 
-For 2×2 matrices with large elements, the Strassen algorithm reduces the number of multiplications from 8 to 7:
+For 2x2 matrices with large elements, the Strassen algorithm reduces the number of multiplications from 8 to 7:
 
 ```
-Classic 2×2 multiplication:
-  C[0][0] = A[0][0]×B[0][0] + A[0][1]×B[1][0]  (2 mult)
-  C[0][1] = A[0][0]×B[0][1] + A[0][1]×B[1][1]  (2 mult)
-  C[1][0] = A[1][0]×B[0][0] + A[1][1]×B[1][0]  (2 mult)
-  C[1][1] = A[1][0]×B[0][1] + A[1][1]×B[1][1]  (2 mult)
+Classic 2x2 multiplication:
+  C[0][0] = A[0][0]*B[0][0] + A[0][1]*B[1][0]  (2 mult)
+  C[0][1] = A[0][0]*B[0][1] + A[0][1]*B[1][1]  (2 mult)
+  C[1][0] = A[1][0]*B[0][0] + A[1][1]*B[1][0]  (2 mult)
+  C[1][1] = A[1][0]*B[0][1] + A[1][1]*B[1][1]  (2 mult)
   Total: 8 multiplications
 
-Strassen 2×2:
-  P1 = A[0][0] × (B[0][1] - B[1][1])
-  P2 = (A[0][0] + A[0][1]) × B[1][1]
-  P3 = (A[1][0] + A[1][1]) × B[0][0]
-  P4 = A[1][1] × (B[1][0] - B[0][0])
-  P5 = (A[0][0] + A[1][1]) × (B[0][0] + B[1][1])
-  P6 = (A[0][1] - A[1][1]) × (B[1][0] + B[1][1])
-  P7 = (A[0][0] - A[1][0]) × (B[0][0] + B[0][1])
-  
+Strassen 2x2:
+  P1 = A[0][0] * (B[0][1] - B[1][1])
+  P2 = (A[0][0] + A[0][1]) * B[1][1]
+  P3 = (A[1][0] + A[1][1]) * B[0][0]
+  P4 = A[1][1] * (B[1][0] - B[0][0])
+  P5 = (A[0][0] + A[1][1]) * (B[0][0] + B[1][1])
+  P6 = (A[0][1] - A[1][1]) * (B[1][0] + B[1][1])
+  P7 = (A[0][0] - A[1][0]) * (B[0][0] + B[0][1])
+
   C[0][0] = P5 + P4 - P2 + P6
   C[0][1] = P1 + P2
   C[1][0] = P3 + P4
@@ -214,73 +206,35 @@ graph TD
     P7 --> C22
 ```
 
-The implementation switches to Strassen when elements exceed `--strassen-threshold` (default: 3072 bits).
+The implementation switches to Strassen when elements exceed `StrassenThreshold` (default: 3072 bits via config; internal default is 256 bits).
 
 ### 2. Symmetric Matrix Squaring
 
-For a symmetric matrix (b = c), the square can be calculated with only 4 multiplications:
+Since the Fibonacci Q-matrix powers are always symmetric (b = c), squaring can be done with only 4 multiplications instead of 8:
 
 ```
-[ a  b ]²   [ a²+b²    b(a+d) ]
-[      ] = [                  ]
-[ b  d ]    [ b(a+d)   b²+d²  ]
+[ a  b ]^2   [ a^2+b^2    b(a+d) ]
+[      ]   = [                    ]
+[ b  d ]     [ b(a+d)     b^2+d^2 ]
 ```
 
-```go
-func squareSymmetricMatrix(dest, mat *matrix, state *matrixState, 
-    inParallel bool, fftThreshold int) {
-    
-    ad := new(big.Int).Add(mat.a, mat.d)  // a + d
-    
-    a2 = smartMultiply(a2, mat.a, mat.a)  // a²
-    b2 = smartMultiply(b2, mat.b, mat.b)  // b²
-    d2 = smartMultiply(d2, mat.d, mat.d)  // d²
-    b_ad = smartMultiply(b_ad, mat.b, ad) // b(a+d)
-    
-    dest.a.Add(a2, b2)    // a² + b²
-    dest.b.Set(b_ad)      // b(a+d)
-    dest.c.Set(b_ad)      // symmetric
-    dest.d.Add(b2, d2)    // b² + d²
-}
-```
+The `squareSymmetricMatrix` function in `matrix_ops.go` implements this optimization.
 
 ### 3. Zero-Allocation with sync.Pool
+
+Matrix states are recycled via a `sync.Pool`:
 
 ```go
 type matrixState struct {
     res, p, tempMatrix *matrix
-    // Temporaries for Strassen
-    p1, p2, p3, p4, p5, p6, p7 *big.Int
-    s1, s2, s3, s4, s5, s6, s7, s8, s9, s10 *big.Int
-    // Temporaries for symmetric square
-    t1, t2, t3, t4, t5 *big.Int
-}
-
-var matrixStatePool = sync.Pool{
-    New: func() interface{} {
-        return &matrixState{
-            res: newMatrix(),
-            p: newMatrix(),
-            // ...
-        }
-    },
+    // Temporaries for Strassen (p1-p7, s1-s10)
+    // Temporaries for symmetric square (t1-t5)
 }
 ```
 
 ### 4. Parallelism
 
-Independent multiplications are parallelized:
-
-```go
-if inParallel {
-    var wg sync.WaitGroup
-    wg.Add(7)  // Strassen: 7 parallel multiplications
-    go func() { p1 = smartMultiply(p1, m1.a, s1); wg.Done() }()
-    go func() { p2 = smartMultiply(p2, s2, m2.d); wg.Done() }()
-    // ...
-    wg.Wait()
-}
-```
+Independent multiplications within Strassen's algorithm (P1-P7) can be parallelized when operands exceed the `ParallelThreshold`.
 
 ## Complexity Analysis
 
@@ -293,13 +247,13 @@ if inParallel {
 
 ### Number of Iterations
 
-- log₂(n) iterations
+- log2(n) iterations
 - At each iteration: 1 squaring + potentially 1 multiplication
 
 ### Total Complexity
 
-- **With Karatsuba**: O(log n × n^1.585)
-- **With FFT**: O(log n × n log n)
+- **With Karatsuba**: O(log n * n^1.585)
+- **With FFT**: O(log n * n log n)
 
 ## Comparison with Fast Doubling
 
@@ -312,15 +266,24 @@ if inParallel {
 
 ## Usage
 
+### Go API
+
+```go
+factory := fibonacci.GlobalFactory()
+calc, _ := factory.Get("matrix")
+result, _ := calc.Calculate(ctx, progressChan, 0, n, fibonacci.Options{
+    StrassenThreshold: 3072,
+})
+```
+
+### Benchmarks
+
 ```bash
-# Calculation with Matrix Exponentiation
-./fibcalc -n 1000000 -algo matrix -d
+# Run Matrix Exponentiation benchmarks
+go test -bench=BenchmarkMatrix -benchmem ./internal/fibonacci/
 
-# Adjust Strassen threshold
-./fibcalc -n 10000000 -algo matrix --strassen-threshold 2048
-
-# Disable Strassen (classic multiplication only)
-./fibcalc -n 1000000 -algo matrix --strassen-threshold 999999999
+# Compare with Fast Doubling
+go test -bench='Benchmark(FastDoubling|Matrix)' -benchmem ./internal/fibonacci/
 ```
 
 ## References
