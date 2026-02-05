@@ -15,6 +15,9 @@ make lint               # Run golangci-lint
 make check              # Run format + lint + test
 make clean              # Remove build artifacts
 make generate-mocks     # Regenerate mock implementations
+make security           # Run gosec security audit
+make pgo-rebuild        # Full PGO workflow: profile + build
+go test -fuzz=FuzzFastDoubling ./internal/fibonacci/  # Run fuzz tests
 ```
 
 ## Architecture Overview
@@ -67,7 +70,11 @@ This is a high-performance Fibonacci calculator implementing multiple algorithms
 
 **Configuration**: Use functional options pattern for configurable components
 
-**Linting**: `.golangci.yml` enforces gofmt, govet, errcheck, staticcheck, revive, gosec (cyclomatic complexity max 15)
+**Linting**: `.golangci.yml` enforces gofmt, govet, errcheck, staticcheck, revive, gosec, and 20+ more linters. Key thresholds: cyclomatic complexity max 15, cognitive complexity max 30, function length max 100 lines / 50 statements. Complexity/length linters are relaxed in test files.
+
+**Commits**: Follow [Conventional Commits](https://www.conventionalcommits.org/) — `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`. Format: `<type>(<scope>): <description>`
+
+**Branch naming**: `feature/`, `fix/`, `docs/`, `refactor/`, `perf/` prefixes (e.g., `feature/add-new-algorithm`)
 
 ## Key Patterns
 
@@ -78,7 +85,14 @@ This is a high-performance Fibonacci calculator implementing multiple algorithms
 - **Task Semaphore**: Limits concurrent goroutines to `runtime.NumCPU()*2` in `internal/fibonacci/common.go`
 - **Optimized Zeroing**: Uses Go 1.21+ `clear()` builtin instead of loops in `internal/bigfft`
 - **Interface-Based Decoupling**: Orchestration layer uses `ProgressReporter` and `ResultPresenter` interfaces (defined in `internal/orchestration/interfaces.go`) to avoid depending on CLI. Implementations in `internal/cli/presenter.go` and `internal/tui/presenter.go`
+- **Observer Pattern**: `ProgressObserver` interface (`internal/fibonacci/observer.go`) enables multiple progress consumers (UI, logging, metrics). Concrete observers: `ChannelObserver`, `LoggingObserver`, `MetricsObserver`. Calculators expose `CalculateWithObservers()` alongside standard `Calculate()`
 - **Elm Architecture (TUI)**: The TUI follows Bubbletea's Elm-inspired Model-Update-View pattern with message-based state updates
+
+## Build Tags & Platform-Specific Code
+
+- **GMP support**: Build with `-tags=gmp` to use GNU Multiple Precision Arithmetic Library via `internal/fibonacci/calculator_gmp.go`. Auto-registers via `init()`.
+- **amd64 optimizations**: `internal/bigfft/arith_amd64.go` and `arith_amd64.s` provide assembly-optimized FFT operations with runtime CPU feature detection (AVX2/AVX-512 dynamic dispatch)
+- **PGO**: Profile-Guided Optimization via `make pgo-profile` then `make build-pgo`. Profile stored at `cmd/fibcalc/default.pgo`
 
 ## Naming Conventions
 
@@ -103,14 +117,11 @@ This is a high-performance Fibonacci calculator implementing multiple algorithms
 
 **New API Endpoint**: Add handler in `internal/server/server.go`, register route in `NewServer()`, update OpenAPI docs
 
-## Test Coverage
+**Mock Locations**: Mocks live in `mocks/` subdirectories (e.g., `internal/fibonacci/mocks/mock_calculator.go`). Regenerate with `make generate-mocks` after modifying interfaces.
 
-Key test files added during refactorisation:
-- `internal/logging/logger_test.go` - Tests for logging adapters and field helpers
-- `internal/server/security_test.go` - Tests for CORS headers and SecurityMiddleware
-- `internal/server/metrics_test.go` - Tests for Prometheus metrics
+## Configuration Priority
 
-Run specific tests: `go test -v -run <TestName> ./internal/<package>/`
+CLI flags > Environment variables > Defaults. See `.env.example` for all `FIBCALC_*` environment variables.
 
 ## Key Dependencies
 
