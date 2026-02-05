@@ -1,44 +1,44 @@
-# Algorithme de Barre de Progression pour Algorithmes O(log n)
+# Progress Bar Algorithm for O(log n) Algorithms
 
 ## Description
 
-Cet algorithme implémente un système de suivi de progression précis pour des algorithmes de complexité temporelle O(log n), spécifiquement conçu pour des algorithmes qui itèrent sur les bits d'un nombre (comme Fast Doubling, Matrix Exponentiation). Il modélise le travail effectué comme une série géométrique où chaque étape demande approximativement 4 fois plus de travail que la précédente.
+This algorithm implements a precise progress tracking system for O(log n) time complexity algorithms, specifically designed for algorithms that iterate over the bits of a number (such as Fast Doubling, Matrix Exponentiation). It models the work performed as a geometric series where each step requires approximately 4 times more work than the previous one.
 
-## Contexte d'Utilisation
+## Context
 
-- **Algorithme cible** : Algorithmes O(log n) qui itèrent sur les bits d'un nombre
-- **Exemples** : Fast Doubling pour Fibonacci, Matrix Exponentiation
-- **Caractéristique clé** : Le travail effectué augmente exponentiellement à mesure que l'algorithme progresse vers les bits de poids faible
+- **Target algorithms**: O(log n) algorithms that iterate over the bits of a number
+- **Examples**: Fast Doubling for Fibonacci, Matrix Exponentiation
+- **Key characteristic**: The work performed increases exponentially as the algorithm progresses toward the least significant bits
 
-## Modèle Mathématique
+## Mathematical Model
 
-### Série Géométrique du Travail
+### Geometric Series of Work
 
-L'algorithme modélise le travail total comme une série géométrique :
+The algorithm models the total work as a geometric series:
 
 ```
 TotalWork = 4^0 + 4^1 + 4^2 + ... + 4^(n-1) = (4^n - 1) / 3
 ```
 
-Où `n` est le nombre de bits du nombre d'entrée.
+Where `n` is the number of bits of the input number.
 
 ### Justification
 
-Les algorithmes O(log n) pour calculer F(n) :
-- Commencent par les bits de poids fort (MSB) où les valeurs sont petites
-- Progressent vers les bits de poids faible (LSB) où les valeurs deviennent très grandes
-- Le travail de multiplication/cálculation quadruple approximativement à chaque étape
+O(log n) algorithms for computing F(n):
+- Start from the most significant bits (MSB) where values are small
+- Progress toward the least significant bits (LSB) where values become very large
+- The multiplication/calculation work approximately quadruples at each step
 
-**Exemple** : Pour un nombre avec 20 bits (par ex. n = 1,000,000) :
-- Bit 19 (MSB) : travail ≈ 4^0 = 1 unité
-- Bit 10 : travail ≈ 4^9 = 262,144 unités
-- Bit 0 (LSB) : travail ≈ 4^19 = 274,877,906,944 unités
+**Example**: For a number with 20 bits (e.g., n = 1,000,000):
+- Bit 19 (MSB): work ~ 4^0 = 1 unit
+- Bit 10: work ~ 4^9 = 262,144 units
+- Bit 0 (LSB): work ~ 4^19 = 274,877,906,944 units
 
-## Composants de l'Algorithme
+## Algorithm Components
 
-### 1. Calcul du Travail Total
+### 1. Total Work Calculation
 
-**Fonction** : `CalcTotalWork(numBits int) float64`
+**Function**: `CalcTotalWork(numBits int) float64`
 
 ```go
 func CalcTotalWork(numBits int) float64 {
@@ -50,125 +50,138 @@ func CalcTotalWork(numBits int) float64 {
 }
 ```
 
-**Paramètres** :
-- `numBits` : Nombre de bits dans le nombre d'entrée
+**Parameters**:
+- `numBits`: Number of bits in the input number
 
-**Retour** :
-- Valeur représentant le travail total estimé en unités
+**Returns**:
+- A value representing the estimated total work in units
 
-**Note** : Retourne 0 si `numBits == 0`
+**Note**: Returns 0 if `numBits == 0`
 
-### 2. Précalcul des Puissances de 4
+### 2. Precomputation of Powers of 4
 
-**Fonction** : `PrecomputePowers4(numBits int) []float64`
+**Function**: `PrecomputePowers4(numBits int) []float64`
+
+The implementation uses a global precomputed lookup table to avoid allocations:
 
 ```go
+// Global lookup table for powers of 4 (max 64 entries for uint64 inputs)
+var powersOf4 [64]float64
+
+func init() {
+    powersOf4[0] = 1.0
+    for i := 1; i < 64; i++ {
+        powersOf4[i] = powersOf4[i-1] * 4.0
+    }
+}
+
 func PrecomputePowers4(numBits int) []float64 {
     if numBits <= 0 {
         return nil
     }
-    powers := make([]float64, numBits)
-    powers[0] = 1.0
-    for i := 1; i < numBits; i++ {
-        powers[i] = powers[i-1] * 4.0
+    if numBits > 64 {
+        // Fall back to allocation for unusually large inputs
+        powers := make([]float64, numBits)
+        copy(powers, powersOf4[:])
+        for i := 64; i < numBits; i++ {
+            powers[i] = powers[i-1] * 4.0
+        }
+        return powers
     }
-    return powers
+    return powersOf4[:numBits]  // Zero allocation — slice of global array
 }
 ```
 
-**Optimisation** : Évite les appels répétés à `math.Pow(4, x)` pendant la boucle de calcul, fournissant un accès O(1) au lieu de calculs d'exponentiation coûteux.
+**Optimization**: For the common case (numBits <= 64), this returns a slice of the global array with zero allocation. Avoids repeated calls to `math.Pow(4, x)` during the calculation loop, providing O(1) lookup.
 
-**Retour** :
-- Slice où `powers[i] = 4^i` pour i de 0 à numBits-1
+### 3. Step Progress Reporting
 
-### 3. Rapport de Progression par Étape
+**Function**: `ReportStepProgress(...) float64`
 
-**Fonction** : `ReportStepProgress(...) float64`
-
-**Signature** :
+**Signature**:
 ```go
 func ReportStepProgress(
     progressReporter ProgressReporter,
     lastReported *float64,
     totalWork float64,
     workDone float64,
-    i int,           // Index du bit actuel (numBits-1 vers 0)
+    i int,           // Current bit index (numBits-1 down to 0)
     numBits int,
     powers []float64,
 ) float64
 ```
 
-**Logique** :
+**Logic**:
 
-1. **Calcul de l'index de l'étape** :
+1. **Step index calculation**:
    ```go
    stepIndex = numBits - 1 - i
    ```
-   - Pour `i = numBits - 1` (premier bit, MSB) → `stepIndex = 0` (travail minimal)
-   - Pour `i = 0` (dernier bit, LSB) → `stepIndex = numBits - 1` (travail maximal)
+   - For `i = numBits - 1` (first bit, MSB) -> `stepIndex = 0` (minimal work)
+   - For `i = 0` (last bit, LSB) -> `stepIndex = numBits - 1` (maximum work)
 
-2. **Calcul du travail de l'étape** :
+2. **Step work calculation**:
    ```go
    workOfStep = powers[stepIndex]  // O(1) lookup
    ```
 
-3. **Calcul du travail cumulé** :
+3. **Cumulative work calculation**:
    ```go
    currentTotalDone = workDone + workOfStep
    ```
 
-4. **Calcul de la progression** :
+4. **Progress calculation**:
    ```go
    currentProgress = currentTotalDone / totalWork
    ```
 
-5. **Rapport conditionnel** :
+5. **Conditional reporting**:
    ```go
-   if currentProgress - *lastReported >= ProgressReportThreshold || 
+   if currentProgress - *lastReported >= ProgressReportThreshold ||
       i == 0 || i == numBits - 1 {
        progressReporter(currentProgress)
        *lastReported = currentProgress
    }
    ```
 
-**Seuil de Rapport** : `ProgressReportThreshold = 0.01` (1%)
-- Évite les mises à jour excessives
-- Rapporte toujours au début (i == numBits-1) et à la fin (i == 0)
+**Report Threshold**: `ProgressReportThreshold = 0.01` (1%)
+- Avoids excessive updates
+- Always reports at the start (i == numBits-1) and end (i == 0)
 
-**Retour** : Le travail cumulé mis à jour
+**Returns**: The updated cumulative work done
 
-### 4. Type de Callback
+### 4. Callback Type
 
 ```go
 type ProgressReporter func(progress float64)
 ```
 
-- `progress` : Valeur normalisée de 0.0 à 1.0
+- `progress`: Normalized value from 0.0 to 1.0
 
-## Intégration dans la Boucle de Calcul
+## Integration into the Calculation Loop
 
-### Exemple d'Utilisation
+### Usage Example
 
 ```go
 func ExecuteCalculation(ctx context.Context, reporter ProgressReporter, n uint64) (*big.Int, error) {
     numBits := bits.Len64(n)
-    
-    // Initialisation
+
+    // Initialization
     totalWork := CalcTotalWork(numBits)
     powers := PrecomputePowers4(numBits)
     workDone := 0.0
-    lastReportedProgress := -1.0  // -1 pour forcer le premier rapport
-    
-    // Boucle principale : itération sur les bits de numBits-1 vers 0
+    lastReportedProgress := -1.0  // -1 to force the first report
+
+    // Main loop: iterate over bits from numBits-1 down to 0
     for i := numBits - 1; i >= 0; i-- {
-        // Vérification d'annulation
+        // Cancellation check
         if err := ctx.Err(); err != nil {
             return nil, err
         }
-        
-        // ... Effectuer le calcul de l'étape (doubling, addition, etc.) ...
-        
-        // Rapport de progression
+
+        // ... Perform the step calculation (doubling, addition, etc.) ...
+
+        // Progress reporting
         workDone = ReportStepProgress(
             reporter,
             &lastReportedProgress,
@@ -179,53 +192,60 @@ func ExecuteCalculation(ctx context.Context, reporter ProgressReporter, n uint64
             powers,
         )
     }
-    
-    // ... Retourner le résultat ...
+
+    // ... Return the result ...
 }
 ```
 
-## Propriétés Garanties
+## Guaranteed Properties
 
-1. **Monotonie** : La progression est toujours croissante (ou stable), jamais décroissante
-2. **Plage valide** : Les valeurs de progression sont toujours dans [0.0, 1.0]
-3. **Finalisation** : La progression finale est toujours proche de 1.0 (≥ 0.99)
-4. **Performance** : Pas de calculs d'exponentiation dans la boucle (précalculé)
+1. **Monotonicity**: Progress is always increasing (or stable), never decreasing
+2. **Valid range**: Progress values are always in [0.0, 1.0]
+3. **Finalization**: Final progress is always close to 1.0 (>= 0.99)
+4. **Performance**: No exponentiation calculations in the loop (precomputed)
 
-## Comportement de la Progression
+## Progression Behavior
 
-### Caractéristiques
+### Characteristics
 
-- **Progression lente au début** : Les premières étapes (bits de poids fort) représentent peu de travail
-- **Accélération vers la fin** : Les dernières étapes (bits de poids faible) représentent la majorité du travail
-- **Distribution** : Pour 20 bits, environ 50% du travail est fait dans les 2-3 dernières étapes
+- **Slow progress at the start**: The first steps (most significant bits) represent little work
+- **Acceleration toward the end**: The last steps (least significant bits) represent the majority of work
+- **Distribution**: For 20 bits, approximately 50% of the work is done in the last 2-3 steps
 
-### Exemple Numérique
+### Numerical Example
 
-Pour `numBits = 10` :
-- TotalWork ≈ 1,398,101 unités
-- Première étape (i=9) : 4^0 = 1 unité → ~0.00007% du total
-- Étape médiane (i=5) : 4^4 = 256 unités → ~0.018% du total
-- Dernière étape (i=0) : 4^9 = 262,144 unités → ~18.8% du total
+For `numBits = 10`:
+- TotalWork ~ 1,398,101 units
+- First step (i=9): 4^0 = 1 unit -> ~0.00007% of total
+- Middle step (i=5): 4^4 = 256 units -> ~0.018% of total
+- Last step (i=0): 4^9 = 262,144 units -> ~18.8% of total
 
-## Cas Limites et Validation
+## Edge Cases and Validation
 
-### Cas à Gérer
+### Cases to Handle
 
-1. **numBits = 0** :
-   - `CalcTotalWork(0)` → 0
-   - `PrecomputePowers4(0)` → nil
+1. **numBits = 0**:
+   - `CalcTotalWork(0)` -> 0
+   - `PrecomputePowers4(0)` -> nil
 
-2. **totalWork = 0** :
-   - `ReportStepProgress` doit éviter la division par zéro
-   - Ne pas rapporter de progression si `totalWork <= 0`
+2. **totalWork = 0**:
+   - `ReportStepProgress` must avoid division by zero
+   - Do not report progress if `totalWork <= 0`
 
-3. **Première et dernière itération** :
-   - Toujours rapporter, même si le changement < seuil
+3. **First and last iteration**:
+   - Always report, even if the change is below the threshold
 
-### Tests Recommandés
+### Recommended Tests
+
+```bash
+# Run progress-related tests
+go test -v -run TestProgress ./internal/fibonacci/
+go test -v -run TestCalcTotalWork ./internal/fibonacci/
+go test -v -run TestReportStepProgress ./internal/fibonacci/
+```
 
 ```go
-// Test 1: Travail total augmente avec le nombre de bits
+// Test 1: Total work increases with number of bits
 func TestCalcTotalWorkMonotonic(t *testing.T) {
     prev := CalcTotalWork(1)
     for bits := 2; bits <= 20; bits++ {
@@ -235,57 +255,51 @@ func TestCalcTotalWorkMonotonic(t *testing.T) {
     }
 }
 
-// Test 2: Progression monotone
+// Test 2: Monotonic progress
 func TestProgressMonotonic(t *testing.T) {
     numBits := 20
     totalWork := CalcTotalWork(numBits)
     powers := PrecomputePowers4(numBits)
-    
+
     var lastReported float64
     var prevProgress float64
-    
+
     reporter := func(progress float64) {
         assert.True(progress >= prevProgress)
         prevProgress = progress
     }
-    
+
     workDone := 0.0
     for i := numBits - 1; i >= 0; i-- {
         workDone = ReportStepProgress(reporter, &lastReported, totalWork, workDone, i, numBits, powers)
     }
-    
-    assert.True(prevProgress >= 0.99)  // Final progress should be close to 1.0
-}
 
-// Test 3: Progression initiale faible
-func TestProgressStartsSlow(t *testing.T) {
-    // Le premier rapport devrait représenter < 25% du travail total
-    // car les premières étapes sont très rapides
+    assert.True(prevProgress >= 0.99)
 }
 ```
 
-## Optimisations
+## Optimizations
 
 ### Performance
 
-1. **Précalcul des puissances** : Évite `math.Pow(4, x)` dans la boucle (coût O(1) vs O(log x))
-2. **Seuil de rapport** : Réduit le nombre de callbacks (moins de surcharge d'E/S)
-3. **Lookup O(1)** : Utilisation d'un slice pré-calculé au lieu de calculs répétés
+1. **Precomputed powers**: Global `[64]float64` array avoids `math.Pow(4, x)` in the loop (O(1) vs O(log x))
+2. **Zero-allocation lookup**: `PrecomputePowers4` returns a slice of the global array for numBits <= 64
+3. **Report threshold**: Reduces the number of callbacks (less I/O overhead)
 
-### Complexité
+### Complexity
 
-- **Temps** : O(numBits) pour le précalcul, O(1) par itération
-- **Espace** : O(numBits) pour le tableau des puissances
+- **Time**: O(1) per iteration (lookup from precomputed array)
+- **Space**: O(1) — global array, no per-call allocation for typical inputs
 
-## Adaptation pour d'Autres Algorithmes
+## Adaptation for Other Algorithms
 
-### Modifications Possibles
+### Possible Modifications
 
-1. **Facteur de croissance** : Si le travail triple par étape au lieu de quadrupler, utiliser 3 au lieu de 4
-2. **Formule alternative** : Pour des algorithmes avec une croissance différente, adapter la formule géométrique
-3. **Pondération** : Si certaines étapes prennent plus/moins de temps, ajuster `workOfStep`
+1. **Growth factor**: If work triples per step instead of quadrupling, use 3 instead of 4
+2. **Alternative formula**: For algorithms with different growth, adapt the geometric formula
+3. **Weighting**: If certain steps take more/less time, adjust `workOfStep`
 
-### Exemple : Facteur de 3
+### Example: Factor of 3
 
 ```go
 func CalcTotalWork3(numBits int) float64 {
@@ -297,68 +311,58 @@ func CalcTotalWork3(numBits int) float64 {
 }
 ```
 
-## Interface de Rapport de Progression
+## Progress Reporting Interface
 
-### Définition
+### Definition
 
 ```go
-// Type de callback pour le rapport de progression
+// Callback type for progress reporting
 type ProgressReporter func(progress float64)
 ```
 
-### Utilisation dans le Calcul
+### Usage in Calculation
 
 ```go
-// Option 1: Callback simple
+// Option 1: Simple callback
 reporter := func(progress float64) {
     fmt.Printf("Progress: %.2f%%\n", progress*100)
 }
 
-// Option 2: Envoi sur un canal (pour UI asynchrone)
+// Option 2: Send on a channel (for asynchronous UI)
 progressChan := make(chan ProgressUpdate, 10)
 reporter := func(progress float64) {
     select {
     case progressChan <- ProgressUpdate{Value: progress}:
     default:
-        // Canal plein, ignorer pour éviter le blocage
+        // Channel full, skip to avoid blocking
     }
 }
 ```
 
-## Constantes Recommandées
+## Key Constants
 
 ```go
 const (
-    // Seuil minimum de changement de progression avant rapport (1%)
+    // Minimum progress change threshold before reporting (1%)
     ProgressReportThreshold = 0.01
-    
-    // Taux de rafraîchissement de l'affichage (200ms)
-    ProgressRefreshRate = 200 * time.Millisecond
-    
-    // Largeur de la barre de progression en caractères
-    ProgressBarWidth = 40
 )
 ```
 
-## Exemple Complet d'Implémentation
+## Summary of Key Equations
 
-Voir `internal/fibonacci/progress.go` et `internal/fibonacci/doubling_framework.go` pour une implémentation complète de référence.
+1. **Total work**: `TotalWork = (4^numBits - 1) / 3`
+2. **Work per step**: `WorkOfStep(i) = 4^(numBits - 1 - i)`
+3. **Progress**: `Progress = WorkDone / TotalWork`
+4. **Report condition**: `currentProgress - lastReported >= 0.01 || i == 0 || i == numBits-1`
 
-## Résumé des Équations Clés
+## Implementation Notes
 
-1. **Travail total** : `TotalWork = (4^numBits - 1) / 3`
-2. **Travail par étape** : `WorkOfStep(i) = 4^(numBits - 1 - i)`
-3. **Progression** : `Progress = WorkDone / TotalWork`
-4. **Condition de rapport** : `currentProgress - lastReported >= 0.01 || i == 0 || i == numBits-1`
+- Use `float64` for calculation precision
+- Initialize `lastReported` to `-1.0` to force the first report
+- Validate that `totalWork > 0` before division
+- Clamp progress values to [0.0, 1.0] if necessary
+- Handle cases where `numBits == 0` or very small
 
-## Notes d'Implémentation
+## Reference Implementation
 
-- Utiliser des `float64` pour la précision des calculs
-- Initialiser `lastReported` à `-1.0` pour forcer le premier rapport
-- Valider que `totalWork > 0` avant la division
-- Clamper les valeurs de progression dans [0.0, 1.0] si nécessaire
-- Gérer les cas où `numBits == 0` ou très petit
-
----
-
-*Ce document décrit l'algorithme utilisé dans le projet FibGo pour suivre la progression des calculs de nombres de Fibonacci avec une précision mathématique garantie.*
+See `internal/fibonacci/progress.go` and `internal/fibonacci/doubling_framework.go` for the complete reference implementation.
