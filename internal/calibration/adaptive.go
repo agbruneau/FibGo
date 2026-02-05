@@ -4,7 +4,6 @@ package calibration
 
 import (
 	"runtime"
-	"sort"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -70,48 +69,6 @@ func GenerateQuickParallelThresholds() []int {
 	}
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Adaptive FFT Threshold Generation
-// ─────────────────────────────────────────────────────────────────────────────
-
-// GenerateFFTThresholds generates FFT thresholds to test.
-// FFT becomes beneficial for very large numbers where its O(n log n) complexity
-// beats Karatsuba's O(n^1.585).
-//
-// The crossover point depends on:
-// - CPU cache sizes (larger cache = higher threshold)
-// - Memory bandwidth
-// - Implementation efficiency
-func GenerateFFTThresholds() []int {
-	// FFT thresholds are less CPU-count dependent
-	// They're more about memory hierarchy
-	wordSize := 32 << (^uint(0) >> 63) // 32 or 64
-
-	// Base thresholds
-	thresholds := []int{0} // Disabled (always use Karatsuba)
-
-	if wordSize == 64 {
-		// 64-bit systems typically have higher crossover points
-		thresholds = append(thresholds,
-			500000,  // ~500K bits
-			750000,  // ~750K bits
-			1000000, // ~1M bits (default)
-			1500000, // ~1.5M bits
-			2000000, // ~2M bits
-		)
-	} else {
-		// 32-bit systems have lower crossover points
-		thresholds = append(thresholds,
-			250000,  // ~250K bits
-			500000,  // ~500K bits
-			750000,  // ~750K bits
-			1000000, // ~1M bits
-		)
-	}
-
-	return thresholds
-}
-
 // GenerateQuickFFTThresholds generates a smaller set for quick calibration.
 func GenerateQuickFFTThresholds() []int {
 	return []int{0, 750000, 1000000, 1500000}
@@ -120,30 +77,6 @@ func GenerateQuickFFTThresholds() []int {
 // ─────────────────────────────────────────────────────────────────────────────
 // Adaptive Strassen Threshold Generation
 // ─────────────────────────────────────────────────────────────────────────────
-
-// GenerateStrassenThresholds generates Strassen algorithm thresholds to test.
-// Strassen reduces multiplications from 8 to 7 at the cost of more additions.
-// The crossover depends on the relative cost of multiplication vs addition.
-func GenerateStrassenThresholds() []int {
-	numCPU := runtime.NumCPU()
-
-	// Strassen benefits depend on:
-	// - Size of operands (larger = more benefit from fewer multiplications)
-	// - Cache efficiency (Strassen has worse cache behavior)
-	// - Parallelism availability (more cores = can parallelize the 7 multiplications)
-
-	thresholds := []int{0} // Disabled (always use standard)
-
-	if numCPU >= 4 {
-		// With parallelism, Strassen can be beneficial at lower thresholds
-		thresholds = append(thresholds, 192, 256, 384, 512, 768, 1024)
-	} else {
-		// Without much parallelism, need larger operands to benefit
-		thresholds = append(thresholds, 256, 512, 1024, 2048, 3072)
-	}
-
-	return thresholds
-}
 
 // GenerateQuickStrassenThresholds generates a smaller set for quick calibration.
 func GenerateQuickStrassenThresholds() []int {
@@ -198,78 +131,3 @@ func EstimateOptimalStrassenThreshold() int {
 	return 3072 // Default from constants
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Threshold Validation
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ValidateThresholds ensures thresholds are within reasonable bounds.
-func ValidateThresholds(parallel, fft, strassen int) (int, int, int) {
-	// Parallel threshold: 0 to 65536
-	if parallel < 0 {
-		parallel = 0
-	}
-	if parallel > 65536 {
-		parallel = 65536
-	}
-
-	// FFT threshold: 0 to 10M
-	if fft < 0 {
-		fft = 0
-	}
-	if fft > 10000000 {
-		fft = 10000000
-	}
-
-	// Strassen threshold: 0 to 10000
-	if strassen < 0 {
-		strassen = 0
-	}
-	if strassen > 10000 {
-		strassen = 10000
-	}
-
-	return parallel, fft, strassen
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Combined Threshold Generation
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ThresholdSet represents a complete set of thresholds to test.
-type ThresholdSet struct {
-	Parallel []int
-	FFT      []int
-	Strassen []int
-}
-
-// GenerateFullThresholdSet generates all thresholds for comprehensive calibration.
-func GenerateFullThresholdSet() ThresholdSet {
-	return ThresholdSet{
-		Parallel: GenerateParallelThresholds(),
-		FFT:      GenerateFFTThresholds(),
-		Strassen: GenerateStrassenThresholds(),
-	}
-}
-
-// GenerateQuickThresholdSet generates thresholds for quick auto-calibration.
-func GenerateQuickThresholdSet() ThresholdSet {
-	return ThresholdSet{
-		Parallel: GenerateQuickParallelThresholds(),
-		FFT:      GenerateQuickFFTThresholds(),
-		Strassen: GenerateQuickStrassenThresholds(),
-	}
-}
-
-// EstimatedThresholds returns heuristic estimates without benchmarking.
-func EstimatedThresholds() (parallel, fft, strassen int) {
-	return EstimateOptimalParallelThreshold(),
-		EstimateOptimalFFTThreshold(),
-		EstimateOptimalStrassenThreshold()
-}
-
-// SortThresholds sorts each threshold slice in ascending order.
-func (t *ThresholdSet) SortThresholds() {
-	sort.Ints(t.Parallel)
-	sort.Ints(t.FFT)
-	sort.Ints(t.Strassen)
-}

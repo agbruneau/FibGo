@@ -75,20 +75,6 @@ func TestQuickCalibrate(t *testing.T) {
 	}
 }
 
-func TestQuickCalibrateWithDefaults(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	defaultFFT := 1000000
-	defaultPar := 4096
-
-	fft, par := QuickCalibrateWithDefaults(ctx, defaultFFT, defaultPar)
-
-	// Since it's a real benchmark, we just check they are positive
-	if fft <= 0 || par < 0 {
-		t.Errorf("Invalid calibrated values: fft=%d, par=%d", fft, par)
-	}
-}
-
 func TestMicroBenchAnalyzeResultsEmpty(t *testing.T) {
 	t.Parallel()
 	mb := NewMicroBenchmark()

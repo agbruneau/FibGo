@@ -75,7 +75,7 @@ func TestProfileSaveLoad(t *testing.T) {
 	}
 
 	// Load the profile
-	loaded, err := LoadProfile(profilePath)
+	loaded, err := loadProfile(profilePath)
 	if err != nil {
 		t.Fatalf("LoadProfile failed: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestProfileString(t *testing.T) {
 
 func TestLoadNonExistentProfile(t *testing.T) {
 	t.Parallel()
-	_, err := LoadProfile("/nonexistent/path/to/profile.json")
+	_, err := loadProfile("/nonexistent/path/to/profile.json")
 	if err == nil {
 		t.Error("Expected error loading nonexistent profile")
 	}
@@ -206,7 +206,7 @@ func TestLoadInvalidJSON(t *testing.T) {
 		t.Fatalf("Failed to write invalid file: %v", err)
 	}
 
-	_, err = LoadProfile(invalidPath)
+	_, err = loadProfile(invalidPath)
 	if err == nil {
 		t.Error("Expected error loading invalid JSON")
 	}
@@ -247,33 +247,6 @@ func TestLoadOrCreateProfile(t *testing.T) {
 	}
 }
 
-func TestProfileExists(t *testing.T) {
-	t.Parallel()
-	tmpDir, err := os.MkdirTemp("", "fibcalc_test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	profilePath := filepath.Join(tmpDir, "profile.json")
-
-	// Should not exist initially
-	if ProfileExists(profilePath) {
-		t.Error("Expected ProfileExists to return false for nonexistent file")
-	}
-
-	// Create the file
-	profile := NewProfile()
-	if err := profile.SaveProfile(profilePath); err != nil {
-		t.Fatalf("Failed to save profile: %v", err)
-	}
-
-	// Should exist now
-	if !ProfileExists(profilePath) {
-		t.Error("Expected ProfileExists to return true for existing file")
-	}
-}
-
 func TestGetDefaultProfilePath(t *testing.T) {
 	t.Parallel()
 	path := GetDefaultProfilePath()
@@ -287,72 +260,3 @@ func TestGetDefaultProfilePath(t *testing.T) {
 	}
 }
 
-func TestProfileRanges(t *testing.T) {
-	t.Parallel()
-	profile := NewProfile()
-	profile.OptimalFFTThreshold = 1000
-	profile.OptimalParallelThreshold = 1000
-	profile.OptimalStrassenThreshold = 1000
-	profile.InitializeDefaultRanges()
-
-	if len(profile.ThresholdsByRange) == 0 {
-		t.Error("InitializeDefaultRanges should add ranges")
-	}
-
-	// Test GetThresholdsForN
-	// With default ranges, it should return defaults (which we just set)
-	fft, par, strassen := profile.GetThresholdsForN(50000)
-	if fft != 1000 || par != 1000 || strassen != 1000 {
-		t.Errorf("GetThresholdsForN = %d, %d, %d; want 1000, 1000, 1000", fft, par, strassen)
-	}
-
-	// Add a specific range
-	r := RangeThresholds{
-		MinN:              100000,
-		MaxN:              200000,
-		FFTThreshold:      123,
-		ParallelThreshold: 456,
-		StrassenThreshold: 789,
-		ConfidenceScore:   1.0,
-		MeasurementCount:  10,
-	}
-	profile.AddRangeThresholds(r)
-
-	// Test GetThresholdsForN for the new range
-	fft, par, strassen = profile.GetThresholdsForN(150000)
-	if fft != 123 || par != 456 || strassen != 789 {
-		t.Errorf("GetThresholdsForN = %d, %d, %d; want 123, 456, 789", fft, par, strassen)
-	}
-}
-
-func TestAddRangeThresholds(t *testing.T) {
-	t.Parallel()
-	profile := NewProfile()
-
-	r1 := RangeThresholds{
-		MinN:              100,
-		MaxN:              200,
-		FFTThreshold:      1000,
-		ParallelThreshold: 1000,
-		ConfidenceScore:   0.5,
-		MeasurementCount:  1,
-	}
-	profile.AddRangeThresholds(r1)
-
-	// Add same range with different values to test merging
-	r2 := RangeThresholds{
-		MinN:              100,
-		MaxN:              200,
-		FFTThreshold:      2000,
-		ParallelThreshold: 2000,
-		ConfidenceScore:   0.5,
-		MeasurementCount:  1,
-	}
-	profile.AddRangeThresholds(r2)
-
-	fft, par, _ := profile.GetThresholdsForN(150)
-	// Weighted average: (1000*1 + 2000*1) / 2 = 1500
-	if fft != 1500 || par != 1500 {
-		t.Errorf("Merged thresholds = %d, %d; want 1500, 1500", fft, par)
-	}
-}

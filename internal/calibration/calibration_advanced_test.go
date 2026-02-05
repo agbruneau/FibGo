@@ -172,12 +172,3 @@ func TestProfile_SaveProfile_Error(t *testing.T) {
 	}
 }
 
-func TestInitializeDefaultRanges_Coverage(t *testing.T) {
-	// InitializeDefaultRanges is a method on CalibrationProfile
-	p := NewProfile()
-	p.InitializeDefaultRanges()
-
-	if len(p.ThresholdsByRange) == 0 {
-		t.Error("InitializeDefaultRanges should have populated ranges")
-	}
-}

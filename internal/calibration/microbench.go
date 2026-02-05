@@ -363,21 +363,3 @@ func QuickCalibrate(ctx context.Context) (ThresholdResults, error) {
 	return mb.RunQuick(ctx)
 }
 
-// QuickCalibrateWithDefaults performs quick calibration and returns values
-// that can be directly used as configuration defaults.
-//
-// Parameters:
-//   - ctx: The context for cancellation
-//   - defaultFFT: The default FFT threshold to use if calibration fails
-//   - defaultParallel: The default parallel threshold to use if calibration fails
-//
-// Returns:
-//   - fftThreshold: The calibrated or default FFT threshold
-//   - parallelThreshold: The calibrated or default parallel threshold
-func QuickCalibrateWithDefaults(ctx context.Context, defaultFFT, defaultParallel int) (int, int) {
-	results, err := QuickCalibrate(ctx)
-	if err != nil || results.Confidence < 0.3 {
-		return defaultFFT, defaultParallel
-	}
-	return results.FFTThreshold, results.ParallelThreshold
-}
