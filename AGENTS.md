@@ -23,11 +23,9 @@ make clean              # Remove build artifacts
 - `cmd/fibcalc` - CLI entry point (main application)
 - `internal/fibonacci` - Core algorithms (Fast Doubling, Matrix, FFT); Calculator interface
 - `internal/bigfft` - FFT multiplication for large integers
-- `internal/server` - HTTP server with REST API endpoints (/calculate, /health, /metrics)
-- `internal/cli` - REPL, UI, spinner, progress
+- `internal/cli` - UI, spinner, progress
 - `internal/orchestration` - Parallel algorithm execution & strategy selection
 - `internal/calibration` - System benchmarking for optimal thresholds
-- `internal/service` - Business logic layer
 - `internal/config` - Configuration management
 - `internal/parallel` - Concurrency utilities
 - `internal/errors` - Custom error types
@@ -35,7 +33,7 @@ make clean              # Remove build artifacts
 - `internal/app` - Application coordination
 - `internal/logging` - Unified logging interface and adapters
 
-**Key Dependencies**: prometheus/client_golang, zerolog, go.opentelemetry.io, golang.org/x/sync, gmp
+**Key Dependencies**: zerolog, golang.org/x/sync, gmp
 
 ## Code Style & Conventions
 

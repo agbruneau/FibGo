@@ -205,20 +205,6 @@ Calibration tests different thresholds and determines optimal values for your ha
 
 ## Performance Monitoring
 
-### Server Mode
-
-The server exposes metrics on `/metrics`:
-
-```bash
-curl http://localhost:8080/metrics
-```
-
-Available metrics:
-- `total_requests`: Total number of requests
-- `total_calculations`: Number of calculations performed
-- `calculation_duration_*`: Duration distribution per algorithm
-- `errors_*`: Error counters
-
 ### Go Profiling
 
 ```bash
