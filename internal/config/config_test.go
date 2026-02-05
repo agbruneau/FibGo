@@ -37,8 +37,6 @@ func TestParseConfig(t *testing.T) {
 			"-v",
 			"-timeout", "10s",
 			"-threshold", "5000",
-			"-server",
-			"-port", "9090",
 		}
 		cfg, err := ParseConfig("fibcalc", args, io.Discard, availableAlgos)
 		if err != nil {
@@ -60,12 +58,6 @@ func TestParseConfig(t *testing.T) {
 		if cfg.Threshold != 5000 {
 			t.Errorf("Expected Threshold 5000, got %d", cfg.Threshold)
 		}
-		if !cfg.ServerMode {
-			t.Error("Expected ServerMode true")
-		}
-		if cfg.Port != "9090" {
-			t.Errorf("Expected Port 9090, got %s", cfg.Port)
-		}
 	})
 
 	t.Run("EnvOverrides", func(t *testing.T) {
@@ -73,8 +65,6 @@ func TestParseConfig(t *testing.T) {
 		env := map[string]string{
 			"FIBCALC_N":                   "200",
 			"FIBCALC_ALGO":                "matrix",
-			"FIBCALC_SERVER":              "true",
-			"FIBCALC_PORT":                "3000",
 			"FIBCALC_TIMEOUT":             "2m",
 			"FIBCALC_THRESHOLD":           "1024",
 			"FIBCALC_FFT_THRESHOLD":       "5000",
@@ -83,7 +73,6 @@ func TestParseConfig(t *testing.T) {
 			"FIBCALC_DETAILS":             "true",
 			"FIBCALC_QUIET":               "true",
 			"FIBCALC_HEX":                 "true",
-			"FIBCALC_INTERACTIVE":         "true",
 			"FIBCALC_NO_COLOR":            "true",
 			"FIBCALC_CALIBRATE":           "true",
 			"FIBCALC_AUTO_CALIBRATE":      "true",
@@ -113,12 +102,6 @@ func TestParseConfig(t *testing.T) {
 		if cfg.Algo != "matrix" {
 			t.Errorf("Expected Algo 'matrix' from env, got %s", cfg.Algo)
 		}
-		if !cfg.ServerMode {
-			t.Error("Expected ServerMode true from env")
-		}
-		if cfg.Port != "3000" {
-			t.Errorf("Expected Port 3000, got %s", cfg.Port)
-		}
 		if cfg.Timeout != 2*time.Minute {
 			t.Errorf("Expected Timeout 2m, got %v", cfg.Timeout)
 		}
@@ -142,9 +125,6 @@ func TestParseConfig(t *testing.T) {
 		}
 		if !cfg.HexOutput {
 			t.Error("Expected HexOutput true")
-		}
-		if !cfg.Interactive {
-			t.Error("Expected Interactive true")
 		}
 		if !cfg.NoColor {
 			t.Error("Expected NoColor true")

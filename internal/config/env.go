@@ -104,17 +104,14 @@ func isFlagSetAny(fs *flag.FlagSet, names ...string) bool {
 // Supported environment variables:
 //   - FIBCALC_N: Index of the Fibonacci number to calculate (uint64)
 //   - FIBCALC_ALGO: Algorithm to use (string: fast, matrix, fft, all)
-//   - FIBCALC_PORT: Port for server mode (string)
 //   - FIBCALC_TIMEOUT: Calculation timeout (duration: "5m", "30s")
 //   - FIBCALC_THRESHOLD: Parallelism threshold in bits (int)
 //   - FIBCALC_FFT_THRESHOLD: FFT multiplication threshold in bits (int)
 //   - FIBCALC_STRASSEN_THRESHOLD: Strassen algorithm threshold in bits (int)
-//   - FIBCALC_SERVER: Enable server mode (bool: true/false, 1/0, yes/no)
 //   - FIBCALC_JSON: Enable JSON output (bool)
 //   - FIBCALC_VERBOSE: Enable verbose output (bool)
 //   - FIBCALC_QUIET: Enable quiet mode (bool)
 //   - FIBCALC_HEX: Enable hexadecimal output (bool)
-//   - FIBCALC_INTERACTIVE: Enable interactive REPL mode (bool)
 //   - FIBCALC_NO_COLOR: Disable colored output (bool)
 //   - FIBCALC_OUTPUT: Output file path (string)
 //   - FIBCALC_CALIBRATION_PROFILE: Path to calibration profile (string)
@@ -150,9 +147,6 @@ func applyStringOverrides(config *AppConfig, fs *flag.FlagSet) {
 	if !isFlagSet(fs, "algo") {
 		config.Algo = getEnvString("ALGO", config.Algo)
 	}
-	if !isFlagSet(fs, "port") {
-		config.Port = getEnvString("PORT", config.Port)
-	}
 	if !isFlagSetAny(fs, "output", "o") {
 		config.OutputFile = getEnvString("OUTPUT", config.OutputFile)
 	}
@@ -162,9 +156,6 @@ func applyStringOverrides(config *AppConfig, fs *flag.FlagSet) {
 }
 
 func applyBooleanOverrides(config *AppConfig, fs *flag.FlagSet) {
-	if !isFlagSet(fs, "server") {
-		config.ServerMode = getEnvBool("SERVER", config.ServerMode)
-	}
 	if !isFlagSet(fs, "json") {
 		config.JSONOutput = getEnvBool("JSON", config.JSONOutput)
 	}
@@ -179,9 +170,6 @@ func applyBooleanOverrides(config *AppConfig, fs *flag.FlagSet) {
 	}
 	if !isFlagSet(fs, "hex") {
 		config.HexOutput = getEnvBool("HEX", config.HexOutput)
-	}
-	if !isFlagSet(fs, "interactive") {
-		config.Interactive = getEnvBool("INTERACTIVE", config.Interactive)
 	}
 	if !isFlagSet(fs, "no-color") {
 		config.NoColor = getEnvBool("NO_COLOR", config.NoColor)

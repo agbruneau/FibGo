@@ -269,12 +269,6 @@ func TestParseConfigDefaults(t *testing.T) {
 	if cfg.JSONOutput {
 		t.Error("Default JSONOutput should be false")
 	}
-	if cfg.ServerMode {
-		t.Error("Default ServerMode should be false")
-	}
-	if cfg.Port != "8080" {
-		t.Errorf("Default Port: expected '8080', got '%s'", cfg.Port)
-	}
 	if cfg.NoColor {
 		t.Error("Default NoColor should be false")
 	}
@@ -299,8 +293,6 @@ func TestParseConfigAllFlags(t *testing.T) {
 		"-auto-calibrate",
 		"-calibration-profile", "/path/to/profile.json",
 		"-json",
-		"-server",
-		"-port", "9090",
 		"-no-color",
 	}
 
@@ -345,12 +337,6 @@ func TestParseConfigAllFlags(t *testing.T) {
 	}
 	if !cfg.JSONOutput {
 		t.Error("JSONOutput should be true")
-	}
-	if !cfg.ServerMode {
-		t.Error("ServerMode should be true")
-	}
-	if cfg.Port != "9090" {
-		t.Errorf("Port: expected '9090', got '%s'", cfg.Port)
 	}
 	if !cfg.NoColor {
 		t.Error("NoColor should be true")

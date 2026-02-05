@@ -13,33 +13,13 @@ import (
 	"time"
 
 	"github.com/agbru/fibcalc/internal/bigfft"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/rs/zerolog/log"
-	"go.opentelemetry.io/otel"
 )
 
 // MaxFibUint64 = 93 because F(93) is the largest Fibonacci number that fits in a uint64,
 // as F(94) exceeds 2^64. This value is derived from the very rapid growth of the sequence.
 const (
 	MaxFibUint64 = 93 // Justified above
-)
-
-var (
-	calculationsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "fibonacci_calculations_total",
-			Help: "The total number of Fibonacci calculations processed",
-		},
-		[]string{"algorithm", "status"},
-	)
-	calculationDuration = promauto.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name: "fibonacci_calculation_duration_seconds",
-			Help: "The duration of Fibonacci calculations in seconds",
-		},
-		[]string{"algorithm"},
-	)
 )
 
 // Calculator defines the public interface for a Fibonacci calculator.
@@ -162,10 +142,6 @@ func (c *FibCalculator) Calculate(ctx context.Context, progressChan chan<- Progr
 //   - *big.Int: The calculated Fibonacci number.
 //   - error: An error if one occurred.
 func (c *FibCalculator) CalculateWithObservers(ctx context.Context, subject *ProgressSubject, calcIndex int, n uint64, opts Options) (result *big.Int, err error) {
-	tracer := otel.Tracer("fibonacci")
-	ctx, span := tracer.Start(ctx, "Calculate")
-	defer span.End()
-
 	start := time.Now()
 	defer func() {
 		duration := time.Since(start).Seconds()
@@ -173,12 +149,8 @@ func (c *FibCalculator) CalculateWithObservers(ctx context.Context, subject *Pro
 		if err != nil {
 			status = "error"
 		}
-		algoName := c.core.Name()
-		calculationsTotal.WithLabelValues(algoName, status).Inc()
-		calculationDuration.WithLabelValues(algoName).Observe(duration)
-
 		log.Trace().
-			Str("algo", algoName).
+			Str("algo", c.core.Name()).
 			Uint64("n", n).
 			Float64("duration", duration).
 			Str("status", status).

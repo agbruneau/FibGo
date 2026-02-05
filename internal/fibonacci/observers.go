@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/rs/zerolog"
 )
 
@@ -117,53 +115,6 @@ func (o *LoggingObserver) Update(calcIndex int, progress float64) {
 			Msg("calculation progress")
 		o.lastLog[calcIndex] = progress
 	}
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Metrics Observer (Prometheus)
-// ─────────────────────────────────────────────────────────────────────────────
-
-var (
-	// progressGauge is the Prometheus gauge for tracking calculation progress.
-	// Registered once globally to avoid duplicate registration errors.
-	progressGauge = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "fibonacci_calculation_progress",
-			Help: "Current progress of Fibonacci calculations (0.0 to 1.0)",
-		},
-		[]string{"calculator_index"},
-	)
-)
-
-// MetricsObserver exports progress to Prometheus.
-// It updates a gauge metric with the current progress value.
-type MetricsObserver struct {
-	gauge *prometheus.GaugeVec
-}
-
-// NewMetricsObserver creates an observer that updates Prometheus metrics.
-//
-// Returns:
-//   - *MetricsObserver: A new observer that exports to Prometheus.
-func NewMetricsObserver() *MetricsObserver {
-	return &MetricsObserver{
-		gauge: progressGauge,
-	}
-}
-
-// Update implements ProgressObserver by updating Prometheus gauge.
-//
-// Parameters:
-//   - calcIndex: The calculator instance identifier.
-//   - progress: The normalized progress value (0.0 to 1.0).
-func (o *MetricsObserver) Update(calcIndex int, progress float64) {
-	o.gauge.WithLabelValues(fmt.Sprintf("%d", calcIndex)).Set(progress)
-}
-
-// ResetMetrics resets the progress metrics for all calculators.
-// This should be called at the start of a new calculation batch.
-func (o *MetricsObserver) ResetMetrics() {
-	o.gauge.Reset()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

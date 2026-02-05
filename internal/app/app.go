@@ -17,15 +17,13 @@ import (
 	apperrors "github.com/agbru/fibcalc/internal/errors"
 	"github.com/agbru/fibcalc/internal/fibonacci"
 	"github.com/agbru/fibcalc/internal/orchestration"
-	"github.com/agbru/fibcalc/internal/server"
-	"github.com/agbru/fibcalc/internal/tui"
 	"github.com/agbru/fibcalc/internal/ui"
 	"github.com/rs/zerolog"
 )
 
 // Application represents the fibcalc application instance.
 // It encapsulates the configuration and provides methods to run
-// the application in various modes (CLI, server, REPL).
+// the application in CLI mode.
 type Application struct {
 	// Config holds the parsed application configuration.
 	Config config.AppConfig
@@ -116,7 +114,7 @@ func applyAdaptiveThresholds(cfg config.AppConfig) config.AppConfig {
 }
 
 // Run executes the application based on the configured mode.
-// It dispatches to the appropriate handler (completion, server, REPL, or CLI).
+// It dispatches to the appropriate handler (completion, calibration, or CLI).
 //
 // Parameters:
 //   - ctx: The context for managing cancellation and timeouts.
@@ -130,27 +128,10 @@ func (a *Application) Run(ctx context.Context, out io.Writer) int {
 		return a.runCompletion(out)
 	}
 
-	// Disable trace-level logging by default to avoid polluting CLI output.
-	// Server mode may override this to enable more verbose logging.
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
 	// Initialize CLI theme (respects --no-color flag and NO_COLOR env var)
 	ui.InitTheme(a.Config.NoColor)
-
-	// Server mode
-	if a.Config.ServerMode {
-		return a.runServer()
-	}
-
-	// TUI mode
-	if a.Config.TUIMode {
-		return a.runTUI()
-	}
-
-	// Interactive REPL mode
-	if a.Config.Interactive {
-		return a.runREPL()
-	}
 
 	// Calibration mode
 	if a.Config.Calibrate {
@@ -172,34 +153,6 @@ func (a *Application) runCompletion(out io.Writer) int {
 		return apperrors.ExitErrorConfig
 	}
 	return apperrors.ExitSuccess
-}
-
-// runServer starts the HTTP server mode.
-func (a *Application) runServer() int {
-	srv := server.NewServer(a.Factory, a.Config)
-	if err := srv.Start(); err != nil {
-		fmt.Fprintf(a.ErrWriter, "Server error: %v\n", err)
-		return apperrors.ExitErrorGeneric
-	}
-	return apperrors.ExitSuccess
-}
-
-// runREPL starts the interactive REPL mode.
-func (a *Application) runREPL() int {
-	repl := cli.NewREPL(a.Factory.GetAll(), cli.REPLConfig{
-		DefaultAlgo:  a.Config.Algo,
-		Timeout:      a.Config.Timeout,
-		Threshold:    a.Config.Threshold,
-		FFTThreshold: a.Config.FFTThreshold,
-		HexOutput:    a.Config.HexOutput,
-	})
-	repl.Start()
-	return apperrors.ExitSuccess
-}
-
-// runTUI starts the interactive TUI mode using Bubbletea.
-func (a *Application) runTUI() int {
-	return tui.Run(a.Config, a.Factory.GetAll())
 }
 
 // runCalibration runs the full calibration mode.

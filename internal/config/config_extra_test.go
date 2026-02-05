@@ -39,8 +39,6 @@ func TestParseConfigEnvironmentVariables(t *testing.T) {
 		EnvPrefix + "STRASSEN_THRESHOLD",
 		EnvPrefix + "TIMEOUT",
 		EnvPrefix + "ALGO",
-		EnvPrefix + "PORT",
-		EnvPrefix + "SERVER",
 		EnvPrefix + "JSON",
 		EnvPrefix + "VERBOSE",
 		EnvPrefix + "QUIET",
@@ -71,8 +69,6 @@ func TestParseConfigEnvironmentVariables(t *testing.T) {
 		os.Setenv(EnvPrefix+"STRASSEN_THRESHOLD", "3333")
 		os.Setenv(EnvPrefix+"TIMEOUT", "10m")
 		os.Setenv(EnvPrefix+"ALGO", "fast")
-		os.Setenv(EnvPrefix+"PORT", "9999")
-		os.Setenv(EnvPrefix+"SERVER", "true")
 		os.Setenv(EnvPrefix+"JSON", "1")
 		os.Setenv(EnvPrefix+"VERBOSE", "yes")
 		os.Setenv(EnvPrefix+"QUIET", "0")
@@ -102,12 +98,6 @@ func TestParseConfigEnvironmentVariables(t *testing.T) {
 		}
 		if cfg.Algo != "fast" {
 			t.Errorf("expected Algo=fast, got %s", cfg.Algo)
-		}
-		if cfg.Port != "9999" {
-			t.Errorf("expected Port=9999, got %s", cfg.Port)
-		}
-		if !cfg.ServerMode {
-			t.Error("expected ServerMode=true")
 		}
 		if !cfg.JSONOutput {
 			t.Error("expected JSONOutput=true")

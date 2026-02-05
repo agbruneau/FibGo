@@ -349,32 +349,6 @@ func TestLoggingObserver_DefaultThreshold(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MetricsObserver Tests
-// ─────────────────────────────────────────────────────────────────────────────
-
-// TestMetricsObserver_Update verifies Prometheus integration.
-func TestMetricsObserver_Update(t *testing.T) {
-	t.Parallel()
-
-	observer := NewMetricsObserver()
-
-	// Should not panic
-	observer.Update(0, 0.5)
-	observer.Update(1, 0.75)
-	observer.Update(0, 1.0)
-}
-
-// TestMetricsObserver_ResetMetrics verifies reset functionality.
-func TestMetricsObserver_ResetMetrics(t *testing.T) {
-	t.Parallel()
-
-	observer := NewMetricsObserver()
-	observer.Update(0, 0.5)
-	observer.ResetMetrics()
-	// Reset should not panic and should complete
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // NoOpObserver Tests
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -407,9 +381,6 @@ func TestMultipleObserversIntegration(t *testing.T) {
 	logger := zerolog.New(&logBuf).Level(zerolog.DebugLevel)
 	loggingObs := NewLoggingObserver(logger, 0.1)
 
-	// Set up metrics observer
-	metricsObs := NewMetricsObserver()
-
 	// Set up mock observer to count
 	var updateCount int64
 	countingObs := &struct{ ProgressObserver }{} // Anonymous observer
@@ -417,7 +388,6 @@ func TestMultipleObserversIntegration(t *testing.T) {
 
 	subject.Register(channelObs)
 	subject.Register(loggingObs)
-	subject.Register(metricsObs)
 	subject.Register(countingObsImpl)
 
 	// Notify progress

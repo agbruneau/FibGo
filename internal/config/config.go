@@ -29,8 +29,6 @@ const (
 	DefaultN uint64 = 100_000_000
 	// DefaultTimeout is the default calculation timeout.
 	DefaultTimeout = 5 * time.Minute
-	// DefaultPort is the default server port.
-	DefaultPort = "8080"
 	// DefaultAlgo is the default algorithm selection.
 	DefaultAlgo = "all"
 	// DefaultThreshold is the default parallelism threshold in bits.
@@ -73,10 +71,6 @@ type AppConfig struct {
 	CalibrationProfile string
 	// JSONOutput, if true, outputs the result in JSON format.
 	JSONOutput bool
-	// ServerMode, if true, starts the application as an HTTP server.
-	ServerMode bool
-	// Port specifies the port to listen on in server mode.
-	Port string
 	// NoColor, if true, disables all color output in the CLI.
 	// Also respects the NO_COLOR environment variable.
 	NoColor bool
@@ -88,18 +82,12 @@ type AppConfig struct {
 	Quiet bool
 	// HexOutput, if true, displays the result in hexadecimal format.
 	HexOutput bool
-	// Interactive, if true, starts the application in REPL mode.
-	Interactive bool
 	// Completion, if set, generates shell completion script for the specified shell.
 	// Valid values are: "bash", "zsh", "fish", "powershell".
 	Completion string
 	// Concise, if false (default), suppresses the display of the calculated value section.
 	// Set to true with -c/--calculate to display the calculated value.
 	Concise bool
-	// TUIMode, if true, starts the application in interactive TUI mode.
-	// The TUI provides a rich terminal interface with navigation, progress bars,
-	// and interactive algorithm selection.
-	TUIMode bool
 }
 
 // ToCalculationOptions converts the application configuration into
@@ -185,8 +173,6 @@ func ParseConfig(programName string, args []string, errorWriter io.Writer, avail
 	fs.BoolVar(&config.AutoCalibrate, "auto-calibrate", false, "Enables quick automatic calibration at startup (may increase loading time).")
 	fs.StringVar(&config.CalibrationProfile, "calibration-profile", "", "Path to calibration profile file (default: ~/.fibcalc_calibration.json).")
 	fs.BoolVar(&config.JSONOutput, "json", false, "Output results in JSON format.")
-	fs.BoolVar(&config.ServerMode, "server", false, "Start in HTTP server mode.")
-	fs.StringVar(&config.Port, "port", DefaultPort, "Port to listen on in server mode.")
 	fs.BoolVar(&config.NoColor, "no-color", false, "Disable colored output (also respects NO_COLOR env var).")
 
 	// New CLI enhancement flags
@@ -195,12 +181,9 @@ func ParseConfig(programName string, args []string, errorWriter io.Writer, avail
 	fs.BoolVar(&config.Quiet, "quiet", false, "Quiet mode - minimal output for scripts.")
 	fs.BoolVar(&config.Quiet, "q", false, "Quiet mode (shorthand).")
 	fs.BoolVar(&config.HexOutput, "hex", false, "Display result in hexadecimal format.")
-	fs.BoolVar(&config.Interactive, "interactive", false, "Start in interactive REPL mode.")
 	fs.StringVar(&config.Completion, "completion", "", "Generate shell completion script (bash, zsh, fish, powershell).")
 	fs.BoolVar(&config.Concise, "calculate", false, "Display the calculated value (disabled by default).")
 	fs.BoolVar(&config.Concise, "c", false, "Display the calculated value (shorthand).")
-	fs.BoolVar(&config.TUIMode, "tui", false, "Start in interactive TUI mode with rich terminal interface.")
-
 	setCustomUsage(fs)
 
 	if err := fs.Parse(args); err != nil {

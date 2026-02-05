@@ -42,7 +42,7 @@ _fibcalc_completions() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # Main options
-    opts="--help -h --version -V -n -v -d --details --timeout --algo --threshold --fft-threshold --strassen-threshold --calibrate --auto-calibrate --calibration-profile --json --server --port --no-color --output -o --quiet -q --hex --interactive --completion"
+    opts="--help -h --version -V -n -v -d --details --timeout --algo --threshold --fft-threshold --strassen-threshold --calibrate --auto-calibrate --calibration-profile --json --no-color --output -o --quiet -q --hex --completion"
 
     # Available algorithms
     algorithms="%s all"
@@ -59,10 +59,6 @@ _fibcalc_completions() {
         --output|-o|--calibration-profile)
             # File/directory completion
             COMPREPLY=( $(compgen -f -- "${cur}") )
-            return 0
-            ;;
-        --port)
-            COMPREPLY=( $(compgen -W "8080 3000 5000 9000" -- "${cur}") )
             return 0
             ;;
         --timeout)
@@ -121,13 +117,10 @@ _fibcalc() {
         '--auto-calibrate[Enable auto-calibration]' \
         '--calibration-profile[Calibration profile file]:file:_files' \
         '--json[Output in JSON format]' \
-        '--server[Start HTTP server mode]' \
-        '--port[Server port]:port:(8080 3000 5000 9000)' \
         '--no-color[Disable colored output]' \
         '(-o --output)'{-o,--output}'[Output file path]:file:_files' \
         '(-q --quiet)'{-q,--quiet}'[Quiet mode for scripts]' \
         '--hex[Display result in hexadecimal]' \
-        '--interactive[Start interactive REPL mode]' \
         '--completion[Generate completion script]:shell:(bash zsh fish powershell)'
 }
 
@@ -179,12 +172,7 @@ complete -c fibcalc -s q -l quiet -d 'Quiet mode for scripts'
 complete -c fibcalc -l hex -d 'Display result in hexadecimal'
 complete -c fibcalc -l no-color -d 'Disable colored output'
 
-# Server mode
-complete -c fibcalc -l server -d 'Start HTTP server mode'
-complete -c fibcalc -l port -d 'Server port' -xa '8080 3000 5000 9000'
-
-# Interactive and completion
-complete -c fibcalc -l interactive -d 'Start interactive REPL mode'
+# Completion
 complete -c fibcalc -l completion -d 'Generate completion script' -xa 'bash zsh fish powershell'
 `
 	algoList := ""
@@ -227,15 +215,12 @@ Register-ArgumentCompleter -CommandName 'fibcalc' -Native -ScriptBlock {
         @{Name = '--auto-calibrate'; Description = 'Enable auto-calibration' }
         @{Name = '--calibration-profile'; Description = 'Calibration profile file' }
         @{Name = '--json'; Description = 'Output in JSON format' }
-        @{Name = '--server'; Description = 'Start HTTP server mode' }
-        @{Name = '--port'; Description = 'Server port' }
         @{Name = '--no-color'; Description = 'Disable colored output' }
         @{Name = '-o'; Description = 'Output file path' }
         @{Name = '--output'; Description = 'Output file path' }
         @{Name = '-q'; Description = 'Quiet mode for scripts' }
         @{Name = '--quiet'; Description = 'Quiet mode for scripts' }
         @{Name = '--hex'; Description = 'Display result in hexadecimal' }
-        @{Name = '--interactive'; Description = 'Start interactive REPL mode' }
         @{Name = '--completion'; Description = 'Generate completion script' }
     )
 
@@ -259,12 +244,6 @@ Register-ArgumentCompleter -CommandName 'fibcalc' -Native -ScriptBlock {
         }
         '--timeout' {
             @('1m', '5m', '10m', '30m', '1h') | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
-                [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
-            }
-            return
-        }
-        '--port' {
-            @('8080', '3000', '5000', '9000') | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
                 [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
             }
             return
