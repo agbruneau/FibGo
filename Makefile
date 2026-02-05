@@ -20,9 +20,9 @@ BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 
 # Linker flags for version injection
 LDFLAGS=-ldflags="-s -w \
-	-X main.Version=$(VERSION) \
-	-X main.Commit=$(COMMIT) \
-	-X main.BuildDate=$(BUILD_DATE)"
+	-X github.com/agbru/fibcalc/internal/app.Version=$(VERSION) \
+	-X github.com/agbru/fibcalc/internal/app.Commit=$(COMMIT) \
+	-X github.com/agbru/fibcalc/internal/app.BuildDate=$(BUILD_DATE)"
 GOFLAGS=$(LDFLAGS)
 
 .PHONY: all build clean test coverage benchmark run help install lint format check pgo-profile pgo-check pgo-clean pgo-rebuild build-pgo-linux build-pgo-windows build-pgo-darwin build-pgo-all generate-mocks install-mockgen

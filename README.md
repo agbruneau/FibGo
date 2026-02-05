@@ -71,18 +71,19 @@ FibCalc serves as both a practical high-performance tool and a reference impleme
 
 ## ⚡ Quick Start
 
-> **Note**: The `cmd/fibcalc` CLI entry point is currently being rebuilt. The library packages under `internal/` are fully functional and tested.
-
 ```bash
 # Clone the repository
 git clone https://github.com/agbru/fibcalc.git
 cd fibcalc
 
+# Build the CLI
+go build -o fibcalc ./cmd/fibcalc
+
+# Calculate F(1,000,000) using the fastest algorithm
+./fibcalc -n 1000000 --algo fast
+
 # Run the test suite
 go test -v -race -cover ./...
-
-# Run benchmarks
-go test -bench=. -benchmem ./internal/fibonacci/
 ```
 
 ---
@@ -177,7 +178,9 @@ cd fibcalc
 go test ./...  # Verify everything works
 ```
 
-> **Note**: The `cmd/fibcalc` CLI binary is currently being rebuilt. The core library packages are fully functional.
+```bash
+go build -o fibcalc ./cmd/fibcalc
+```
 
 ---
 

@@ -5,9 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Test Commands
 
 ```bash
-# NOTE: cmd/fibcalc does not currently exist — Makefile targets referencing it will fail.
-# Use go test/build commands directly for now.
-
+go build ./cmd/fibcalc                                  # Build the CLI binary
 go test -v -race -cover ./...                          # Run all tests with race detector
 go test -v -short ./...                                # Skip slow tests
 go test -v -run TestFastDoubling ./internal/fibonacci/  # Run single test by name
@@ -153,5 +151,4 @@ CLI flags > Environment variables (`FIBCALC_*` prefix) > Defaults. See `.env.exa
 
 ## Known Issues
 
-- `cmd/fibcalc` directory does not exist — the main entry point was removed in a prior refactor. Only `cmd/generate-golden` exists. Makefile `build` target will fail.
 - `Docs/TROUBLESHOOTING.md` is referenced in README but does not exist.
