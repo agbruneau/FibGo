@@ -26,6 +26,7 @@
 11. [Development](#-development)
 12. [Contributing](#-contributing)
 13. [License](#-license)
+14. [Acknowledgments](#-acknowledgments)
 
 ---
 
@@ -70,11 +71,18 @@ FibCalc serves as both a practical high-performance tool and a reference impleme
 
 ## ⚡ Quick Start
 
-### Using Go
+> **Note**: The `cmd/fibcalc` CLI entry point is currently being rebuilt. The library packages under `internal/` are fully functional and tested.
 
 ```bash
-# Calculate the 10-millionth Fibonacci number
-go run ./cmd/fibcalc -n 10000000
+# Clone the repository
+git clone https://github.com/agbru/fibcalc.git
+cd fibcalc
+
+# Run the test suite
+go test -v -race -cover ./...
+
+# Run benchmarks
+go test -bench=. -benchmem ./internal/fibonacci/
 ```
 
 ---
@@ -94,7 +102,7 @@ F(2k+1) &= F(k+1)^2 + F(k)^2
 \end{aligned}
 $$
 
-This reduces the complexity to $O(\log n)$ operations. Each step roughly doubles the index, hence "Fast Doubling".
+This reduces the complexity to $O(\log n)$ operations. Each step roughly doubles the index, hence "Fast Doubling". See [Docs/algorithms/FAST_DOUBLING.md](Docs/algorithms/FAST_DOUBLING.md) for details.
 
 ### 2. Matrix Exponentiation & Strassen's Algorithm
 
@@ -104,7 +112,7 @@ $$
 \begin{pmatrix} F_{n+1} & F_n \\ F_n & F_{n-1} \end{pmatrix} = \begin{pmatrix} 1 & 1 \\ 1 & 0 \end{pmatrix}^n
 $$
 
-For large matrices, FibCalc employs **Strassen's Algorithm**, which reduces the number of multiplications in a $2 \times 2$ matrix product from 8 to 7. While this introduces more additions, it is beneficial when multiplication is significantly more expensive than addition (i.e., for very large `big.Int` values).
+For large matrices, FibCalc employs **Strassen's Algorithm**, which reduces the number of multiplications in a $2 \times 2$ matrix product from 8 to 7. While this introduces more additions, it is beneficial when multiplication is significantly more expensive than addition (i.e., for very large `big.Int` values). See [Docs/algorithms/MATRIX.md](Docs/algorithms/MATRIX.md) for details.
 
 ### 3. FFT-Based Multiplication
 
@@ -114,7 +122,9 @@ $$
 A \times B = \text{IDFT}(\text{DFT}(A) \cdot \text{DFT}(B))
 $$
 
-This allows calculating numbers with billions of digits feasible.
+This allows calculating numbers with billions of digits feasible. See [Docs/algorithms/FFT.md](Docs/algorithms/FFT.md) for details.
+
+> **Algorithm deep dives**: [Comparison](Docs/algorithms/COMPARISON.md) | [GMP](Docs/algorithms/GMP.md) | [Progress Bar](Docs/algorithms/PROGRESS_BAR_ALGORITHM.md)
 
 ---
 
@@ -141,40 +151,33 @@ graph TD
 
 | Component | Responsibility |
 |-----------|----------------|
-| `cmd/fibcalc` | Application composition root and entry point. |
+| `cmd/generate-golden` | Golden file generator for test data. |
 | `internal/fibonacci` | Core domain logic. Implements the `Calculator` interface and algorithms. |
 | `internal/bigfft` | Specialized FFT arithmetic for `big.Int` with memory pooling. |
 | `internal/orchestration` | Manages concurrent execution, result aggregation, and defines `ProgressReporter`/`ResultPresenter` interfaces for Clean Architecture decoupling. |
 | `internal/cli` | Progress bar, spinner, and output formatting (Display*/Format*/Write*). |
 | `internal/calibration` | Auto-tuning logic to find optimal hardware thresholds. |
+| `internal/parallel` | Parallel execution utilities. |
 | `internal/logging` | Structured logging with zerolog adapters. |
-| `internal/app` | Application composition root, lifecycle management, dependency injection. |
+| `internal/app` | Application lifecycle management, dependency injection. |
 | `internal/ui` | Color themes, terminal formatting, NO_COLOR environment variable support. |
 | `internal/config` | Configuration parsing, validation, and environment variable support. |
 | `internal/errors` | Custom error types with standardized exit codes. |
+| `internal/testutil` | Shared test utilities and helpers. |
 
 ---
 
 ## 📦 Installation
 
-### Option 1: Install from Source (Recommended)
-
 Requires **Go 1.25** or later.
-
-```bash
-go install ./cmd/fibcalc@latest
-```
-
-### Option 2: Build Manually
-
-Clone the repository and build using the provided Makefile.
 
 ```bash
 git clone https://github.com/agbru/fibcalc.git
 cd fibcalc
-make build
-# Binary is located at ./build/fibcalc
+go test ./...  # Verify everything works
 ```
+
+> **Note**: The `cmd/fibcalc` CLI binary is currently being rebuilt. The core library packages are fully functional.
 
 ---
 
@@ -257,8 +260,6 @@ Calculating huge Fibonacci numbers requires significant RAM. $F(1,000,000,000)$ 
 For very large $N$, the calculation might exceed the default 5-minute timeout.
 **Solution**: Increase the timeout with `--timeout 30m`.
 
-> **Full troubleshooting guide**: [Docs/TROUBLESHOOTING.md](Docs/TROUBLESHOOTING.md)
-
 ---
 
 ## ⚙️ Configuration
@@ -278,25 +279,33 @@ Environment variables can override CLI flags.
 
 ### Prerequisites
 - Go 1.25+
-- Make
+- golangci-lint (optional, for linting)
 
 ### Key Commands
 
 ```bash
-make build       # Compile binary to ./build/fibcalc
-make test        # Run all tests with race detector
-make test-short  # Run tests without slow ones
-make lint        # Run golangci-lint
-make check       # Run format + lint + test
+go test -v -race -cover ./...                          # Run all tests with race detector
+go test -v -short ./...                                # Skip slow tests
+go test -v -run TestFastDoubling ./internal/fibonacci/  # Run a single test
+go test -bench=. -benchmem ./internal/fibonacci/        # Run benchmarks
+go test -fuzz=FuzzFastDoubling ./internal/fibonacci/    # Run fuzz tests
+go generate ./...                                       # Regenerate mocks
+```
+
+If `make` is available, Makefile targets are also provided:
+
+```bash
+make test        # go test -v -race -cover ./...
+make lint        # golangci-lint run ./...
+make check       # format + lint + test
 make coverage    # Generate coverage report (coverage.html)
 make benchmark   # Run performance benchmarks
-make clean       # Remove build artifacts
 ```
 
 ### Project Structure
-- `cmd/`: Main entry points.
-- `internal/`: Private application code.
-- `Docs/`: Detailed documentation.
+- `cmd/generate-golden/`: Golden file generator for test data.
+- `internal/`: Private application code (algorithms, CLI, orchestration, etc.).
+- `Docs/`: Detailed documentation ([Architecture](Docs/ARCHITECTURE.md), [Performance](Docs/PERFORMANCE.md), [Algorithms](Docs/algorithms/)).
 
 ---
 
