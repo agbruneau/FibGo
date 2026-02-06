@@ -8,30 +8,10 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
-
 	apperrors "github.com/agbru/fibcalc/internal/errors"
 	"github.com/agbru/fibcalc/internal/fibonacci"
 	"github.com/agbru/fibcalc/internal/orchestration"
 )
-
-// testProgramRef creates a programRef with a collector for sent messages.
-type msgCollector struct {
-	mu   sync.Mutex
-	msgs []tea.Msg
-}
-
-func (c *msgCollector) send(msg tea.Msg) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.msgs = append(c.msgs, msg)
-}
-
-func (c *msgCollector) count() int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return len(c.msgs)
-}
 
 func TestTUIProgressReporter_DrainsChannel(t *testing.T) {
 	ref := &programRef{} // nil program - Send is a no-op

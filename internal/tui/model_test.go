@@ -645,7 +645,7 @@ func TestModel_metricsHeight_SmallTerminal(t *testing.T) {
 	// When height is very small, bodyHeight gets clamped to minBodyHeight
 	m := newTestModelWithSize(t, 80, 4)
 	mh := m.metricsHeight()
-	expected := minBodyHeight * 40 / 100
+	expected := minBodyHeight / 2
 	if mh != expected {
 		t.Errorf("expected metricsHeight=%d for small terminal, got %d", expected, mh)
 	}

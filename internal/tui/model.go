@@ -251,7 +251,7 @@ func (m *Model) layoutPanels() {
 	logsWidth := m.width * 60 / 100
 	rightWidth := m.width - logsWidth
 
-	metricsH := bodyHeight * 40 / 100
+	metricsH := bodyHeight / 2
 	chartH := bodyHeight - metricsH
 
 	m.header.SetWidth(m.width)
@@ -270,7 +270,7 @@ func (m Model) metricsHeight() int {
 	if bodyHeight < minBodyHeight {
 		bodyHeight = minBodyHeight
 	}
-	return bodyHeight * 40 / 100
+	return bodyHeight / 2
 }
 
 // Run is the public entry point for the TUI mode.
