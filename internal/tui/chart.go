@@ -76,7 +76,22 @@ func (c *ChartModel) Reset() {
 func (c ChartModel) View() string {
 	var b strings.Builder
 
-	b.WriteString(metricLabelStyle.Render("  Progress Chart"))
+	// Header: "Progress Chart" left, ETA right
+	var statusStr string
+	if c.done {
+		statusStr = fmt.Sprintf("Completed in %s", cli.FormatExecutionDuration(c.elapsed))
+	} else {
+		statusStr = fmt.Sprintf("ETA: %s", cli.FormatETA(c.eta))
+	}
+	titleLeft := metricLabelStyle.Render("  Progress Chart")
+	titleRight := elapsedStyle.Render(statusStr + "  ")
+	gap := c.width - 4 - lipgloss.Width(titleLeft) - lipgloss.Width(titleRight)
+	if gap < 1 {
+		gap = 1
+	}
+	b.WriteString(titleLeft)
+	b.WriteString(strings.Repeat(" ", gap))
+	b.WriteString(titleRight)
 	b.WriteString("\n\n")
 
 	// Render progress bar
@@ -84,17 +99,7 @@ func (c ChartModel) View() string {
 	if progressBar != "" {
 		b.WriteString("  ")
 		b.WriteString(progressBar)
-		b.WriteString("\n\n")
 	}
-
-	// Render ETA or total elapsed time
-	var statusStr string
-	if c.done {
-		statusStr = fmt.Sprintf("Completed in %s", cli.FormatExecutionDuration(c.elapsed))
-	} else {
-		statusStr = fmt.Sprintf("ETA: %s", cli.FormatETA(c.eta))
-	}
-	b.WriteString(fmt.Sprintf("  %s", elapsedStyle.Render(statusStr)))
 
 	// Render system sparklines if space allows
 	if c.height >= 10 && c.sparklineWidth() > 0 {

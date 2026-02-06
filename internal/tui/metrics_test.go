@@ -202,12 +202,12 @@ func TestMetricsModel_SetSize(t *testing.T) {
 	}
 }
 
-func TestFormatMetricLine(t *testing.T) {
-	line := formatMetricLine("Memory", "50.0 MB")
-	if !strings.Contains(line, "Memory") {
-		t.Error("expected line to contain label")
+func TestFormatMetricCol(t *testing.T) {
+	col := formatMetricCol("Memory:", "50.0 MB", 30)
+	if !strings.Contains(col, "Memory") {
+		t.Error("expected column to contain label")
 	}
-	if !strings.Contains(line, "50.0 MB") {
-		t.Error("expected line to contain value")
+	if !strings.Contains(col, "50.0 MB") {
+		t.Error("expected column to contain value")
 	}
 }

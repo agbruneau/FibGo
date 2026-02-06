@@ -2,7 +2,10 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 	"time"
+
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/agbru/fibcalc/internal/cli"
 )
@@ -62,34 +65,44 @@ func (m *MetricsModel) UpdateProgress(progress float64) {
 
 // View renders the metrics panel.
 func (m MetricsModel) View() string {
-	lines := []string{
-		metricLabelStyle.Render("  Metrics"),
-		"",
-		formatMetricLine("Memory", formatBytes(m.alloc)),
-		formatMetricLine("Heap", formatBytes(m.heapInuse)),
-		formatMetricLine("GC Runs", fmt.Sprintf("%d", m.numGC)),
-		formatMetricLine("Speed", cli.FormatETA(time.Duration(float64(time.Second)/max(m.speed, 0.001)))+"/calc"),
-		formatMetricLine("Goroutines", fmt.Sprintf("%d", m.numGoroutine)),
+	colWidth := (m.width - 6) / 2 // two columns with padding
+
+	leftCol := []string{
+		formatMetricCol("Memory:", formatBytes(m.alloc), colWidth),
+		formatMetricCol("Heap:", formatBytes(m.heapInuse), colWidth),
+		formatMetricCol("GC Runs:", fmt.Sprintf("%d", m.numGC), colWidth),
+	}
+	rightCol := []string{
+		formatMetricCol("Speed:", cli.FormatETA(time.Duration(float64(time.Second)/max(m.speed, 0.001)))+"/calc", colWidth),
+		formatMetricCol("Goroutines:", fmt.Sprintf("%d", m.numGoroutine), colWidth),
+		"", // empty to align rows
 	}
 
-	content := ""
-	for i, line := range lines {
-		if i > 0 {
-			content += "\n"
-		}
-		content += line
+	var rows strings.Builder
+	rows.WriteString(metricLabelStyle.Render("  Metrics"))
+	rows.WriteString("\n")
+	for i := range leftCol {
+		rows.WriteString("\n")
+		rows.WriteString(leftCol[i])
+		rows.WriteString(rightCol[i])
 	}
 
 	return panelStyle.
 		Width(m.width - 2).
 		Height(m.height - 2).
-		Render(content)
+		Render(rows.String())
 }
 
-func formatMetricLine(label, value string) string {
-	return fmt.Sprintf("   %s  %s",
-		metricLabelStyle.Render(fmt.Sprintf("%-12s", label+":")),
+func formatMetricCol(label, value string, colWidth int) string {
+	cell := fmt.Sprintf(" %s %s",
+		metricLabelStyle.Render(fmt.Sprintf("%-12s", label)),
 		metricValueStyle.Render(value))
+	// Pad to fixed column width using lipgloss-aware width
+	visible := lipgloss.Width(cell)
+	if visible < colWidth {
+		cell += strings.Repeat(" ", colWidth-visible)
+	}
+	return cell
 }
 
 func formatBytes(b uint64) string {
