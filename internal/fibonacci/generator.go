@@ -1,5 +1,6 @@
 // This file defines the SequenceGenerator interface for iterative/streaming
 // generation of Fibonacci numbers.
+
 package fibonacci
 
 //go:generate mockgen -source=generator.go -destination=mocks/mock_generator.go -package=mocks

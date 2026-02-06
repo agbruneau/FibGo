@@ -1,6 +1,3 @@
-// Package config provides the configuration management for the fibcalc application.
-// It defines the data structure for the configuration, handles the parsing of
-// command-line arguments, and performs validation on the configuration values.
 package config
 
 import (

@@ -1,4 +1,5 @@
 // This file implements adaptive threshold generation based on hardware characteristics.
+
 package calibration
 
 import (

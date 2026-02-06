@@ -1,5 +1,6 @@
 // This file defines the multiplication strategy abstraction to eliminate code
 // duplication between different calculator implementations.
+
 package fibonacci
 
 //go:generate mockgen -source=strategy.go -destination=mocks/mock_strategy.go -package=mocks

@@ -1,6 +1,7 @@
 //go:build amd64
 
 // This file provides CPU feature detection for SIMD optimizations on amd64.
+
 package bigfft
 
 import (

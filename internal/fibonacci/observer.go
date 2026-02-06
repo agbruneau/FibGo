@@ -1,4 +1,5 @@
 // This file contains the Observer pattern implementation for progress reporting.
+
 package fibonacci
 
 import (

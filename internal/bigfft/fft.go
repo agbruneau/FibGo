@@ -1,5 +1,6 @@
 // The implementation is based on the Schönhage-Strassen method
 // using integer FFT modulo 2^n+1.
+
 package bigfft
 
 import (

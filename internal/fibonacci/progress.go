@@ -1,4 +1,5 @@
 // This file contains progress reporting types and utilities used by calculators.
+
 package fibonacci
 
 import "math"

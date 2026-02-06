@@ -1,4 +1,5 @@
 // This file implements dynamic threshold adjustment during calculation.
+
 package fibonacci
 
 import (

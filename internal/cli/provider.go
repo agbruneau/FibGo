@@ -1,4 +1,5 @@
 // This file provides a color provider implementation for use with the errors package.
+
 package cli
 
 import (

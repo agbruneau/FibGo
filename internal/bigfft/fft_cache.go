@@ -1,4 +1,5 @@
 // This file provides a thread-safe LRU cache for FFT transform results.
+
 package bigfft
 
 import (

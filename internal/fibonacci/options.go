@@ -1,4 +1,5 @@
 // This file contains configuration options for Fibonacci calculations.
+
 package fibonacci
 
 import "github.com/agbru/fibcalc/internal/bigfft"

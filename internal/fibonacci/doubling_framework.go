@@ -1,5 +1,6 @@
 // This file contains the common Fast Doubling framework used by multiple
 // calculator implementations to eliminate code duplication.
+
 package fibonacci
 
 import (

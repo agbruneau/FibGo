@@ -1,6 +1,7 @@
 //go:build amd64
 
 // This file provides the dispatcher for SIMD-optimized arithmetic operations on amd64.
+
 package bigfft
 
 import (

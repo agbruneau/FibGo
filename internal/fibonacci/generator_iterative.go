@@ -1,4 +1,5 @@
 // This file provides an iterative implementation of SequenceGenerator.
+
 package fibonacci
 
 import (

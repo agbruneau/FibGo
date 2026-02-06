@@ -1,4 +1,5 @@
 // This file provides a bump allocator for fast temporary allocations during FFT operations.
+
 package bigfft
 
 import (

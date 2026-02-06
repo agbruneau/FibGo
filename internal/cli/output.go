@@ -13,6 +13,7 @@
 //   - Write* functions write data to files on the filesystem.
 //     They handle file creation, directory setup, and error handling.
 //     Examples: [WriteResultToFile].
+
 package cli
 
 import (

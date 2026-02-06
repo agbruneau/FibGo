@@ -1,4 +1,5 @@
 // This file provides the TempAllocator interface for unified temporary buffer management.
+
 package bigfft
 
 import "math/big"
