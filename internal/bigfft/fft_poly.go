@@ -66,10 +66,7 @@ func (p *Poly) IntTo(dst nat) nat {
 	var n nat
 	if cap(dst) >= length {
 		n = dst[:length]
-		// Clear the buffer before use
-		for i := range n {
-			n[i] = 0
-		}
+		clear(n)
 	} else {
 		n = make(nat, length)
 	}

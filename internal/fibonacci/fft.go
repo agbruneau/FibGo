@@ -117,13 +117,14 @@ func executeDoublingStepFFT(s *CalculationState, opts Options, inParallel bool) 
 	}
 
 	if inParallel {
-		// Clone fkPoly to avoid data race between goroutines
-		// Goroutine 1 uses fkPolyForMul for Mul operation
-		// Goroutine 3 uses fkPolyForSqr for Sqr operation
-		fkPolyForMul := fkPoly.Clone()
-		fkPolyForSqr := fkPoly.Clone()
-
-		// Parallel execution of pointwise multiplications and inverse transforms
+		// Parallel execution of pointwise multiplications and inverse transforms.
+		//
+		// Optimization: No clones needed. PolValues.Mul() and PolValues.Sqr() are
+		// read-only on their receiver — they read p.Values[i] as operands to
+		// fermat.Mul(buf, x, y) where buf is a separate temporary, so the source
+		// PolValues are never modified. Multiple concurrent readers with no writers
+		// is safe, eliminating two Clone() calls that previously allocated and
+		// copied K*(n+1) words each (e.g., ~hundreds of KB for F(10M)).
 		type result struct {
 			p   *big.Int
 			err error
@@ -131,7 +132,7 @@ func executeDoublingStepFFT(s *CalculationState, opts Options, inParallel bool) 
 		resChan := make(chan result, 3)
 
 		go func() {
-			v, err := fkPolyForMul.Mul(&t4Poly)
+			v, err := fkPoly.Mul(&t4Poly)
 			if err != nil {
 				resChan <- result{nil, err}
 				return
@@ -161,7 +162,7 @@ func executeDoublingStepFFT(s *CalculationState, opts Options, inParallel bool) 
 		}()
 
 		go func() {
-			v, err := fkPolyForSqr.Sqr()
+			v, err := fkPoly.Sqr()
 			if err != nil {
 				resChan <- result{nil, err}
 				return

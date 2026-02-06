@@ -209,10 +209,7 @@ func (z fermat) Mul(x, y fermat) fermat {
 // basicMul multiplies x and y and leaves the result in z.
 // The (non-normalized) result is placed in z[0 : len(x) + len(y)].
 func basicMul(z, x, y fermat) {
-	// initialize z
-	for i := 0; i < len(z); i++ {
-		z[i] = 0
-	}
+	clear(z)
 	for i, d := range y {
 		if d != 0 {
 			z[len(x)+i] = addMulVVW(z[i:i+len(x)], x, d)
