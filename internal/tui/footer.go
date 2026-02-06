@@ -44,7 +44,7 @@ func (f FooterModel) View() string {
 	shortcuts := fmt.Sprintf(
 		"%s: %s   %s: %s   %s: %s",
 		footerKeyStyle.Render("q"), footerDescStyle.Render("Quit"),
-		footerKeyStyle.Render("r"), footerDescStyle.Render("Reset"),
+		footerKeyStyle.Render("r"), footerDescStyle.Render("Restart"),
 		footerKeyStyle.Render("space"), footerDescStyle.Render("Pause/Resume"),
 	)
 
@@ -60,7 +60,7 @@ func (f FooterModel) View() string {
 		status = statusRunningStyle.Render("Status: Running")
 	}
 
-	innerWidth := f.width - 4
+	innerWidth := f.width - 2
 	if innerWidth < 0 {
 		innerWidth = 0
 	}
@@ -74,5 +74,5 @@ func (f FooterModel) View() string {
 
 	row := shortcuts + spaces(gap) + status
 
-	return headerStyle.Width(innerWidth).Render(row)
+	return headerStyle.Width(f.width).Render(row)
 }

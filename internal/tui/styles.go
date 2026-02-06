@@ -4,7 +4,7 @@ import "github.com/charmbracelet/lipgloss"
 
 // btop-inspired dark theme palette.
 var (
-	colorBg      = lipgloss.Color("#1a1b26")
+	colorBg      = lipgloss.Color("#000000")
 	colorText    = lipgloss.Color("#a9b1d6")
 	colorBorder  = lipgloss.Color("#3b4261")
 	colorAccent  = lipgloss.Color("#7aa2f7")
@@ -72,9 +72,13 @@ var metricValueStyle = lipgloss.NewStyle().
 	Foreground(colorCyan).
 	Bold(true)
 
-// chartBarStyle for the sparkline characters.
+// chartBarStyle for the sparkline characters and filled progress bar.
 var chartBarStyle = lipgloss.NewStyle().
 	Foreground(colorAccent)
+
+// chartEmptyStyle for the empty portion of the progress bar.
+var chartEmptyStyle = lipgloss.NewStyle().
+	Foreground(colorDim)
 
 // footerKeyStyle for keyboard shortcut keys.
 var footerKeyStyle = lipgloss.NewStyle().

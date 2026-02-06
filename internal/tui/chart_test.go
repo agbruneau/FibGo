@@ -189,6 +189,75 @@ func TestChartModel_RenderSparkline_Boundaries(t *testing.T) {
 	}
 }
 
+func TestChartModel_RenderProgressBar(t *testing.T) {
+	chart := NewChartModel()
+	chart.SetSize(50, 10)
+	chart.AddDataPoint(0.5, 0.5, 10*time.Second)
+
+	bar := chart.renderProgressBar()
+	if !strings.Contains(bar, "█") {
+		t.Error("expected progress bar to contain filled block character")
+	}
+	if !strings.Contains(bar, "░") {
+		t.Error("expected progress bar to contain empty block character")
+	}
+	if !strings.Contains(bar, "50.0%") {
+		t.Error("expected progress bar to show 50.0%")
+	}
+}
+
+func TestChartModel_RenderProgressBar_Zero(t *testing.T) {
+	chart := NewChartModel()
+	chart.SetSize(50, 10)
+	chart.AddDataPoint(0.0, 0.0, 0)
+
+	bar := chart.renderProgressBar()
+	if !strings.Contains(bar, "░") {
+		t.Error("expected progress bar to contain empty blocks at 0%")
+	}
+	if !strings.Contains(bar, "0.0%") {
+		t.Error("expected progress bar to show 0.0%")
+	}
+}
+
+func TestChartModel_RenderProgressBar_Full(t *testing.T) {
+	chart := NewChartModel()
+	chart.SetSize(50, 10)
+	chart.AddDataPoint(1.0, 1.0, 0)
+
+	bar := chart.renderProgressBar()
+	if !strings.Contains(bar, "█") {
+		t.Error("expected progress bar to contain filled blocks at 100%")
+	}
+	if !strings.Contains(bar, "100.0%") {
+		t.Error("expected progress bar to show 100.0%")
+	}
+}
+
+func TestChartModel_RenderProgressBar_TooNarrow(t *testing.T) {
+	chart := NewChartModel()
+	chart.SetSize(10, 5) // too narrow for a progress bar
+
+	bar := chart.renderProgressBar()
+	if bar != "" {
+		t.Error("expected empty progress bar for very narrow chart")
+	}
+}
+
+func TestChartModel_View_ContainsProgressBar(t *testing.T) {
+	chart := NewChartModel()
+	chart.SetSize(50, 15)
+	chart.AddDataPoint(0.65, 0.65, 5*time.Second)
+
+	view := chart.View()
+	if !strings.Contains(view, "█") {
+		t.Error("expected view to contain progress bar filled character")
+	}
+	if !strings.Contains(view, "65.0%") {
+		t.Error("expected view to contain progress percentage")
+	}
+}
+
 func TestChartModel_SetSize_VeryWide(t *testing.T) {
 	chart := NewChartModel()
 

@@ -73,6 +73,14 @@ func (c ChartModel) View() string {
 	b.WriteString(chartBarStyle.Render(sparkline))
 	b.WriteString("\n\n")
 
+	// Render progress bar
+	progressBar := c.renderProgressBar()
+	if progressBar != "" {
+		b.WriteString("  ")
+		b.WriteString(progressBar)
+		b.WriteString("\n\n")
+	}
+
 	// Render stats
 	avgStr := fmt.Sprintf("avg: %.1f%%", c.averageProgress*100)
 	etaStr := fmt.Sprintf("ETA: %s", cli.FormatETA(c.eta))
@@ -84,6 +92,28 @@ func (c ChartModel) View() string {
 		Width(c.width - 2).
 		Height(c.height - 2).
 		Render(b.String())
+}
+
+func (c ChartModel) renderProgressBar() string {
+	barWidth := c.width - 15 // border + indent + brackets + " 100.0%"
+	if barWidth < 5 {
+		return ""
+	}
+
+	filled := int(c.averageProgress * float64(barWidth))
+	if filled < 0 {
+		filled = 0
+	}
+	if filled > barWidth {
+		filled = barWidth
+	}
+	empty := barWidth - filled
+
+	filledStr := chartBarStyle.Render(strings.Repeat("█", filled))
+	emptyStr := chartEmptyStyle.Render(strings.Repeat("░", empty))
+	pctStr := metricValueStyle.Render(fmt.Sprintf("%5.1f%%", c.averageProgress*100))
+
+	return fmt.Sprintf("[%s%s] %s", filledStr, emptyStr, pctStr)
 }
 
 func (c ChartModel) renderSparkline() string {

@@ -50,10 +50,12 @@ type MemStatsMsg struct {
 
 // CalculationCompleteMsg signals that all calculations have finished.
 type CalculationCompleteMsg struct {
-	ExitCode int
+	ExitCode   int
+	Generation uint64
 }
 
 // ContextCancelledMsg signals that the context was cancelled.
 type ContextCancelledMsg struct {
-	Err error
+	Err        error
+	Generation uint64
 }

@@ -71,8 +71,8 @@ func TestFooterModel_View_Shortcuts(t *testing.T) {
 	if !strings.Contains(view, "Quit") {
 		t.Error("expected footer to contain 'Quit' shortcut")
 	}
-	if !strings.Contains(view, "Reset") {
-		t.Error("expected footer to contain 'Reset' shortcut")
+	if !strings.Contains(view, "Restart") {
+		t.Error("expected footer to contain 'Restart' shortcut")
 	}
 	if !strings.Contains(view, "Pause") {
 		t.Error("expected footer to contain 'Pause' shortcut")

@@ -31,10 +31,11 @@ var _ fibonacci.Calculator = mockCalculator{}
 
 func newTestModel(t *testing.T) Model {
 	t.Helper()
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+	ctx := context.Background()
 	cfg := config.AppConfig{N: 1000, Timeout: time.Minute}
-	return NewModel(ctx, cancel, nil, cfg, "v0.1.0")
+	m := NewModel(ctx, nil, cfg, "v0.1.0")
+	t.Cleanup(m.cancel)
+	return m
 }
 
 func newTestModelWithSize(t *testing.T, w, h int) Model {
@@ -59,15 +60,13 @@ func TestNewModel(t *testing.T) {
 }
 
 func TestNewModel_WithCalculators(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	calcs := []fibonacci.Calculator{
 		mockCalculator{name: "Fast Doubling"},
 		mockCalculator{name: "Matrix"},
 	}
 	cfg := config.AppConfig{N: 1000, Timeout: time.Minute}
-	model := NewModel(ctx, cancel, calcs, cfg, "v1.0.0")
+	model := NewModel(context.Background(), calcs, cfg, "v1.0.0")
+	defer model.cancel()
 
 	if len(model.calculators) != 2 {
 		t.Errorf("expected 2 calculators, got %d", len(model.calculators))
@@ -75,11 +74,9 @@ func TestNewModel_WithCalculators(t *testing.T) {
 }
 
 func TestModel_Update_WindowSize(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	cfg := config.AppConfig{N: 1000, Timeout: time.Minute}
-	model := NewModel(ctx, cancel, nil, cfg, "v0.1.0")
+	model := NewModel(context.Background(), nil, cfg, "v0.1.0")
+	defer model.cancel()
 
 	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
 	updated, cmd := model.Update(msg)
@@ -97,11 +94,9 @@ func TestModel_Update_WindowSize(t *testing.T) {
 }
 
 func TestModel_Update_ProgressMsg(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	cfg := config.AppConfig{N: 1000, Timeout: time.Minute}
-	model := NewModel(ctx, cancel, nil, cfg, "v0.1.0")
+	model := NewModel(context.Background(), nil, cfg, "v0.1.0")
+	defer model.cancel()
 
 	// Set size first so viewport is initialized
 	sized, _ := model.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
@@ -122,11 +117,9 @@ func TestModel_Update_ProgressMsg(t *testing.T) {
 }
 
 func TestModel_Update_ProgressMsg_Paused(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	cfg := config.AppConfig{N: 1000, Timeout: time.Minute}
-	model := NewModel(ctx, cancel, nil, cfg, "v0.1.0")
+	model := NewModel(context.Background(), nil, cfg, "v0.1.0")
+	defer model.cancel()
 	model.paused = true
 
 	msg := ProgressMsg{
@@ -144,11 +137,9 @@ func TestModel_Update_ProgressMsg_Paused(t *testing.T) {
 }
 
 func TestModel_Update_CalculationComplete(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	cfg := config.AppConfig{N: 1000, Timeout: time.Minute}
-	model := NewModel(ctx, cancel, nil, cfg, "v0.1.0")
+	model := NewModel(context.Background(), nil, cfg, "v0.1.0")
+	defer model.cancel()
 
 	msg := CalculationCompleteMsg{ExitCode: 0}
 	updated, _ := model.Update(msg)
@@ -163,11 +154,9 @@ func TestModel_Update_CalculationComplete(t *testing.T) {
 }
 
 func TestModel_Update_ErrorMsg(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	cfg := config.AppConfig{N: 1000, Timeout: time.Minute}
-	model := NewModel(ctx, cancel, nil, cfg, "v0.1.0")
+	model := NewModel(context.Background(), nil, cfg, "v0.1.0")
+	defer model.cancel()
 
 	// Set size first
 	sized, _ := model.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
@@ -186,11 +175,9 @@ func TestModel_Update_ErrorMsg(t *testing.T) {
 }
 
 func TestModel_View_Initializing(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	cfg := config.AppConfig{N: 1000, Timeout: time.Minute}
-	model := NewModel(ctx, cancel, nil, cfg, "v0.1.0")
+	model := NewModel(context.Background(), nil, cfg, "v0.1.0")
+	defer model.cancel()
 
 	view := model.View()
 	if view != "Initializing..." {
@@ -199,11 +186,9 @@ func TestModel_View_Initializing(t *testing.T) {
 }
 
 func TestModel_View_WithSize(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	cfg := config.AppConfig{N: 1000, Timeout: time.Minute}
-	model := NewModel(ctx, cancel, nil, cfg, "v0.1.0")
+	model := NewModel(context.Background(), nil, cfg, "v0.1.0")
+	defer model.cancel()
 
 	sized, _ := model.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m := sized.(Model)
@@ -218,11 +203,9 @@ func TestModel_View_WithSize(t *testing.T) {
 }
 
 func TestModel_HandleKey_Pause(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	cfg := config.AppConfig{N: 1000, Timeout: time.Minute}
-	model := NewModel(ctx, cancel, nil, cfg, "v0.1.0")
+	model := NewModel(context.Background(), nil, cfg, "v0.1.0")
+	defer model.cancel()
 
 	// Press space to pause
 	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeySpace})
@@ -239,26 +222,35 @@ func TestModel_HandleKey_Pause(t *testing.T) {
 	}
 }
 
-func TestModel_HandleKey_Reset(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+func TestModel_HandleKey_Restart(t *testing.T) {
+	m := newTestModelWithSize(t, 80, 24)
 
-	cfg := config.AppConfig{N: 1000, Timeout: time.Minute}
-	model := NewModel(ctx, cancel, nil, cfg, "v0.1.0")
-
-	// Set size first
-	sized, _ := model.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-	m := sized.(Model)
-
-	// Add some chart data
+	// Add some chart data and log entries
 	m.chart.AddDataPoint(0.5, 0.5, 10*time.Second)
+	m.logs.AddProgressEntry(ProgressMsg{CalculatorIndex: 0, Value: 0.5})
+	m.done = true
+	m.footer.SetDone(true)
 
-	// Press 'r' to reset
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+	initialGen := m.generation
+
+	// Press 'r' to restart
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
 	result := updated.(Model)
 
 	if len(result.chart.dataPoints) != 0 {
-		t.Error("expected chart to be reset after 'r' key")
+		t.Error("expected chart to be reset after restart")
+	}
+	if len(result.logs.entries) != 0 {
+		t.Error("expected logs to be cleared after restart")
+	}
+	if result.done {
+		t.Error("expected done to be false after restart")
+	}
+	if result.generation != initialGen+1 {
+		t.Errorf("expected generation %d, got %d", initialGen+1, result.generation)
+	}
+	if cmd == nil {
+		t.Error("expected commands to be returned for restarting calculation")
 	}
 }
 
@@ -322,7 +314,7 @@ func TestModel_Update_ProgressDoneMsg(t *testing.T) {
 func TestModel_Update_ContextCancelledMsg(t *testing.T) {
 	m := newTestModel(t)
 
-	msg := ContextCancelledMsg{Err: context.Canceled}
+	msg := ContextCancelledMsg{Err: context.Canceled, Generation: m.generation}
 	updated, cmd := m.Update(msg)
 	result := updated.(Model)
 
@@ -331,6 +323,22 @@ func TestModel_Update_ContextCancelledMsg(t *testing.T) {
 	}
 	if cmd == nil {
 		t.Error("expected tea.Quit command from context cancelled")
+	}
+}
+
+func TestModel_Update_ContextCancelledMsg_StaleGeneration(t *testing.T) {
+	m := newTestModel(t)
+
+	// Stale generation should be ignored
+	msg := ContextCancelledMsg{Err: context.Canceled, Generation: m.generation + 1}
+	updated, cmd := m.Update(msg)
+	result := updated.(Model)
+
+	if result.done {
+		t.Error("expected stale context cancelled to be ignored")
+	}
+	if cmd != nil {
+		t.Error("expected no command from stale context cancelled")
 	}
 }
 
@@ -488,7 +496,7 @@ func TestModel_LayoutPanels_MinBodyHeight(t *testing.T) {
 	}
 }
 
-func TestModel_HandleKey_Reset_ClearsMetrics(t *testing.T) {
+func TestModel_HandleKey_Restart_ClearsMetrics(t *testing.T) {
 	m := newTestModelWithSize(t, 80, 24)
 
 	// Set some metrics
@@ -499,7 +507,7 @@ func TestModel_HandleKey_Reset_ClearsMetrics(t *testing.T) {
 		t.Fatal("precondition: metrics speed should be non-zero")
 	}
 
-	// Reset
+	// Restart
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
 	result := updated.(Model)
 
@@ -529,7 +537,7 @@ func TestSampleMemStatsCmd_ReturnsMemStatsMsg(t *testing.T) {
 
 func TestWatchContextCmd_SendsOnCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	cmd := watchContextCmd(ctx)
+	cmd := watchContextCmd(ctx, 0)
 	if cmd == nil {
 		t.Fatal("expected non-nil command from watchContextCmd")
 	}
@@ -555,7 +563,7 @@ func TestWatchContextCmd_AlreadyCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel before creating cmd
 
-	cmd := watchContextCmd(ctx)
+	cmd := watchContextCmd(ctx, 0)
 	msg := cmd()
 	if _, ok := msg.(ContextCancelledMsg); !ok {
 		t.Errorf("expected ContextCancelledMsg, got %T", msg)
@@ -656,7 +664,7 @@ func TestStartCalculationCmd_ReturnsCompleteMsg(t *testing.T) {
 	defer cancel()
 	calcs := []fibonacci.Calculator{mockCalculator{name: "Fast"}}
 	cfg := config.AppConfig{N: 10, Timeout: 10 * time.Second}
-	cmd := startCalculationCmd(ref, ctx, calcs, cfg)
+	cmd := startCalculationCmd(ref, ctx, calcs, cfg, 0)
 	if cmd == nil {
 		t.Fatal("expected non-nil command from startCalculationCmd")
 	}
@@ -668,15 +676,15 @@ func TestStartCalculationCmd_ReturnsCompleteMsg(t *testing.T) {
 }
 
 func TestModel_HandleKey_Quit_CancelsContext(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
 	cfg := config.AppConfig{N: 1000, Timeout: time.Minute}
-	m := NewModel(ctx, cancel, nil, cfg, "v1.0.0")
+	m := NewModel(context.Background(), nil, cfg, "v1.0.0")
 
+	calcCtx := m.ctx
 	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
 
-	// Context should be cancelled after quit
+	// Child context should be cancelled after quit
 	select {
-	case <-ctx.Done():
+	case <-calcCtx.Done():
 		// Good — context was cancelled
 	default:
 		t.Error("expected context to be cancelled after quit")

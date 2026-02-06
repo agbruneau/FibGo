@@ -30,6 +30,12 @@ func (h *HeaderModel) SetDone() {
 	h.endTime = time.Now()
 }
 
+// Reset restarts the elapsed timer.
+func (h *HeaderModel) Reset() {
+	h.startTime = time.Now()
+	h.endTime = time.Time{}
+}
+
 // SetWidth updates the available width.
 func (h *HeaderModel) SetWidth(w int) {
 	h.width = w
@@ -52,7 +58,7 @@ func (h HeaderModel) View() string {
 	versionLen := lipgloss.Width(version)
 	elapsedLen := lipgloss.Width(elapsed)
 
-	innerWidth := h.width - 4 // account for panel borders/padding
+	innerWidth := h.width - 2 // content width after subtracting horizontal padding
 	if innerWidth < 0 {
 		innerWidth = 0
 	}
@@ -66,7 +72,7 @@ func (h HeaderModel) View() string {
 
 	row := title + spaces(leftGap) + version + spaces(rightGap) + elapsed
 
-	return headerStyle.Width(innerWidth).Render(row)
+	return headerStyle.Width(h.width).Render(row)
 }
 
 // spaces returns a string of n space characters.

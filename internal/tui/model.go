@@ -26,10 +26,12 @@ type Model struct {
 
 	keymap KeyMap
 
+	parentCtx   context.Context
 	ctx         context.Context
 	cancel      context.CancelFunc
 	config      config.AppConfig
 	calculators []fibonacci.Calculator
+	generation  uint64
 
 	ref *programRef
 
@@ -41,11 +43,13 @@ type Model struct {
 }
 
 // NewModel creates a new TUI model.
-func NewModel(ctx context.Context, cancel context.CancelFunc, calculators []fibonacci.Calculator, cfg config.AppConfig, version string) Model {
+func NewModel(parentCtx context.Context, calculators []fibonacci.Calculator, cfg config.AppConfig, version string) Model {
 	algoNames := make([]string, len(calculators))
 	for i, c := range calculators {
 		algoNames[i] = c.Name()
 	}
+
+	ctx, cancel := context.WithCancel(parentCtx)
 
 	return Model{
 		header:      NewHeaderModel(version),
@@ -54,6 +58,7 @@ func NewModel(ctx context.Context, cancel context.CancelFunc, calculators []fibo
 		chart:       NewChartModel(),
 		footer:      NewFooterModel(),
 		keymap:      DefaultKeyMap(),
+		parentCtx:   parentCtx,
 		ctx:         ctx,
 		cancel:      cancel,
 		config:      cfg,
@@ -67,8 +72,8 @@ func NewModel(ctx context.Context, cancel context.CancelFunc, calculators []fibo
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		tickCmd(),
-		startCalculationCmd(m.ref, m.ctx, m.calculators, m.config),
-		watchContextCmd(m.ctx),
+		startCalculationCmd(m.ref, m.ctx, m.calculators, m.config, m.generation),
+		watchContextCmd(m.ctx, m.generation),
 	)
 }
 
@@ -125,6 +130,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case CalculationCompleteMsg:
+		if msg.Generation != m.generation {
+			return m, nil // stale message from previous calculation
+		}
 		m.done = true
 		m.exitCode = msg.ExitCode
 		m.header.SetDone()
@@ -132,6 +140,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case ContextCancelledMsg:
+		if msg.Generation != m.generation {
+			return m, nil // stale message from previous calculation
+		}
 		m.done = true
 		m.header.SetDone()
 		m.footer.SetDone(true)
@@ -155,10 +166,36 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case key.Matches(msg, m.keymap.Reset):
+		// Cancel the current calculation
+		if m.cancel != nil {
+			m.cancel()
+		}
+
+		// Create a new context for the restarted calculation
+		m.generation++
+		ctx, cancel := context.WithCancel(m.parentCtx)
+		m.ctx = ctx
+		m.cancel = cancel
+
+		// Reset all UI components
+		m.header.Reset()
+		m.logs.Reset()
 		m.chart.Reset()
 		m.metrics = NewMetricsModel()
 		m.metrics.SetSize(m.metricsWidth(), m.metricsHeight())
-		return m, nil
+		m.footer.SetDone(false)
+		m.footer.SetError(false)
+		m.footer.SetPaused(false)
+		m.done = false
+		m.paused = false
+		m.exitCode = apperrors.ExitSuccess
+
+		// Restart calculation and watchers
+		return m, tea.Batch(
+			tickCmd(),
+			startCalculationCmd(m.ref, m.ctx, m.calculators, m.config, m.generation),
+			watchContextCmd(m.ctx, m.generation),
+		)
 
 	case key.Matches(msg, m.keymap.Up), key.Matches(msg, m.keymap.Down),
 		key.Matches(msg, m.keymap.PageUp), key.Matches(msg, m.keymap.PageDown):
@@ -233,10 +270,8 @@ func (m Model) metricsHeight() int {
 // Run is the public entry point for the TUI mode.
 // It creates the bubbletea program, runs it, and returns the exit code.
 func Run(ctx context.Context, calculators []fibonacci.Calculator, cfg config.AppConfig, version string) int {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	model := NewModel(ctx, cancel, calculators, cfg, version)
+	model := NewModel(ctx, calculators, cfg, version)
+	defer model.cancel()
 
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	// Inject the program reference before running so bridge goroutines can Send.
@@ -248,13 +283,14 @@ func Run(ctx context.Context, calculators []fibonacci.Calculator, cfg config.App
 	}
 
 	if m, ok := finalModel.(Model); ok {
+		m.cancel()
 		return m.exitCode
 	}
 	return apperrors.ExitSuccess
 }
 
 // startCalculationCmd returns a tea.Cmd that launches the orchestration.
-func startCalculationCmd(ref *programRef, ctx context.Context, calculators []fibonacci.Calculator, cfg config.AppConfig) tea.Cmd {
+func startCalculationCmd(ref *programRef, ctx context.Context, calculators []fibonacci.Calculator, cfg config.AppConfig, gen uint64) tea.Cmd {
 	return func() tea.Msg {
 		progressReporter := &TUIProgressReporter{ref: ref}
 		presenter := &TUIResultPresenter{ref: ref}
@@ -262,7 +298,7 @@ func startCalculationCmd(ref *programRef, ctx context.Context, calculators []fib
 		results := orchestration.ExecuteCalculations(ctx, calculators, cfg, progressReporter, io.Discard)
 		exitCode := orchestration.AnalyzeComparisonResults(results, cfg, presenter, io.Discard)
 
-		return CalculationCompleteMsg{ExitCode: exitCode}
+		return CalculationCompleteMsg{ExitCode: exitCode, Generation: gen}
 	}
 }
 
@@ -288,9 +324,9 @@ func sampleMemStatsCmd() tea.Cmd {
 }
 
 // watchContextCmd waits for context cancellation and sends a message.
-func watchContextCmd(ctx context.Context) tea.Cmd {
+func watchContextCmd(ctx context.Context, gen uint64) tea.Cmd {
 	return func() tea.Msg {
 		<-ctx.Done()
-		return ContextCancelledMsg{Err: ctx.Err()}
+		return ContextCancelledMsg{Err: ctx.Err(), Generation: gen}
 	}
 }

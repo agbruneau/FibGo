@@ -35,6 +35,13 @@ func NewLogsModel(algoNames []string) LogsModel {
 	}
 }
 
+// Reset clears all log entries.
+func (l *LogsModel) Reset() {
+	l.entries = l.entries[:0]
+	l.autoScroll = true
+	l.updateContent()
+}
+
 // SetSize updates the viewport dimensions.
 func (l *LogsModel) SetSize(w, h int) {
 	l.width = w
@@ -68,6 +75,22 @@ func (l *LogsModel) AddResults(results []orchestration.CalculationResult) {
 	l.entries = append(l.entries, "")
 	l.entries = append(l.entries, logAlgoStyle.Render("--- Comparison Summary ---"))
 
+	// Find max name and duration widths for column alignment
+	maxNameLen := 0
+	maxDurLen := 0
+	for _, res := range results {
+		if len(res.Name) > maxNameLen {
+			maxNameLen = len(res.Name)
+		}
+		dur := cli.FormatExecutionDuration(res.Duration)
+		if len(dur) > maxDurLen {
+			maxDurLen = len(dur)
+		}
+	}
+
+	nameFmt := fmt.Sprintf("%%-%ds", maxNameLen)
+	durFmt := fmt.Sprintf("%%%ds", maxDurLen)
+
 	for _, res := range results {
 		var status string
 		if res.Err != nil {
@@ -77,8 +100,8 @@ func (l *LogsModel) AddResults(results []orchestration.CalculationResult) {
 		}
 		duration := cli.FormatExecutionDuration(res.Duration)
 		entry := fmt.Sprintf("  %s  %s  %s",
-			logAlgoStyle.Render(fmt.Sprintf("%-16s", res.Name)),
-			metricValueStyle.Render(fmt.Sprintf("%10s", duration)),
+			logAlgoStyle.Render(fmt.Sprintf(nameFmt, res.Name)),
+			metricValueStyle.Render(fmt.Sprintf(durFmt, duration)),
 			status)
 		l.entries = append(l.entries, entry)
 	}
