@@ -55,10 +55,15 @@ FibCalc serves as both a practical high-performance tool and a reference impleme
 ### High-Performance Engineering
 
 - **Zero-Allocation Strategy**: Extensive use of `sync.Pool` to recycle `big.Int` objects and custom calculation states, reducing Garbage Collector pressure by over 95%.
+- **Bump Allocator**: O(1) temporary allocation for FFT operations via pointer bump, providing zero fragmentation and excellent cache locality (`internal/bigfft/bump.go`).
+- **Zero-Copy Result Return**: Eliminates expensive O(n) result copies by stealing pointers from pooled calculation state, trading a full copy for a single 24-byte `big.Int` header allocation.
+- **FFT Transform Caching**: Thread-safe LRU cache for forward FFT transforms avoids recomputation of repeated values, providing 15-30% speedup in iterative algorithms.
+- **Transform Reuse**: Optimized squaring uses a single forward transform (vs two in multiplication), reducing FFT work per doubling step.
+- **Dynamic Threshold Adjustment**: FFT and parallel execution thresholds are adjusted at runtime based on observed per-iteration performance metrics, with hysteresis to prevent oscillation.
 - **Adaptive Parallelism**: Automatically parallelizes recursive branches and matrix operations across CPU cores based on input size and hardware capabilities.
 - **Concurrency Limiting**: Task semaphore limits concurrent goroutines to `runtime.NumCPU()*2`, preventing contention and memory pressure during parallel multiplication.
 - **Optimized Memory Zeroing**: Uses Go 1.21+ `clear()` builtin for efficient slice zeroing in FFT operations.
-- **Auto-Calibration**: Built-in benchmarking tool (`--calibrate`) to empirically determine the optimal parallelism and FFT thresholds for the host machine.
+- **Auto-Calibration**: Built-in benchmarking tool (`-calibrate`) to empirically determine the optimal parallelism and FFT thresholds for the host machine.
 - **Atomic Pre-Warming**: Optimized memory pool initialization ensures resources are ready before the first request.
 
 ### Robust Architecture
@@ -80,7 +85,7 @@ cd fibcalc
 go build -o fibcalc ./cmd/fibcalc
 
 # Calculate F(1,000,000) using the fastest algorithm
-./fibcalc -n 1000000 --algo fast
+./fibcalc -n 1000000 -algo fast
 
 # Run the test suite
 go test -v -race -cover ./...
@@ -196,18 +201,23 @@ fibcalc [flags]
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
-| `--n` | `-n` | `100,000,000` | The Fibonacci index to calculate. |
-| `--algo` | | `all` | Algorithm: `fast`, `matrix`, `fft`, or `all`. |
-| `--calculate` | `-c` | `false` | Display the calculated Fibonacci value. |
-| `--verbose` | `-v` | `false` | Display the full value of the result. |
-| `--details` | `-d` | `false` | Display performance details and result metadata. |
-| `--output` | `-o` | | Write result to a file. |
-| `--json` | | `false` | Output results in JSON format. |
-| `--hex` | | `false` | Display result in hexadecimal. |
-| `--quiet` | `-q` | `false` | Minimal output for scripting. |
-| `--no-color` | | `false` | Disable colored output (also respects `NO_COLOR`). |
-| `--calibrate` | | `false` | Run system benchmarks to find optimal thresholds. |
-| `--timeout` | | `5m` | Maximum calculation time (e.g. "10s", "1h"). |
+| `-n` | | `100,000,000` | The Fibonacci index to calculate. |
+| `-algo` | | `all` | Algorithm: `fast`, `matrix`, `fft`, or `all`. |
+| `-calculate` | `-c` | `false` | Display the calculated Fibonacci value. |
+| `-verbose` | `-v` | `false` | Display the full value of the result. |
+| `-details` | `-d` | `false` | Display performance details and result metadata. |
+| `-output` | `-o` | | Write result to a file. |
+| `-quiet` | `-q` | `false` | Minimal output for scripting. |
+| `-calibrate` | | `false` | Run system benchmarks to find optimal thresholds. |
+| `-auto-calibrate` | | `false` | Quick automatic calibration at startup. |
+| `-calibration-profile` | | | Path to calibration profile file. |
+| `-timeout` | | `5m` | Maximum calculation time (e.g. "10s", "1h"). |
+| `-threshold` | | `4096` | Parallelism threshold (bits). |
+| `-fft-threshold` | | `500,000` | FFT multiplication threshold (bits). |
+| `-strassen-threshold` | | `3072` | Strassen algorithm threshold (bits). |
+| `-completion` | | | Generate shell completion script (bash, zsh, fish, powershell). |
+
+> **Note**: Colored output can be disabled by setting the `NO_COLOR` environment variable (see [no-color.org](https://no-color.org/)).
 
 ### Advanced Examples
 
@@ -215,35 +225,36 @@ fibcalc [flags]
 Run all algorithms and compare their performance for $F(10,000,000)$, outputting detailed stats.
 
 ```bash
-fibcalc -n 10000000 --algo all --details
+fibcalc -n 10000000 -algo all -details
 ```
 
 **2. Optimize for Your Machine**
 Run calibration to find the best parallelism thresholds for your specific CPU and RAM.
 
 ```bash
-fibcalc --calibrate
+fibcalc -calibrate
 ```
 
 **3. Large Number with FFT Tuning**
 Force FFT usage for a smaller threshold to test performance on lower-end hardware.
 
 ```bash
-fibcalc -n 5000000 --algo fast --fft-threshold 100000
+fibcalc -n 5000000 -algo fast -fft-threshold 100000
 ```
 
 ---
 
 ## 📊 Performance Benchmarks
 
-FibCalc is optimized for speed. Below is a summary of performance characteristics on a standard workstation (AMD Ryzen 9 5900X).
+FibCalc is optimized for speed. Below is a summary of performance characteristics on a high-end workstation (Intel Core Ultra 9 275HX, 24 cores).
 
 | Index ($N$) | Fast Doubling | Matrix Exp. | FFT-Based | Result (digits) |
 | :--- | :--- | :--- | :--- | :--- |
-| **10,000** | 180µs | 220µs | 350µs | 2,090 |
-| **1,000,000** | 85ms | 110ms | 95ms | 208,988 |
-| **100,000,000** | 45s | 62s | 48s | 20,898,764 |
-| **250,000,000** | 3m 12s | 4m 25s | 3m 28s | 52,246,909 |
+| **10,000** | 120µs | 180µs | 280µs | 2,090 |
+| **1,000,000** | ~3ms | 55ms | 45ms | 208,988 |
+| **10,000,000** | ~60ms | 750ms | 600ms | 2,089,877 |
+| **100,000,000** | 30s | 42s | 33s | 20,898,764 |
+| **250,000,000** | 2m 10s | 3m 05s | 2m 25s | 52,246,909 |
 
 ### Algorithm Selection Guide
 
@@ -265,20 +276,31 @@ Calculating huge Fibonacci numbers requires significant RAM. $F(1,000,000,000)$ 
 
 ### 2. Calculation hangs / Timeout
 For very large $N$, the calculation might exceed the default 5-minute timeout.
-**Solution**: Increase the timeout with `--timeout 30m`.
+**Solution**: Increase the timeout with `-timeout 30m`.
 
 ---
 
 ## ⚙️ Configuration
 
-Environment variables can override CLI flags.
+Environment variables can override CLI flags. Priority: CLI flags > Environment variables > Defaults.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `FIBCALC_PARALLEL_THRESHOLD` | Bit size to trigger parallel multiplication | 4096 |
-| `FIBCALC_FFT_THRESHOLD` | Bit size to switch to FFT multiplication | 500,000 |
-| `FIBCALC_STRASSEN_THRESHOLD` | Bit size for Strassen's algorithm | 3072 |
-| `FIBCALC_TIMEOUT` | Calculation timeout | 5m |
+| `FIBCALC_N` | Fibonacci index to calculate | 100,000,000 |
+| `FIBCALC_ALGO` | Algorithm (`fast`, `matrix`, `fft`, `all`) | `all` |
+| `FIBCALC_TIMEOUT` | Calculation timeout | `5m` |
+| `FIBCALC_THRESHOLD` | Parallelism threshold (bits) | 4096 |
+| `FIBCALC_FFT_THRESHOLD` | FFT multiplication threshold (bits) | 500,000 |
+| `FIBCALC_STRASSEN_THRESHOLD` | Strassen algorithm threshold (bits) | 3072 |
+| `FIBCALC_VERBOSE` | Enable verbose output | `false` |
+| `FIBCALC_DETAILS` | Display performance details | `false` |
+| `FIBCALC_QUIET` | Enable quiet mode | `false` |
+| `FIBCALC_CALCULATE` | Display calculated value | `false` |
+| `FIBCALC_OUTPUT` | Output file path | |
+| `FIBCALC_CALIBRATE` | Enable calibration mode | `false` |
+| `FIBCALC_AUTO_CALIBRATE` | Enable automatic calibration | `false` |
+| `FIBCALC_CALIBRATION_PROFILE` | Path to calibration profile file | |
+| `NO_COLOR` | Disable colored output ([no-color.org](https://no-color.org/)) | |
 
 ---
 
