@@ -84,12 +84,12 @@ func (s *AdaptiveStrategy) Name() string {
 
 // Multiply performs adaptive multiplication using smartMultiply.
 func (s *AdaptiveStrategy) Multiply(z, x, y *big.Int, opts Options) (*big.Int, error) {
-	return smartMultiply(z, x, y, opts.FFTThreshold, opts.KaratsubaThreshold)
+	return smartMultiply(z, x, y, opts.FFTThreshold)
 }
 
 // Square performs adaptive squaring using smartSquare.
 func (s *AdaptiveStrategy) Square(z, x *big.Int, opts Options) (*big.Int, error) {
-	return smartSquare(z, x, opts.FFTThreshold, opts.KaratsubaThreshold)
+	return smartSquare(z, x, opts.FFTThreshold)
 }
 
 // ExecuteStep performs a doubling step, choosing between standard logic

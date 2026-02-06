@@ -12,6 +12,8 @@ import (
 
 const _W = int(unsafe.Sizeof(big.Word(0)) * 8)
 
+// nat is an alias for a slice of big.Word, used as the internal
+// representation of large integers in FFT-based arithmetic.
 type nat []big.Word
 
 func (n nat) String() string {

@@ -9,7 +9,7 @@ import (
 	big "math/big"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockSequenceGenerator is a mock of SequenceGenerator interface.

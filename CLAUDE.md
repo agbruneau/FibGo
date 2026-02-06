@@ -147,7 +147,7 @@ CLI flags > Environment variables (`FIBCALC_*` prefix) > Defaults. See `.env.exa
 | `github.com/rs/zerolog` | Structured logging |
 | `github.com/briandowns/spinner` | CLI spinner animation |
 | `github.com/ncw/gmp` | GMP bindings (optional, build tag) |
-| `github.com/golang/mock` | Mock generation for testing |
+| `go.uber.org/mock` | Mock generation for testing |
 | `github.com/leanovate/gopter` | Property-based testing |
 | `github.com/charmbracelet/bubbletea` | TUI framework (Elm architecture) |
 | `github.com/charmbracelet/lipgloss` | TUI styling and layout |

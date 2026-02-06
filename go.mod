@@ -6,19 +6,19 @@ require golang.org/x/sync v0.17.0
 
 require (
 	github.com/briandowns/spinner v1.23.2
-	github.com/golang/mock v1.6.0
+	github.com/charmbracelet/bubbles v0.21.1
+	github.com/charmbracelet/bubbletea v1.3.10
+	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/leanovate/gopter v0.2.11
 	github.com/ncw/gmp v1.0.5
 	github.com/rs/zerolog v1.34.0
+	go.uber.org/mock v0.6.0
 	golang.org/x/sys v0.38.0
 )
 
 require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
-	github.com/charmbracelet/bubbles v0.21.1 // indirect
-	github.com/charmbracelet/bubbletea v1.3.10 // indirect
 	github.com/charmbracelet/colorprofile v0.4.1 // indirect
-	github.com/charmbracelet/lipgloss v1.1.0 // indirect
 	github.com/charmbracelet/x/ansi v0.11.5 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.15 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect

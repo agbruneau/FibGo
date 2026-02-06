@@ -57,7 +57,7 @@ type multiplicationTask struct {
 // execute performs the multiplication task.
 func (t *multiplicationTask) execute() error {
 	var err error
-	*t.dest, err = smartMultiply(*t.dest, t.a, t.b, t.fftThreshold, 0)
+	*t.dest, err = smartMultiply(*t.dest, t.a, t.b, t.fftThreshold)
 	return err
 }
 
@@ -74,7 +74,7 @@ type squaringTask struct {
 // execute performs the squaring task.
 func (t *squaringTask) execute() error {
 	var err error
-	*t.dest, err = smartSquare(*t.dest, t.x, t.fftThreshold, 0)
+	*t.dest, err = smartSquare(*t.dest, t.x, t.fftThreshold)
 	return err
 }
 

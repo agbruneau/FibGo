@@ -204,7 +204,7 @@ go tool trace trace.out
 
 ## Mock Generation
 
-Mocks are generated using `github.com/golang/mock` (mockgen) via `//go:generate` directives.
+Mocks are generated using `go.uber.org/mock` (mockgen) via `//go:generate` directives.
 
 | Interface | Source File | Mock Output |
 |-----------|-------------|-------------|

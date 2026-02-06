@@ -10,7 +10,7 @@ import (
 	reflect "reflect"
 
 	fibonacci "github.com/agbru/fibcalc/internal/fibonacci"
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockCalculator is a mock of Calculator interface.

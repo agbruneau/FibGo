@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Interactive TUI mode**: btop-style dashboard built with Bubble Tea (Elm architecture), featuring real-time progress charts, algorithm comparison, and keyboard navigation
+- Portable arithmetic fallback for non-amd64 architectures (`arith_generic.go`)
+- Godoc example functions for `Calculator`, `DefaultFactory`, and `CalculateWithObservers`
+
 ### Changed
 
-- **CLI-only refactor**: Removed server, TUI, REPL, and observability layers to simplify the codebase
-- Cleaned up documentation to reflect CLI-only architecture
+- Removed server, REPL, and observability layers to simplify the codebase
+- Cleaned up documentation to reflect CLI + TUI architecture
 
 ---
 

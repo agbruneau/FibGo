@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	fibonacci "github.com/agbru/fibcalc/internal/fibonacci"
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockMultiplicationStrategy is a mock of MultiplicationStrategy interface.

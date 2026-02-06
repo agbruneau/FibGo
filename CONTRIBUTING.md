@@ -262,7 +262,7 @@ make coverage
 
 ## Mock Generation
 
-This project uses [mockgen](https://github.com/golang/mock) for generating test mocks automatically.
+This project uses [mockgen](https://github.com/uber-go/mock) for generating test mocks automatically.
 
 ### Regenerating Mocks
 
@@ -279,7 +279,7 @@ go generate ./...
 ```bash
 make install-mockgen
 # or
-go install github.com/golang/mock/mockgen@latest
+go install go.uber.org/mock/mockgen@latest
 ```
 
 ### Mock Locations
@@ -296,7 +296,7 @@ go install github.com/golang/mock/mockgen@latest
 ```go
 import (
     "testing"
-    "github.com/golang/mock/gomock"
+    "go.uber.org/mock/gomock"
     "github.com/agbru/fibcalc/internal/fibonacci/mocks"
 )
 

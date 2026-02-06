@@ -202,7 +202,7 @@ generate-mocks:
 ## install-mockgen: Install mockgen tool for mock generation
 install-mockgen:
 	@echo "Installing mockgen..."
-	@go install github.com/golang/mock/mockgen@latest
+	@go install go.uber.org/mock/mockgen@latest
 
 ## format: Format Go code
 format:

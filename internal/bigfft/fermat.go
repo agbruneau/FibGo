@@ -12,9 +12,9 @@ const smallMulThreshold = 30
 
 // Arithmetic modulo 2^n+1.
 
-// A fermat of length w+1 represents a number modulo 2^(w*_W) + 1. The last
-// word is zero or one. A number has at most two representatives satisfying the
-// 0-1 last word constraint.
+// fermat represents a number modulo 2^(w*_W) + 1 as a slice of length w+1.
+// The last word is zero or one. A number has at most two representatives
+// satisfying the 0-1 last word constraint.
 type fermat nat
 
 func (n fermat) String() string { return nat(n).String() }

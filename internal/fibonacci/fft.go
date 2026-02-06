@@ -40,7 +40,7 @@ func sqrFFT(x *big.Int) (*big.Int, error) {
 	return bigfft.Sqr(x)
 }
 
-func smartMultiply(z, x, y *big.Int, fftThreshold, _ int) (*big.Int, error) {
+func smartMultiply(z, x, y *big.Int, fftThreshold int) (*big.Int, error) {
 	bx := x.BitLen()
 	by := y.BitLen()
 
@@ -49,10 +49,7 @@ func smartMultiply(z, x, y *big.Int, fftThreshold, _ int) (*big.Int, error) {
 		return bigfft.MulTo(z, x, y)
 	}
 
-	// Tier 2: math/big Multiplication
-	// Go's built-in math/big.Mul uses an optimized Karatsuba implementation
-	// with zero allocations that benchmarks 3-3.5x faster than the custom
-	// Karatsuba in bigfft (which incurs ~970 allocs/op at 50K bits).
+	// Tier 2: math/big Multiplication (uses its own optimized Karatsuba internally)
 	if z == nil {
 		z = new(big.Int)
 	}
@@ -61,7 +58,7 @@ func smartMultiply(z, x, y *big.Int, fftThreshold, _ int) (*big.Int, error) {
 
 // smartSquare performs optimized squaring, choosing between math/big.Mul and
 // FFT (internal/bigfft) based on the operand size.
-func smartSquare(z, x *big.Int, fftThreshold, _ int) (*big.Int, error) {
+func smartSquare(z, x *big.Int, fftThreshold int) (*big.Int, error) {
 	bx := x.BitLen()
 
 	// Tier 1: FFT Squaring for very large operands
@@ -69,10 +66,7 @@ func smartSquare(z, x *big.Int, fftThreshold, _ int) (*big.Int, error) {
 		return bigfft.SqrTo(z, x)
 	}
 
-	// Tier 2: math/big Squaring
-	// Go's built-in math/big.Mul uses an optimized Karatsuba implementation
-	// with zero allocations that benchmarks 3-3.5x faster than the custom
-	// Karatsuba in bigfft (which incurs ~728 allocs/op at 50K bits).
+	// Tier 2: math/big Squaring (uses its own optimized Karatsuba internally)
 	if z == nil {
 		z = new(big.Int)
 	}
