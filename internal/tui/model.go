@@ -186,12 +186,17 @@ func (m Model) View() string {
 	return lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
 }
 
+// Layout constants for the TUI dashboard.
+const (
+	headerHeight  = 3
+	footerHeight  = 3
+	minBodyHeight = 4
+)
+
 func (m *Model) layoutPanels() {
-	headerHeight := 3
-	footerHeight := 3
 	bodyHeight := m.height - headerHeight - footerHeight
-	if bodyHeight < 4 {
-		bodyHeight = 4
+	if bodyHeight < minBodyHeight {
+		bodyHeight = minBodyHeight
 	}
 
 	logsWidth := m.width * 60 / 100
@@ -212,9 +217,9 @@ func (m Model) metricsWidth() int {
 }
 
 func (m Model) metricsHeight() int {
-	bodyHeight := m.height - 6
-	if bodyHeight < 4 {
-		bodyHeight = 4
+	bodyHeight := m.height - headerHeight - footerHeight
+	if bodyHeight < minBodyHeight {
+		bodyHeight = minBodyHeight
 	}
 	return bodyHeight * 40 / 100
 }

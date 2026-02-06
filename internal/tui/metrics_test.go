@@ -148,6 +148,60 @@ func TestFormatBytes(t *testing.T) {
 	}
 }
 
+func TestFormatBytes_Boundaries(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    uint64
+		contains string
+	}{
+		{"exact_1KB", 1024, "1.0 KB"},
+		{"exact_1MB", 1024 * 1024, "1.0 MB"},
+		{"exact_1GB", 1024 * 1024 * 1024, "1.0 GB"},
+		{"just_below_KB", 1023, "1023 B"},
+		{"just_below_MB", 1024*1024 - 1, "KB"},
+		{"just_below_GB", 1024*1024*1024 - 1, "MB"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatBytes(tt.input)
+			if !strings.Contains(got, tt.contains) {
+				t.Errorf("formatBytes(%d) = %q, want to contain %q", tt.input, got, tt.contains)
+			}
+		})
+	}
+}
+
+func TestMetricsModel_UpdateProgress_RapidUpdates(t *testing.T) {
+	m := NewMetricsModel()
+	m.lastUpdate = time.Now().Add(-1 * time.Second)
+
+	// 1000 rapid updates with increasing progress
+	for i := 0; i < 1000; i++ {
+		m.lastUpdate = time.Now().Add(-100 * time.Millisecond)
+		m.UpdateProgress(float64(i) / 1000.0)
+	}
+
+	if m.speed <= 0 {
+		t.Error("expected positive speed after many updates")
+	}
+	if m.lastProgress == 0 {
+		t.Error("expected non-zero lastProgress after many updates")
+	}
+}
+
+func TestMetricsModel_SetSize(t *testing.T) {
+	m := NewMetricsModel()
+	m.SetSize(50, 20)
+
+	if m.width != 50 {
+		t.Errorf("expected width 50, got %d", m.width)
+	}
+	if m.height != 20 {
+		t.Errorf("expected height 20, got %d", m.height)
+	}
+}
+
 func TestFormatMetricLine(t *testing.T) {
 	line := formatMetricLine("Memory", "50.0 MB")
 	if !strings.Contains(line, "Memory") {

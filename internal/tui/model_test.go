@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"math/big"
+	"strings"
 	"testing"
 	"time"
 
@@ -504,6 +505,165 @@ func TestModel_HandleKey_Reset_ClearsMetrics(t *testing.T) {
 
 	if result.metrics.speed != 0 {
 		t.Error("expected metrics speed to be reset to 0")
+	}
+}
+
+func TestModel_Init_ReturnsCommands(t *testing.T) {
+	m := newTestModel(t)
+	cmd := m.Init()
+	if cmd == nil {
+		t.Error("expected Init to return a non-nil command batch")
+	}
+}
+
+func TestSampleMemStatsCmd_ReturnsMemStatsMsg(t *testing.T) {
+	cmd := sampleMemStatsCmd()
+	if cmd == nil {
+		t.Fatal("expected non-nil command from sampleMemStatsCmd")
+	}
+	msg := cmd()
+	if _, ok := msg.(MemStatsMsg); !ok {
+		t.Errorf("expected MemStatsMsg, got %T", msg)
+	}
+}
+
+func TestWatchContextCmd_SendsOnCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cmd := watchContextCmd(ctx)
+	if cmd == nil {
+		t.Fatal("expected non-nil command from watchContextCmd")
+	}
+
+	done := make(chan tea.Msg, 1)
+	go func() {
+		done <- cmd()
+	}()
+
+	cancel()
+
+	select {
+	case msg := <-done:
+		if _, ok := msg.(ContextCancelledMsg); !ok {
+			t.Errorf("expected ContextCancelledMsg, got %T", msg)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for ContextCancelledMsg")
+	}
+}
+
+func TestWatchContextCmd_AlreadyCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel before creating cmd
+
+	cmd := watchContextCmd(ctx)
+	msg := cmd()
+	if _, ok := msg.(ContextCancelledMsg); !ok {
+		t.Errorf("expected ContextCancelledMsg, got %T", msg)
+	}
+}
+
+func TestModel_layoutPanels_Percentages(t *testing.T) {
+	m := newTestModelWithSize(t, 100, 40)
+
+	// Logs should get 60% of width
+	expectedLogsWidth := 100 * 60 / 100
+	if m.logs.width != expectedLogsWidth {
+		t.Errorf("expected logs width %d, got %d", expectedLogsWidth, m.logs.width)
+	}
+
+	// Right column gets the rest
+	expectedRightWidth := 100 - expectedLogsWidth
+	if m.metrics.width != expectedRightWidth {
+		t.Errorf("expected metrics width %d, got %d", expectedRightWidth, m.metrics.width)
+	}
+	if m.chart.width != expectedRightWidth {
+		t.Errorf("expected chart width %d, got %d", expectedRightWidth, m.chart.width)
+	}
+}
+
+func TestModel_layoutPanels_MinimumSizes(t *testing.T) {
+	// Very small terminal: bodyHeight would be negative, clamped to minBodyHeight
+	m := newTestModelWithSize(t, 20, 4)
+
+	// bodyHeight = 4 - 3 - 3 = -2, clamped to 4
+	expectedBodyHeight := minBodyHeight
+	// Logs height should equal bodyHeight
+	if m.logs.height != expectedBodyHeight {
+		t.Errorf("expected logs height %d, got %d", expectedBodyHeight, m.logs.height)
+	}
+}
+
+func TestModel_metricsHeight_ConsistentWithLayout(t *testing.T) {
+	m := newTestModelWithSize(t, 100, 40)
+
+	// metricsHeight() should match the value assigned during layoutPanels
+	if m.metricsHeight() != m.metrics.height {
+		t.Errorf("metricsHeight()=%d differs from metrics.height=%d", m.metricsHeight(), m.metrics.height)
+	}
+}
+
+func TestModel_View_ContainsAllComponents(t *testing.T) {
+	m := newTestModelWithSize(t, 120, 40)
+
+	view := m.View()
+	if len(view) == 0 {
+		t.Fatal("expected non-empty view")
+	}
+	// The view should contain the FibGo title from header
+	if !strings.Contains(view, "FibGo") {
+		t.Error("expected view to contain 'FibGo' from header")
+	}
+	// The view should contain Metrics from the metrics panel
+	if !strings.Contains(view, "Metrics") {
+		t.Error("expected view to contain 'Metrics' from metrics panel")
+	}
+	// The view should contain Progress Chart from the chart panel
+	if !strings.Contains(view, "Progress Chart") {
+		t.Error("expected view to contain 'Progress Chart' from chart panel")
+	}
+}
+
+func TestModel_Update_VeryWideTerminal(t *testing.T) {
+	m := newTestModelWithSize(t, 500, 40)
+
+	// Should not panic
+	view := m.View()
+	if len(view) == 0 {
+		t.Error("expected non-empty view for wide terminal")
+	}
+}
+
+func TestModel_metricsHeight_SmallTerminal(t *testing.T) {
+	// When height is very small, bodyHeight gets clamped to minBodyHeight
+	m := newTestModelWithSize(t, 80, 4)
+	mh := m.metricsHeight()
+	expected := minBodyHeight * 40 / 100
+	if mh != expected {
+		t.Errorf("expected metricsHeight=%d for small terminal, got %d", expected, mh)
+	}
+}
+
+func TestTickCmd_ReturnsCmd(t *testing.T) {
+	cmd := tickCmd()
+	if cmd == nil {
+		t.Error("expected non-nil command from tickCmd")
+	}
+}
+
+func TestStartCalculationCmd_ReturnsCompleteMsg(t *testing.T) {
+	ref := &programRef{}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	calcs := []fibonacci.Calculator{mockCalculator{name: "Fast"}}
+	cfg := config.AppConfig{N: 10, Timeout: 10 * time.Second}
+	cmd := startCalculationCmd(ref, ctx, calcs, cfg)
+	if cmd == nil {
+		t.Fatal("expected non-nil command from startCalculationCmd")
+	}
+
+	msg := cmd()
+	if _, ok := msg.(CalculationCompleteMsg); !ok {
+		t.Errorf("expected CalculationCompleteMsg, got %T", msg)
 	}
 }
 

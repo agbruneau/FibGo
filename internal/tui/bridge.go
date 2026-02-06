@@ -92,5 +92,5 @@ func (t *TUIResultPresenter) FormatDuration(d time.Duration) string {
 // HandleError sends an error message to the TUI and returns the exit code.
 func (t *TUIResultPresenter) HandleError(err error, duration time.Duration, _ io.Writer) int {
 	t.ref.Send(ErrorMsg{Err: err, Duration: duration})
-	return apperrors.HandleCalculationError(err, 0, io.Discard, nil)
+	return apperrors.HandleCalculationError(err, duration, io.Discard, nil)
 }

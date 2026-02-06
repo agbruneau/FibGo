@@ -12,6 +12,8 @@ import (
 	"github.com/agbru/fibcalc/internal/orchestration"
 )
 
+const maxLogEntries = 10000
+
 // LogsModel manages the scrollable log panel.
 type LogsModel struct {
 	viewport    viewport.Model
@@ -57,6 +59,7 @@ func (l *LogsModel) AddProgressEntry(msg ProgressMsg) {
 
 	entry := fmt.Sprintf("[%s] %s %s", ts, algoStr, progressStr)
 	l.entries = append(l.entries, entry)
+	l.trimEntries()
 	l.updateContent()
 }
 
@@ -79,6 +82,7 @@ func (l *LogsModel) AddResults(results []orchestration.CalculationResult) {
 			status)
 		l.entries = append(l.entries, entry)
 	}
+	l.trimEntries()
 	l.updateContent()
 }
 
@@ -92,6 +96,7 @@ func (l *LogsModel) AddFinalResult(msg FinalResultMsg) {
 		bits := msg.Result.Result.BitLen()
 		l.entries = append(l.entries, fmt.Sprintf("  Bits:      %s", metricValueStyle.Render(fmt.Sprintf("%d", bits))))
 	}
+	l.trimEntries()
 	l.updateContent()
 }
 
@@ -100,6 +105,7 @@ func (l *LogsModel) AddError(msg ErrorMsg) {
 	ts := logTimeStyle.Render(time.Now().Format("15:04:05"))
 	entry := fmt.Sprintf("[%s] %s", ts, logErrorStyle.Render(fmt.Sprintf("ERROR: %v", msg.Err)))
 	l.entries = append(l.entries, entry)
+	l.trimEntries()
 	l.updateContent()
 }
 
@@ -125,6 +131,12 @@ func (l LogsModel) View() string {
 		Render(l.viewport.View())
 }
 
+func (l *LogsModel) trimEntries() {
+	if len(l.entries) > maxLogEntries {
+		l.entries = l.entries[len(l.entries)-maxLogEntries:]
+	}
+}
+
 func (l *LogsModel) updateContent() {
 	content := strings.Join(l.entries, "\n")
 	l.viewport.SetContent(content)
@@ -134,8 +146,11 @@ func (l *LogsModel) updateContent() {
 }
 
 func (l LogsModel) algoName(index int) string {
-	if index >= 0 && index < len(l.algoNames) {
+	if index < 0 {
+		return "Unknown"
+	}
+	if index < len(l.algoNames) {
 		return l.algoNames[index]
 	}
-	return fmt.Sprintf("Algo-%d", index)
+	return fmt.Sprintf("Algo %d", index)
 }

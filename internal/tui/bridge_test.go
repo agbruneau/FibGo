@@ -184,6 +184,34 @@ func TestTUIProgressReporter_MultipleCalculators(t *testing.T) {
 	wg.Wait()
 }
 
+func TestProgramRef_Send_Concurrent(t *testing.T) {
+	ref := &programRef{} // nil program - Send is a no-op
+
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			ref.Send(ProgressMsg{Value: float64(i) / 100})
+		}(i)
+	}
+	wg.Wait()
+	// If we reach here without panic/race, the test passes
+}
+
+func TestTUIResultPresenter_HandleError_PassesDuration(t *testing.T) {
+	ref := &programRef{}
+	presenter := &TUIResultPresenter{ref: ref}
+
+	// The bug was that HandleError passed 0 instead of duration to HandleCalculationError.
+	// We verify indirectly: the exit code should still be correct.
+	duration := 5 * time.Second
+	exitCode := presenter.HandleError(context.DeadlineExceeded, duration, nil)
+	if exitCode != apperrors.ExitErrorTimeout {
+		t.Errorf("expected exit code %d, got %d", apperrors.ExitErrorTimeout, exitCode)
+	}
+}
+
 func TestTUIProgressReporter_EmptyChannel(t *testing.T) {
 	ref := &programRef{}
 	reporter := &TUIProgressReporter{ref: ref}

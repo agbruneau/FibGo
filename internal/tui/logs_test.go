@@ -167,13 +167,13 @@ func TestLogsModel_AlgoName_OutOfBounds(t *testing.T) {
 	}
 
 	// Out of bounds
-	if name := logs.algoName(5); !strings.Contains(name, "Algo-5") {
-		t.Errorf("expected fallback 'Algo-5', got %q", name)
+	if name := logs.algoName(5); name != "Algo 5" {
+		t.Errorf("expected fallback 'Algo 5', got %q", name)
 	}
 
 	// Negative index
-	if name := logs.algoName(-1); !strings.Contains(name, "Algo--1") {
-		t.Errorf("expected fallback 'Algo--1', got %q", name)
+	if name := logs.algoName(-1); name != "Unknown" {
+		t.Errorf("expected 'Unknown' for negative index, got %q", name)
 	}
 }
 
@@ -218,6 +218,91 @@ func TestLogsModel_Update_ScrollKeys(t *testing.T) {
 	logs.Update(tea.KeyMsg{Type: tea.KeyDown})
 	logs.Update(tea.KeyMsg{Type: tea.KeyPgUp})
 	logs.Update(tea.KeyMsg{Type: tea.KeyPgDown})
+}
+
+func TestLogsModel_AddProgressEntry_BoundedGrowth(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
+
+	logs := NewLogsModel([]string{"Fast"})
+	logs.SetSize(60, 20)
+
+	// Add more entries than the limit
+	for i := 0; i < maxLogEntries+100; i++ {
+		logs.AddProgressEntry(ProgressMsg{CalculatorIndex: 0, Value: float64(i%100) / 100})
+	}
+
+	if len(logs.entries) > maxLogEntries {
+		t.Errorf("expected entries to be bounded at %d, got %d", maxLogEntries, len(logs.entries))
+	}
+}
+
+func TestLogsModel_algoName_NegativeProducesUnknown(t *testing.T) {
+	logs := NewLogsModel([]string{"Fast Doubling", "Matrix"})
+
+	tests := []struct {
+		index    int
+		expected string
+	}{
+		{-1, "Unknown"},
+		{-100, "Unknown"},
+		{0, "Fast Doubling"},
+		{1, "Matrix"},
+		{2, "Algo 2"},
+		{99, "Algo 99"},
+	}
+
+	for _, tt := range tests {
+		got := logs.algoName(tt.index)
+		if got != tt.expected {
+			t.Errorf("algoName(%d) = %q, want %q", tt.index, got, tt.expected)
+		}
+	}
+}
+
+func TestLogsModel_AutoScroll_DisablesOnScrollUp(t *testing.T) {
+	logs := NewLogsModel([]string{"Fast"})
+	logs.SetSize(60, 5)
+
+	// Add many entries to overflow viewport
+	for i := 0; i < 100; i++ {
+		logs.AddProgressEntry(ProgressMsg{CalculatorIndex: 0, Value: float64(i) / 100})
+	}
+
+	if !logs.autoScroll {
+		t.Fatal("precondition: autoScroll should be true")
+	}
+
+	// Scroll up
+	logs.Update(tea.KeyMsg{Type: tea.KeyPgUp})
+
+	// After scrolling up and not being at bottom, autoScroll should be false
+	if logs.viewport.AtBottom() {
+		// If we're still at bottom (viewport larger than content), this test is not meaningful
+		t.Skip("viewport is larger than content, scroll test not applicable")
+	}
+	if logs.autoScroll {
+		t.Error("expected autoScroll to be false after scrolling up")
+	}
+}
+
+func TestLogsModel_AddProgressEntry_StressTest(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
+
+	logs := NewLogsModel([]string{"Fast"})
+	logs.SetSize(60, 20)
+
+	// 10000 rapid updates
+	for i := 0; i < 10000; i++ {
+		logs.AddProgressEntry(ProgressMsg{CalculatorIndex: 0, Value: float64(i%100) / 100})
+	}
+
+	if len(logs.entries) > maxLogEntries {
+		t.Errorf("entries exceeded max: %d > %d", len(logs.entries), maxLogEntries)
+	}
 }
 
 func TestLogsModel_SetSize(t *testing.T) {

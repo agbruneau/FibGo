@@ -43,10 +43,6 @@ var versionStyle = lipgloss.NewStyle().
 var elapsedStyle = lipgloss.NewStyle().
 	Foreground(colorCyan)
 
-// logEntryStyle for individual log entries.
-var logEntryStyle = lipgloss.NewStyle().
-	Foreground(colorText)
-
 // logTimeStyle for timestamps in log entries.
 var logTimeStyle = lipgloss.NewStyle().
 	Foreground(colorDim)
@@ -109,10 +105,3 @@ var statusErrorStyle = lipgloss.NewStyle().
 	Foreground(colorError).
 	Bold(true)
 
-// progressFullStyle for filled portion of progress bar.
-var progressFullStyle = lipgloss.NewStyle().
-	Foreground(colorAccent)
-
-// progressEmptyStyle for unfilled portion of progress bar.
-var progressEmptyStyle = lipgloss.NewStyle().
-	Foreground(colorDim)

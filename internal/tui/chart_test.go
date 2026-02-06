@@ -139,6 +139,76 @@ func TestChartModel_RenderSparkline_OverOneValues(t *testing.T) {
 	}
 }
 
+func TestChartModel_RenderSparkline_AllCharacters(t *testing.T) {
+	chart := NewChartModel()
+	chart.SetSize(50, 10)
+
+	// Add data points that should map to each sparkline block
+	numBlocks := len(sparkBlocks)
+	for i := 0; i < numBlocks; i++ {
+		v := float64(i) / float64(numBlocks-1)
+		chart.AddDataPoint(v, v, 0)
+	}
+
+	sparkline := chart.renderSparkline()
+	runes := []rune(sparkline)
+
+	if len(runes) != numBlocks {
+		t.Fatalf("expected %d runes, got %d", numBlocks, len(runes))
+	}
+
+	// First char should be lowest block, last should be highest
+	if runes[0] != sparkBlocks[0] {
+		t.Errorf("expected first char to be %c, got %c", sparkBlocks[0], runes[0])
+	}
+	if runes[len(runes)-1] != sparkBlocks[numBlocks-1] {
+		t.Errorf("expected last char to be %c, got %c", sparkBlocks[numBlocks-1], runes[len(runes)-1])
+	}
+}
+
+func TestChartModel_RenderSparkline_Boundaries(t *testing.T) {
+	chart := NewChartModel()
+	chart.SetSize(50, 10)
+
+	// Test exact 0.0 and 1.0
+	chart.AddDataPoint(0.0, 0.0, 0)
+	chart.AddDataPoint(1.0, 1.0, 0)
+
+	sparkline := chart.renderSparkline()
+	runes := []rune(sparkline)
+
+	if len(runes) != 2 {
+		t.Fatalf("expected 2 runes, got %d", len(runes))
+	}
+
+	if runes[0] != sparkBlocks[0] {
+		t.Errorf("expected 0.0 to map to lowest block %c, got %c", sparkBlocks[0], runes[0])
+	}
+	if runes[1] != sparkBlocks[len(sparkBlocks)-1] {
+		t.Errorf("expected 1.0 to map to highest block %c, got %c", sparkBlocks[len(sparkBlocks)-1], runes[1])
+	}
+}
+
+func TestChartModel_SetSize_VeryWide(t *testing.T) {
+	chart := NewChartModel()
+
+	// Very wide terminal
+	chart.SetSize(500, 10)
+
+	if chart.maxPoints != 494 { // 500 - 6
+		t.Errorf("expected maxPoints=494 for width=500, got %d", chart.maxPoints)
+	}
+
+	// Add many data points
+	for i := 0; i < 500; i++ {
+		chart.AddDataPoint(float64(i)/500.0, float64(i)/500.0, 0)
+	}
+
+	if len(chart.dataPoints) > chart.maxPoints {
+		t.Errorf("expected data points <= %d, got %d", chart.maxPoints, len(chart.dataPoints))
+	}
+}
+
 func TestChartModel_SetSize_TrimsData(t *testing.T) {
 	chart := NewChartModel()
 	chart.maxPoints = 100
