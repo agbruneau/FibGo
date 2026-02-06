@@ -18,6 +18,7 @@ dist/
 
 # Code coverage profiles and other test artifacts
 *.out
+*.prof
 coverage.*
 *.coverprofile
 profile.cov
