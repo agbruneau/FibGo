@@ -52,14 +52,8 @@ func TestCLI_E2E(t *testing.T) {
 	}{
 		{
 			name:     "Basic Calculation",
-			args:     []string{"-n", "10", "-c", "--no-color"}, // -c to show result, no-color for matching
+			args:     []string{"-n", "10", "-c"}, // -c to show result
 			wantOut:  "F(10) = 55",
-			wantCode: 0,
-		},
-		{
-			name:     "JSON Output",
-			args:     []string{"-n", "10", "--json"},
-			wantOut:  `"result": "55"`, // JSON string "55"
 			wantCode: 0,
 		},
 		{
@@ -73,6 +67,7 @@ func TestCLI_E2E(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := exec.Command(binPath, tt.args...)
+			cmd.Env = append(os.Environ(), "NO_COLOR=1")
 			output, err := cmd.CombinedOutput()
 
 			if tt.wantCode == 0 && err != nil {

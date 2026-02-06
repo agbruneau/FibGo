@@ -72,13 +72,10 @@ func TestParseConfig(t *testing.T) {
 			"FIBCALC_VERBOSE":             "true",
 			"FIBCALC_DETAILS":             "true",
 			"FIBCALC_QUIET":               "true",
-			"FIBCALC_HEX":                 "true",
-			"FIBCALC_NO_COLOR":            "true",
 			"FIBCALC_CALIBRATE":           "true",
 			"FIBCALC_AUTO_CALIBRATE":      "true",
 			"FIBCALC_OUTPUT":              "out.txt",
 			"FIBCALC_CALIBRATION_PROFILE": "prof.json",
-			"FIBCALC_JSON":                "true",
 		}
 
 		for k, v := range env {
@@ -123,12 +120,6 @@ func TestParseConfig(t *testing.T) {
 		if !cfg.Quiet {
 			t.Error("Expected Quiet true")
 		}
-		if !cfg.HexOutput {
-			t.Error("Expected HexOutput true")
-		}
-		if !cfg.NoColor {
-			t.Error("Expected NoColor true")
-		}
 		if !cfg.Calibrate {
 			t.Error("Expected Calibrate true")
 		}
@@ -140,9 +131,6 @@ func TestParseConfig(t *testing.T) {
 		}
 		if cfg.CalibrationProfile != "prof.json" {
 			t.Errorf("Expected CalibrationProfile prof.json, got %s", cfg.CalibrationProfile)
-		}
-		if !cfg.JSONOutput {
-			t.Error("Expected JSONOutput true")
 		}
 	})
 

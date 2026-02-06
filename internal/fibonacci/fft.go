@@ -40,49 +40,39 @@ func sqrFFT(x *big.Int) (*big.Int, error) {
 	return bigfft.Sqr(x)
 }
 
-func smartMultiply(z, x, y *big.Int, fftThreshold, karatsubaThreshold int) (*big.Int, error) {
+func smartMultiply(z, x, y *big.Int, fftThreshold, _ int) (*big.Int, error) {
 	bx := x.BitLen()
 	by := y.BitLen()
 
-	// Tier 1: FFT Multiplication
+	// Tier 1: FFT Multiplication for very large operands
 	if fftThreshold > 0 && bx > fftThreshold && by > fftThreshold {
 		return bigfft.MulTo(z, x, y)
 	}
 
-	// Tier 2: Optimized Karatsuba Multiplication
-	if karatsubaThreshold > 0 && bx > karatsubaThreshold && by > karatsubaThreshold {
-		if z == nil {
-			z = new(big.Int)
-		}
-		return bigfft.KaratsubaMultiplyTo(z, x, y), nil
-	}
-
-	// Tier 3: standard math/big Multiplication
+	// Tier 2: math/big Multiplication
+	// Go's built-in math/big.Mul uses an optimized Karatsuba implementation
+	// with zero allocations that benchmarks 3-3.5x faster than the custom
+	// Karatsuba in bigfft (which incurs ~970 allocs/op at 50K bits).
 	if z == nil {
 		z = new(big.Int)
 	}
 	return z.Mul(x, y), nil
 }
 
-// smartSquare performs optimized squaring, choosing between standard Mul,
-// optimized Karatsuba (internal/bigfft), and FFT (internal/bigfft) based on the size.
-func smartSquare(z, x *big.Int, fftThreshold, karatsubaThreshold int) (*big.Int, error) {
+// smartSquare performs optimized squaring, choosing between math/big.Mul and
+// FFT (internal/bigfft) based on the operand size.
+func smartSquare(z, x *big.Int, fftThreshold, _ int) (*big.Int, error) {
 	bx := x.BitLen()
 
-	// Tier 1: FFT Squaring
+	// Tier 1: FFT Squaring for very large operands
 	if fftThreshold > 0 && bx > fftThreshold {
 		return bigfft.SqrTo(z, x)
 	}
 
-	// Tier 2: Optimized Karatsuba Squaring
-	if karatsubaThreshold > 0 && bx > karatsubaThreshold {
-		if z == nil {
-			z = new(big.Int)
-		}
-		return bigfft.KaratsubaSqrTo(z, x), nil
-	}
-
-	// Tier 3: standard math/big Squaring
+	// Tier 2: math/big Squaring
+	// Go's built-in math/big.Mul uses an optimized Karatsuba implementation
+	// with zero allocations that benchmarks 3-3.5x faster than the custom
+	// Karatsuba in bigfft (which incurs ~728 allocs/op at 50K bits).
 	if z == nil {
 		z = new(big.Int)
 	}

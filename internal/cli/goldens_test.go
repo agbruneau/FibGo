@@ -65,7 +65,7 @@ func TestDisplayResult_Golden(t *testing.T) {
 func TestDisplayQuietResult_Golden(t *testing.T) {
 	ui.InitTheme(false)
 	var buf bytes.Buffer
-	DisplayQuietResult(&buf, big.NewInt(12345), 10, time.Second, false)
+	DisplayQuietResult(&buf, big.NewInt(12345), 10, time.Second)
 	expected := "12345\n"
 	if buf.String() != expected {
 		t.Errorf("Golden mismatch quiet. Want %q, Got %q", expected, buf.String())

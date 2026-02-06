@@ -39,11 +39,8 @@ func TestParseConfigEnvironmentVariables(t *testing.T) {
 		EnvPrefix + "STRASSEN_THRESHOLD",
 		EnvPrefix + "TIMEOUT",
 		EnvPrefix + "ALGO",
-		EnvPrefix + "JSON",
 		EnvPrefix + "VERBOSE",
 		EnvPrefix + "QUIET",
-		EnvPrefix + "HEX",
-		EnvPrefix + "NO_COLOR",
 	}
 
 	for _, key := range envVars {
@@ -69,11 +66,8 @@ func TestParseConfigEnvironmentVariables(t *testing.T) {
 		os.Setenv(EnvPrefix+"STRASSEN_THRESHOLD", "3333")
 		os.Setenv(EnvPrefix+"TIMEOUT", "10m")
 		os.Setenv(EnvPrefix+"ALGO", "fast")
-		os.Setenv(EnvPrefix+"JSON", "1")
 		os.Setenv(EnvPrefix+"VERBOSE", "yes")
 		os.Setenv(EnvPrefix+"QUIET", "0")
-		os.Setenv(EnvPrefix+"HEX", "false")
-		os.Setenv(EnvPrefix+"NO_COLOR", "no")
 
 		var buf bytes.Buffer
 		cfg, err := ParseConfig("test", []string{}, &buf, []string{"fast", "matrix", "fft"})
@@ -98,9 +92,6 @@ func TestParseConfigEnvironmentVariables(t *testing.T) {
 		}
 		if cfg.Algo != "fast" {
 			t.Errorf("expected Algo=fast, got %s", cfg.Algo)
-		}
-		if !cfg.JSONOutput {
-			t.Error("expected JSONOutput=true")
 		}
 		if !cfg.Verbose {
 			t.Error("expected Verbose=true")

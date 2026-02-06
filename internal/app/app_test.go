@@ -243,34 +243,6 @@ func TestApplicationRun(t *testing.T) {
 		}
 	})
 
-	t.Run("JSON output mode", func(t *testing.T) {
-		t.Parallel()
-		var outBuf bytes.Buffer
-		app := &Application{
-			Config: config.AppConfig{
-				N:          10,
-				Algo:       "fast",
-				Timeout:    1 * time.Minute,
-				JSONOutput: true,
-			},
-			Factory:   successFactory,
-			ErrWriter: &bytes.Buffer{},
-		}
-
-		exitCode := app.Run(context.Background(), &outBuf)
-
-		if exitCode != apperrors.ExitSuccess {
-			t.Errorf("Expected exit code %d, got %d", apperrors.ExitSuccess, exitCode)
-		}
-		output := outBuf.String()
-		if !strings.Contains(output, `"algorithm"`) {
-			t.Errorf("JSON output should contain 'algorithm' field. Output:\n%s", output)
-		}
-		if !strings.Contains(output, `"result"`) {
-			t.Errorf("JSON output should contain 'result' field. Output:\n%s", output)
-		}
-	})
-
 	t.Run("Quiet mode", func(t *testing.T) {
 		t.Parallel()
 		var outBuf bytes.Buffer
@@ -351,76 +323,6 @@ func TestRunCompletionInvalid(t *testing.T) {
 
 	if exitCode == apperrors.ExitSuccess {
 		t.Error("Expected error exit code for invalid shell")
-	}
-}
-
-// TestPrintJSONResults tests the JSON output formatting.
-func TestPrintJSONResults(t *testing.T) {
-	t.Parallel()
-	var outBuf bytes.Buffer
-	factory := createMockFactory(big.NewInt(5), nil)
-
-	app := &Application{
-		Config: config.AppConfig{
-			N:          5,
-			Algo:       "fast",
-			Timeout:    1 * time.Minute,
-			JSONOutput: true,
-		},
-		Factory:   factory,
-		ErrWriter: &bytes.Buffer{},
-	}
-
-	exitCode := app.Run(context.Background(), &outBuf)
-
-	if exitCode != apperrors.ExitSuccess {
-		t.Errorf("Expected exit code %d, got %d", apperrors.ExitSuccess, exitCode)
-	}
-
-	output := outBuf.String()
-	// Verify JSON structure
-	if !strings.Contains(output, `"algorithm"`) {
-		t.Error("JSON output should contain 'algorithm' field")
-	}
-	if !strings.Contains(output, `"duration"`) {
-		t.Error("JSON output should contain 'duration' field")
-	}
-	if !strings.Contains(output, `"result"`) {
-		t.Error("JSON output should contain 'result' field")
-	}
-	// F(5) = 5
-	if !strings.Contains(output, `"5"`) {
-		t.Errorf("JSON output should contain result '5' for F(5). Got:\n%s", output)
-	}
-}
-
-// TestHexOutput tests hexadecimal output mode.
-func TestHexOutput(t *testing.T) {
-	t.Parallel()
-	var outBuf bytes.Buffer
-	factory := createMockFactory(big.NewInt(55), nil)
-
-	app := &Application{
-		Config: config.AppConfig{
-			N:         10,
-			Algo:      "fast",
-			Timeout:   1 * time.Minute,
-			HexOutput: true,
-			Details:   true,
-		},
-		Factory:   factory,
-		ErrWriter: &bytes.Buffer{},
-	}
-
-	exitCode := app.Run(context.Background(), &outBuf)
-
-	if exitCode != apperrors.ExitSuccess {
-		t.Errorf("Expected exit code %d, got %d", apperrors.ExitSuccess, exitCode)
-	}
-
-	output := testutil.StripAnsiCodes(outBuf.String())
-	if !strings.Contains(output, "Hexadecimal") || !strings.Contains(output, "0x37") {
-		t.Errorf("Output should contain hexadecimal format. Got:\n%s", output)
 	}
 }
 
@@ -584,19 +486,6 @@ func TestAnalyzeResultsWithOutputVariety(t *testing.T) {
 		}
 	})
 
-	t.Run("Hex Output", func(t *testing.T) {
-		t.Parallel()
-		var outBuf bytes.Buffer
-		outputCfg := cli.OutputConfig{HexOutput: true}
-		exitCode := app.analyzeResultsWithOutput(results, outputCfg, &outBuf)
-		if exitCode != apperrors.ExitSuccess {
-			t.Errorf("Expected success, got %d", exitCode)
-		}
-		if !strings.Contains(outBuf.String(), "0x37") { // 55 in hex is 37
-			t.Errorf("Expected hex 0x37, got %s", outBuf.String())
-		}
-	})
-
 	t.Run("No Success Results", func(t *testing.T) {
 		t.Parallel()
 		var outBuf bytes.Buffer
@@ -609,24 +498,6 @@ func TestAnalyzeResultsWithOutputVariety(t *testing.T) {
 			t.Error("Expected error exit code")
 		}
 	})
-}
-
-func TestPrintJSONResultsError(t *testing.T) {
-	t.Parallel()
-	results := []orchestration.CalculationResult{
-		{
-			Name: "fail",
-			Err:  fmt.Errorf("intentional failure"),
-		},
-	}
-	var outBuf bytes.Buffer
-	exitCode := printJSONResults(results, &outBuf)
-	if exitCode != apperrors.ExitSuccess {
-		t.Errorf("Expected success, got %d", exitCode)
-	}
-	if !strings.Contains(outBuf.String(), "intentional failure") {
-		t.Errorf("Expected error in JSON, got %s", outBuf.String())
-	}
 }
 
 // TestRunCalibration tests the runCalibration method.

@@ -18,14 +18,12 @@ func TestWriteResultToFile(t *testing.T) {
 	testCases := []struct {
 		name        string
 		outputFile  string
-		hexOutput   bool
 		expectError bool
 		checkFunc   func(t *testing.T, filePath string)
 	}{
 		{
 			name:        "Write decimal result to file",
 			outputFile:  filepath.Join(tmpDir, "result.txt"),
-			hexOutput:   false,
 			expectError: false,
 			checkFunc: func(t *testing.T, filePath string) {
 				content, err := os.ReadFile(filePath)
@@ -39,41 +37,17 @@ func TestWriteResultToFile(t *testing.T) {
 				if !strings.Contains(contentStr, "55") {
 					t.Error("File should contain result '55'")
 				}
-				if strings.Contains(contentStr, "0x") {
-					t.Error("File should not contain hexadecimal prefix")
-				}
-			},
-		},
-		{
-			name:        "Write hex result to file",
-			outputFile:  filepath.Join(tmpDir, "result_hex.txt"),
-			hexOutput:   true,
-			expectError: false,
-			checkFunc: func(t *testing.T, filePath string) {
-				content, err := os.ReadFile(filePath)
-				if err != nil {
-					t.Fatalf("Failed to read output file: %v", err)
-				}
-				contentStr := string(content)
-				if !strings.Contains(contentStr, "[hex]") {
-					t.Error("File should contain '[hex]' marker")
-				}
-				if !strings.Contains(contentStr, "0x") {
-					t.Error("File should contain hexadecimal prefix")
-				}
 			},
 		},
 		{
 			name:        "Empty output file (no write)",
 			outputFile:  "",
-			hexOutput:   false,
 			expectError: false,
 			checkFunc:   nil, // No file should be created
 		},
 		{
 			name:        "Create nested directory",
 			outputFile:  filepath.Join(tmpDir, "nested", "dir", "result.txt"),
-			hexOutput:   false,
 			expectError: false,
 			checkFunc: func(t *testing.T, filePath string) {
 				if _, err := os.Stat(filePath); err != nil {
@@ -89,7 +63,6 @@ func TestWriteResultToFile(t *testing.T) {
 			result := big.NewInt(55)
 			config := OutputConfig{
 				OutputFile: tc.outputFile,
-				HexOutput:  tc.hexOutput,
 			}
 
 			err := WriteResultToFile(result, 10, 100*time.Millisecond, "fast", config)
@@ -116,20 +89,9 @@ func TestFormatQuietResult(t *testing.T) {
 
 	t.Run("Decimal format", func(t *testing.T) {
 		t.Parallel()
-		output := FormatQuietResult(result, 10, 100*time.Millisecond, false)
+		output := FormatQuietResult(result, 10, 100*time.Millisecond)
 		if output != "55" {
 			t.Errorf("Expected '55', got '%s'", output)
-		}
-	})
-
-	t.Run("Hexadecimal format", func(t *testing.T) {
-		t.Parallel()
-		output := FormatQuietResult(result, 10, 100*time.Millisecond, true)
-		if !strings.HasPrefix(output, "0x") {
-			t.Errorf("Expected hex output to start with '0x', got '%s'", output)
-		}
-		if !strings.Contains(output, "37") { // 55 in hex is 0x37
-			t.Errorf("Expected hex output to contain '37', got '%s'", output)
 		}
 	})
 
@@ -137,19 +99,9 @@ func TestFormatQuietResult(t *testing.T) {
 		t.Parallel()
 		large := new(big.Int)
 		large.SetString("123456789012345678901234567890", 10)
-		output := FormatQuietResult(large, 100, 1*time.Second, false)
+		output := FormatQuietResult(large, 100, 1*time.Second)
 		if output != large.String() {
 			t.Errorf("Expected full decimal string, got '%s'", output)
-		}
-	})
-
-	t.Run("Large number hex", func(t *testing.T) {
-		t.Parallel()
-		large := new(big.Int)
-		large.SetString("123456789012345678901234567890", 10)
-		output := FormatQuietResult(large, 100, 1*time.Second, true)
-		if !strings.HasPrefix(output, "0x") {
-			t.Errorf("Expected hex output to start with '0x', got '%s'", output)
 		}
 	})
 }
@@ -161,23 +113,10 @@ func TestDisplayQuietResult(t *testing.T) {
 	t.Run("Decimal output", func(t *testing.T) {
 		t.Parallel()
 		var buf bytes.Buffer
-		DisplayQuietResult(&buf, result, 10, 100*time.Millisecond, false)
+		DisplayQuietResult(&buf, result, 10, 100*time.Millisecond)
 		output := buf.String()
 		if !strings.Contains(output, "55") {
 			t.Errorf("Output should contain '55', got '%s'", output)
-		}
-		if strings.Contains(output, "0x") {
-			t.Error("Decimal output should not contain '0x'")
-		}
-	})
-
-	t.Run("Hex output", func(t *testing.T) {
-		t.Parallel()
-		var buf bytes.Buffer
-		DisplayQuietResult(&buf, result, 10, 100*time.Millisecond, true)
-		output := buf.String()
-		if !strings.HasPrefix(strings.TrimSpace(output), "0x") {
-			t.Errorf("Hex output should start with '0x', got '%s'", output)
 		}
 	})
 }
@@ -200,23 +139,6 @@ func TestDisplayResultWithConfig(t *testing.T) {
 		output := buf.String()
 		if !strings.Contains(output, "55") {
 			t.Errorf("Quiet output should contain result, got '%s'", output)
-		}
-	})
-
-	t.Run("Quiet mode with hex", func(t *testing.T) {
-		t.Parallel()
-		var buf bytes.Buffer
-		config := OutputConfig{
-			Quiet:     true,
-			HexOutput: true,
-		}
-		err := DisplayResultWithConfig(&buf, result, 10, 100*time.Millisecond, "fast", config)
-		if err != nil {
-			t.Errorf("Unexpected error: %v", err)
-		}
-		output := buf.String()
-		if !strings.HasPrefix(strings.TrimSpace(output), "0x") {
-			t.Errorf("Quiet hex output should start with '0x', got '%s'", output)
 		}
 	})
 
@@ -266,73 +188,4 @@ func TestDisplayResultWithConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("Hex output in normal mode", func(t *testing.T) {
-		t.Parallel()
-		var buf bytes.Buffer
-		config := OutputConfig{
-			HexOutput: true,
-			Quiet:     false,
-			Verbose:   false,
-		}
-		err := DisplayResultWithConfig(&buf, result, 10, 100*time.Millisecond, "fast", config)
-		if err != nil {
-			t.Errorf("Unexpected error: %v", err)
-		}
-		output := buf.String()
-		if !strings.Contains(output, "Hexadecimal Format") {
-			t.Errorf("Should show hex format section, got '%s'", output)
-		}
-	})
-}
-
-func TestDisplayHexResult(t *testing.T) {
-	t.Parallel()
-
-	t.Run("short hex value", func(t *testing.T) {
-		t.Parallel()
-		var buf bytes.Buffer
-		result := big.NewInt(255) // 0xff
-		DisplayHexResult(&buf, result, 10, false)
-		output := buf.String()
-
-		if !strings.Contains(output, "Hexadecimal Format") {
-			t.Error("Should contain header")
-		}
-		if !strings.Contains(output, "0xff") {
-			t.Errorf("Should contain '0xff', got '%s'", output)
-		}
-		if strings.Contains(output, "...") {
-			t.Error("Short hex should not be truncated")
-		}
-	})
-
-	t.Run("long hex truncated", func(t *testing.T) {
-		t.Parallel()
-		var buf bytes.Buffer
-		// Create a number with more than 100 hex characters
-		result := new(big.Int)
-		hexStr := strings.Repeat("a", 200)
-		result.SetString(hexStr, 16)
-		DisplayHexResult(&buf, result, 1000, false)
-		output := buf.String()
-
-		if !strings.Contains(output, "...") {
-			t.Error("Long hex should be truncated")
-		}
-	})
-
-	t.Run("long hex verbose no truncation", func(t *testing.T) {
-		t.Parallel()
-		var buf bytes.Buffer
-		// Create a number with more than 100 hex characters
-		result := new(big.Int)
-		hexStr := strings.Repeat("a", 200)
-		result.SetString(hexStr, 16)
-		DisplayHexResult(&buf, result, 1000, true)
-		output := buf.String()
-
-		if strings.Contains(output, "...") {
-			t.Error("Verbose mode should not truncate")
-		}
-	})
 }

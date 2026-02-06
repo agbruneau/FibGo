@@ -66,19 +66,11 @@ type AppConfig struct {
 	// If set, the application will load/save calibration results from/to this file.
 	// If empty, uses the default path (~/.fibcalc_calibration.json).
 	CalibrationProfile string
-	// JSONOutput, if true, outputs the result in JSON format.
-	JSONOutput bool
-	// NoColor, if true, disables all color output in the CLI.
-	// Also respects the NO_COLOR environment variable.
-	NoColor bool
-
 	// OutputFile, if specified, saves the result to this file path.
 	OutputFile string
 	// Quiet mode - minimal output for scripting purposes.
 	// Suppresses progress bars, banners, and informational messages.
 	Quiet bool
-	// HexOutput, if true, displays the result in hexadecimal format.
-	HexOutput bool
 	// Completion, if set, generates shell completion script for the specified shell.
 	// Valid values are: "bash", "zsh", "fish", "powershell".
 	Completion string
@@ -168,15 +160,11 @@ func ParseConfig(programName string, args []string, errorWriter io.Writer, avail
 	fs.BoolVar(&config.Calibrate, "calibrate", false, "Runs calibration mode to determine the optimal parallelism threshold.")
 	fs.BoolVar(&config.AutoCalibrate, "auto-calibrate", false, "Enables quick automatic calibration at startup (may increase loading time).")
 	fs.StringVar(&config.CalibrationProfile, "calibration-profile", "", "Path to calibration profile file (default: ~/.fibcalc_calibration.json).")
-	fs.BoolVar(&config.JSONOutput, "json", false, "Output results in JSON format.")
-	fs.BoolVar(&config.NoColor, "no-color", false, "Disable colored output (also respects NO_COLOR env var).")
-
 	// New CLI enhancement flags
 	fs.StringVar(&config.OutputFile, "output", "", "Output file path for the result.")
 	fs.StringVar(&config.OutputFile, "o", "", "Output file path (shorthand).")
 	fs.BoolVar(&config.Quiet, "quiet", false, "Quiet mode - minimal output for scripts.")
 	fs.BoolVar(&config.Quiet, "q", false, "Quiet mode (shorthand).")
-	fs.BoolVar(&config.HexOutput, "hex", false, "Display result in hexadecimal format.")
 	fs.StringVar(&config.Completion, "completion", "", "Generate shell completion script (bash, zsh, fish, powershell).")
 	fs.BoolVar(&config.ShowValue, "calculate", false, "Display the calculated value (disabled by default).")
 	fs.BoolVar(&config.ShowValue, "c", false, "Display the calculated value (shorthand).")

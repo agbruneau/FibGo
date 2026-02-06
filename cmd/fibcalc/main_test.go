@@ -93,7 +93,7 @@ func TestRun_Calculation(t *testing.T) {
 	t.Run("small N with show-value", func(t *testing.T) {
 		t.Parallel()
 		var stdout, stderr bytes.Buffer
-		code := run([]string{"fibcalc", "-n", "10", "-c", "--no-color"}, &stdout, &stderr)
+		code := run([]string{"fibcalc", "-n", "10", "-c"}, &stdout, &stderr)
 
 		if code != 0 {
 			t.Errorf("Expected exit code 0, got %d. Output:\n%s", code, stdout.String())
@@ -113,36 +113,6 @@ func TestRun_Calculation(t *testing.T) {
 		}
 		if !strings.Contains(stdout.String(), "55") {
 			t.Errorf("Quiet output should contain '55', got:\n%s", stdout.String())
-		}
-	})
-
-	t.Run("JSON output", func(t *testing.T) {
-		t.Parallel()
-		var stdout, stderr bytes.Buffer
-		code := run([]string{"fibcalc", "-n", "10", "--json"}, &stdout, &stderr)
-
-		if code != 0 {
-			t.Errorf("Expected exit code 0, got %d. Output:\n%s", code, stdout.String())
-		}
-		out := stdout.String()
-		if !strings.Contains(out, `"algorithm"`) {
-			t.Errorf("JSON output should contain 'algorithm', got:\n%s", out)
-		}
-		if !strings.Contains(out, `"55"`) {
-			t.Errorf("JSON output should contain result '55', got:\n%s", out)
-		}
-	})
-
-	t.Run("hex output", func(t *testing.T) {
-		t.Parallel()
-		var stdout, stderr bytes.Buffer
-		code := run([]string{"fibcalc", "-n", "10", "--hex", "--no-color"}, &stdout, &stderr)
-
-		if code != 0 {
-			t.Errorf("Expected exit code 0, got %d. Output:\n%s", code, stdout.String())
-		}
-		if !strings.Contains(stdout.String(), "0x37") {
-			t.Errorf("Hex output should contain '0x37', got:\n%s", stdout.String())
 		}
 	})
 
@@ -167,7 +137,7 @@ func TestRun_Calculation(t *testing.T) {
 	t.Run("all algorithms comparison", func(t *testing.T) {
 		t.Parallel()
 		var stdout, stderr bytes.Buffer
-		code := run([]string{"fibcalc", "-n", "10", "--algo", "all", "--no-color"}, &stdout, &stderr)
+		code := run([]string{"fibcalc", "-n", "10", "--algo", "all"}, &stdout, &stderr)
 
 		if code != 0 {
 			t.Errorf("Expected exit code 0, got %d. Output:\n%s", code, stdout.String())

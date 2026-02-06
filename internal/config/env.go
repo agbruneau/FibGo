@@ -108,11 +108,8 @@ func isFlagSetAny(fs *flag.FlagSet, names ...string) bool {
 //   - FIBCALC_THRESHOLD: Parallelism threshold in bits (int)
 //   - FIBCALC_FFT_THRESHOLD: FFT multiplication threshold in bits (int)
 //   - FIBCALC_STRASSEN_THRESHOLD: Strassen algorithm threshold in bits (int)
-//   - FIBCALC_JSON: Enable JSON output (bool)
 //   - FIBCALC_VERBOSE: Enable verbose output (bool)
 //   - FIBCALC_QUIET: Enable quiet mode (bool)
-//   - FIBCALC_HEX: Enable hexadecimal output (bool)
-//   - FIBCALC_NO_COLOR: Disable colored output (bool)
 //   - FIBCALC_OUTPUT: Output file path (string)
 //   - FIBCALC_CALIBRATION_PROFILE: Path to calibration profile (string)
 func applyEnvOverrides(config *AppConfig, fs *flag.FlagSet) {
@@ -156,9 +153,6 @@ func applyStringOverrides(config *AppConfig, fs *flag.FlagSet) {
 }
 
 func applyBooleanOverrides(config *AppConfig, fs *flag.FlagSet) {
-	if !isFlagSet(fs, "json") {
-		config.JSONOutput = getEnvBool("JSON", config.JSONOutput)
-	}
 	if !isFlagSetAny(fs, "v", "verbose") {
 		config.Verbose = getEnvBool("VERBOSE", config.Verbose)
 	}
@@ -167,12 +161,6 @@ func applyBooleanOverrides(config *AppConfig, fs *flag.FlagSet) {
 	}
 	if !isFlagSetAny(fs, "quiet", "q") {
 		config.Quiet = getEnvBool("QUIET", config.Quiet)
-	}
-	if !isFlagSet(fs, "hex") {
-		config.HexOutput = getEnvBool("HEX", config.HexOutput)
-	}
-	if !isFlagSet(fs, "no-color") {
-		config.NoColor = getEnvBool("NO_COLOR", config.NoColor)
 	}
 	if !isFlagSet(fs, "calibrate") {
 		config.Calibrate = getEnvBool("CALIBRATE", config.Calibrate)

@@ -41,7 +41,7 @@ _fibcalc_completions() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # Main options
-    opts="--help -h --version -V -n -v -d --details --timeout --algo --threshold --fft-threshold --strassen-threshold --calibrate --auto-calibrate --calibration-profile --json --no-color --output -o --quiet -q --hex --completion"
+    opts="--help -h --version -V -n -v -d --details --timeout --algo --threshold --fft-threshold --strassen-threshold --calibrate --auto-calibrate --calibration-profile --output -o --quiet -q --completion"
 
     # Available algorithms
     algorithms="%s all"
@@ -115,11 +115,8 @@ _fibcalc() {
         '--calibrate[Run calibration mode]' \
         '--auto-calibrate[Enable auto-calibration]' \
         '--calibration-profile[Calibration profile file]:file:_files' \
-        '--json[Output in JSON format]' \
-        '--no-color[Disable colored output]' \
         '(-o --output)'{-o,--output}'[Output file path]:file:_files' \
         '(-q --quiet)'{-q,--quiet}'[Quiet mode for scripts]' \
-        '--hex[Display result in hexadecimal]' \
         '--completion[Generate completion script]:shell:(bash zsh fish powershell)'
 }
 
@@ -165,11 +162,8 @@ complete -c fibcalc -l auto-calibrate -d 'Enable auto-calibration'
 complete -c fibcalc -l calibration-profile -d 'Calibration profile file' -rF
 
 # Output options
-complete -c fibcalc -l json -d 'Output in JSON format'
 complete -c fibcalc -s o -l output -d 'Output file path' -rF
 complete -c fibcalc -s q -l quiet -d 'Quiet mode for scripts'
-complete -c fibcalc -l hex -d 'Display result in hexadecimal'
-complete -c fibcalc -l no-color -d 'Disable colored output'
 
 # Completion
 complete -c fibcalc -l completion -d 'Generate completion script' -xa 'bash zsh fish powershell'
@@ -213,13 +207,10 @@ Register-ArgumentCompleter -CommandName 'fibcalc' -Native -ScriptBlock {
         @{Name = '--calibrate'; Description = 'Run calibration mode' }
         @{Name = '--auto-calibrate'; Description = 'Enable auto-calibration' }
         @{Name = '--calibration-profile'; Description = 'Calibration profile file' }
-        @{Name = '--json'; Description = 'Output in JSON format' }
-        @{Name = '--no-color'; Description = 'Disable colored output' }
         @{Name = '-o'; Description = 'Output file path' }
         @{Name = '--output'; Description = 'Output file path' }
         @{Name = '-q'; Description = 'Quiet mode for scripts' }
         @{Name = '--quiet'; Description = 'Quiet mode for scripts' }
-        @{Name = '--hex'; Description = 'Display result in hexadecimal' }
         @{Name = '--completion'; Description = 'Generate completion script' }
     )
 

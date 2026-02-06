@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -130,8 +129,8 @@ func (a *Application) Run(ctx context.Context, out io.Writer) int {
 
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
-	// Initialize CLI theme (respects --no-color flag and NO_COLOR env var)
-	ui.InitTheme(a.Config.NoColor)
+	// Initialize CLI theme (respects NO_COLOR env var)
+	ui.InitTheme(false)
 
 	// Calibration mode
 	if a.Config.Calibrate {
@@ -183,7 +182,7 @@ func (a *Application) runCalculate(ctx context.Context, out io.Writer) int {
 	calculatorsToRun := cli.GetCalculatorsToRun(a.Config, a.Factory)
 
 	// Skip verbose output in quiet mode
-	if !a.Config.JSONOutput && !a.Config.Quiet {
+	if !a.Config.Quiet {
 		cli.PrintExecutionConfig(a.Config, out)
 		cli.PrintExecutionMode(calculatorsToRun, out)
 	}
@@ -201,15 +200,9 @@ func (a *Application) runCalculate(ctx context.Context, out io.Writer) int {
 	// Execute calculations
 	results := orchestration.ExecuteCalculations(ctx, calculatorsToRun, a.Config, progressReporter, progressOut)
 
-	// Handle JSON output
-	if a.Config.JSONOutput {
-		return printJSONResults(results, out)
-	}
-
 	// Build output config for the CLI options
 	outputCfg := cli.OutputConfig{
 		OutputFile: a.Config.OutputFile,
-		HexOutput:  a.Config.HexOutput,
 		Quiet:      a.Config.Quiet,
 		Verbose:    a.Config.Verbose,
 		ShowValue:  a.Config.ShowValue,
@@ -223,7 +216,7 @@ func (a *Application) analyzeResultsWithOutput(results []orchestration.Calculati
 
 	// Handle quiet mode for single result
 	if outputCfg.Quiet && bestResult != nil {
-		cli.DisplayQuietResult(out, bestResult.Result, a.Config.N, bestResult.Duration, outputCfg.HexOutput)
+		cli.DisplayQuietResult(out, bestResult.Result, a.Config.N, bestResult.Duration)
 
 		// Save to file if requested
 		if err := a.saveResultIfNeeded(bestResult, outputCfg); err != nil {
@@ -236,11 +229,8 @@ func (a *Application) analyzeResultsWithOutput(results []orchestration.Calculati
 	// Use standard analysis for non-quiet mode
 	exitCode := orchestration.AnalyzeComparisonResults(results, a.Config, cli.CLIResultPresenter{}, out)
 
-	// Handle file output and hex display for non-quiet mode
+	// Handle file output for non-quiet mode
 	if bestResult != nil && exitCode == apperrors.ExitSuccess {
-		// Display hex format if requested
-		a.displayHexIfNeeded(bestResult, outputCfg, out)
-
 		// Save to file if requested
 		if err := a.saveResultIfNeeded(bestResult, outputCfg); err != nil {
 			return apperrors.ExitErrorGeneric
@@ -290,42 +280,3 @@ func (a *Application) saveResultIfNeeded(res *orchestration.CalculationResult, c
 	return nil
 }
 
-func (a *Application) displayHexIfNeeded(res *orchestration.CalculationResult, cfg cli.OutputConfig, out io.Writer) {
-	if !cfg.HexOutput {
-		return
-	}
-	cli.DisplayHexResult(out, res.Result, a.Config.N, a.Config.Verbose)
-}
-
-// jsonResult represents a single calculation result in JSON format.
-type jsonResult struct {
-	Algorithm string `json:"algorithm"`
-	Duration  string `json:"duration"`
-	Result    string `json:"result,omitempty"`
-	Error     string `json:"error,omitempty"`
-}
-
-// printJSONResults formats the calculation results as a JSON array and writes
-// them to the output. This is useful for programmatic consumption of the results.
-func printJSONResults(results []orchestration.CalculationResult, out io.Writer) int {
-	output := make([]jsonResult, len(results))
-	for i, res := range results {
-		jr := jsonResult{
-			Algorithm: res.Name,
-			Duration:  res.Duration.String(),
-		}
-		if res.Err != nil {
-			jr.Error = res.Err.Error()
-		} else {
-			jr.Result = res.Result.String()
-		}
-		output[i] = jr
-	}
-
-	enc := json.NewEncoder(out)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(output); err != nil {
-		return apperrors.ExitErrorGeneric
-	}
-	return apperrors.ExitSuccess
-}

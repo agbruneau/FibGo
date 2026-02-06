@@ -2,7 +2,6 @@ package config
 
 import (
 	"bytes"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -266,12 +265,6 @@ func TestParseConfigDefaults(t *testing.T) {
 	if cfg.AutoCalibrate {
 		t.Error("Default AutoCalibrate should be false")
 	}
-	if cfg.JSONOutput {
-		t.Error("Default JSONOutput should be false")
-	}
-	if cfg.NoColor {
-		t.Error("Default NoColor should be false")
-	}
 }
 
 // TestParseConfigAllFlags tests parsing of all flags.
@@ -292,8 +285,6 @@ func TestParseConfigAllFlags(t *testing.T) {
 		"-calibrate",
 		"-auto-calibrate",
 		"-calibration-profile", "/path/to/profile.json",
-		"-json",
-		"-no-color",
 	}
 
 	cfg, err := ParseConfig("test", args, &buf, algos)
@@ -334,12 +325,6 @@ func TestParseConfigAllFlags(t *testing.T) {
 	}
 	if cfg.CalibrationProfile != "/path/to/profile.json" {
 		t.Errorf("CalibrationProfile: expected '/path/to/profile.json', got '%s'", cfg.CalibrationProfile)
-	}
-	if !cfg.JSONOutput {
-		t.Error("JSONOutput should be true")
-	}
-	if !cfg.NoColor {
-		t.Error("NoColor should be true")
 	}
 }
 
@@ -549,49 +534,6 @@ func TestParseConfigHelpFlag(t *testing.T) {
 // Environment Variable Tests
 // ─────────────────────────────────────────────────────────────────────────────
 
-// TestNoColorEnvironmentVariable tests that NO_COLOR env var is documented.
-func TestNoColorEnvironmentVariable(t *testing.T) {
-	t.Parallel()
-	// This is a documentation/behavior test
-	// The actual NO_COLOR handling is done in cli package
-	// but we document it in config
-
-	var buf bytes.Buffer
-	algos := []string{"fast"}
-
-	// Test that -no-color flag exists and works
-	cfg, err := ParseConfig("test", []string{"-no-color"}, &buf, algos)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if !cfg.NoColor {
-		t.Error("NoColor should be true")
-	}
-}
-
-// TestParseConfigWithEnvironment tests config in presence of env vars.
-func TestParseConfigWithEnvironment(t *testing.T) {
-	// Set and restore env var
-	oldVal := os.Getenv("NO_COLOR")
-	defer os.Setenv("NO_COLOR", oldVal)
-
-	os.Setenv("NO_COLOR", "1")
-
-	var buf bytes.Buffer
-	algos := []string{"fast"}
-
-	// Even with NO_COLOR set, the flag should still work
-	cfg, err := ParseConfig("test", []string{}, &buf, algos)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-
-	// The config itself doesn't read NO_COLOR, cli does
-	// So NoColor should still be false unless explicitly set
-	if cfg.NoColor {
-		t.Error("Config NoColor should be false (env var is handled by cli)")
-	}
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Boundary Value Tests
