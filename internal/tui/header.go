@@ -12,6 +12,7 @@ import (
 // HeaderModel renders the top bar: title, version, elapsed time.
 type HeaderModel struct {
 	startTime time.Time
+	endTime   time.Time
 	version   string
 	width     int
 }
@@ -24,6 +25,11 @@ func NewHeaderModel(version string) HeaderModel {
 	}
 }
 
+// SetDone freezes the elapsed timer at the current time.
+func (h *HeaderModel) SetDone() {
+	h.endTime = time.Now()
+}
+
 // SetWidth updates the available width.
 func (h *HeaderModel) SetWidth(w int) {
 	h.width = w
@@ -33,7 +39,13 @@ func (h *HeaderModel) SetWidth(w int) {
 func (h HeaderModel) View() string {
 	title := titleStyle.Render("FibGo Monitor")
 	version := versionStyle.Render(h.version)
-	elapsed := elapsedStyle.Render(fmt.Sprintf("Elapsed: %s", cli.FormatExecutionDuration(time.Since(h.startTime))))
+	var duration time.Duration
+	if !h.endTime.IsZero() {
+		duration = h.endTime.Sub(h.startTime)
+	} else {
+		duration = time.Since(h.startTime)
+	}
+	elapsed := elapsedStyle.Render(fmt.Sprintf("Elapsed: %s", cli.FormatExecutionDuration(duration)))
 
 	// Calculate spacing
 	titleLen := lipgloss.Width(title)

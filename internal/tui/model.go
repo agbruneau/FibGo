@@ -107,10 +107,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.logs.AddError(msg)
 		m.footer.SetError(true)
 		m.done = true
+		m.header.SetDone()
 		m.footer.SetDone(true)
 		return m, nil
 
 	case TickMsg:
+		if m.done {
+			return m, nil
+		}
 		if !m.paused {
 			return m, tea.Batch(sampleMemStatsCmd(), tickCmd())
 		}
@@ -123,11 +127,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case CalculationCompleteMsg:
 		m.done = true
 		m.exitCode = msg.ExitCode
+		m.header.SetDone()
 		m.footer.SetDone(true)
 		return m, nil
 
 	case ContextCancelledMsg:
 		m.done = true
+		m.header.SetDone()
 		m.footer.SetDone(true)
 		return m, tea.Quit
 	}
