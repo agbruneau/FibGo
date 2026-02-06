@@ -14,6 +14,7 @@ import (
 	apperrors "github.com/agbru/fibcalc/internal/errors"
 	"github.com/agbru/fibcalc/internal/fibonacci"
 	"github.com/agbru/fibcalc/internal/orchestration"
+	"github.com/agbru/fibcalc/internal/sysmon"
 )
 
 // Model is the root bubbletea model for the TUI dashboard.
@@ -121,12 +122,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if !m.paused {
-			return m, tea.Batch(sampleMemStatsCmd(), tickCmd())
+			return m, tea.Batch(sampleMemStatsCmd(), sampleSysStatsCmd(), tickCmd())
 		}
 		return m, tickCmd()
 
 	case MemStatsMsg:
 		m.metrics.UpdateMemStats(msg)
+		return m, nil
+
+	case SysStatsMsg:
+		m.chart.UpdateSysStats(msg.CPUPercent, msg.MemPercent)
 		return m, nil
 
 	case CalculationCompleteMsg:
@@ -320,6 +325,17 @@ func sampleMemStatsCmd() tea.Cmd {
 			HeapInuse:    ms.HeapInuse,
 			NumGC:        ms.NumGC,
 			NumGoroutine: runtime.NumGoroutine(),
+		}
+	}
+}
+
+// sampleSysStatsCmd reads system-wide CPU and memory stats and returns a SysStatsMsg.
+func sampleSysStatsCmd() tea.Cmd {
+	return func() tea.Msg {
+		s := sysmon.Sample()
+		return SysStatsMsg{
+			CPUPercent: s.CPUPercent,
+			MemPercent: s.MemPercent,
 		}
 	}
 }

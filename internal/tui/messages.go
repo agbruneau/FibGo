@@ -54,6 +54,12 @@ type CalculationCompleteMsg struct {
 	Generation uint64
 }
 
+// SysStatsMsg carries system-wide CPU and memory usage percentages.
+type SysStatsMsg struct {
+	CPUPercent float64 // 0.0 .. 100.0
+	MemPercent float64 // 0.0 .. 100.0
+}
+
 // ContextCancelledMsg signals that the context was cancelled.
 type ContextCancelledMsg struct {
 	Err        error

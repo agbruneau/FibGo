@@ -675,6 +675,60 @@ func TestStartCalculationCmd_ReturnsCompleteMsg(t *testing.T) {
 	}
 }
 
+func TestModel_Update_SysStatsMsg(t *testing.T) {
+	m := newTestModelWithSize(t, 80, 24)
+
+	msg := SysStatsMsg{CPUPercent: 25.5, MemPercent: 60.0}
+	updated, cmd := m.Update(msg)
+	result := updated.(Model)
+
+	if cmd != nil {
+		t.Error("expected no command from SysStatsMsg")
+	}
+	if result.chart.cpuHistory.Len() != 1 {
+		t.Errorf("expected 1 cpu sample, got %d", result.chart.cpuHistory.Len())
+	}
+	if result.chart.memHistory.Len() != 1 {
+		t.Errorf("expected 1 mem sample, got %d", result.chart.memHistory.Len())
+	}
+	if result.chart.cpuHistory.Last() != 25.5 {
+		t.Errorf("expected cpu 25.5, got %f", result.chart.cpuHistory.Last())
+	}
+}
+
+func TestSampleSysStatsCmd_ReturnsSysStatsMsg(t *testing.T) {
+	cmd := sampleSysStatsCmd()
+	if cmd == nil {
+		t.Fatal("expected non-nil command from sampleSysStatsCmd")
+	}
+	msg := cmd()
+	if _, ok := msg.(SysStatsMsg); !ok {
+		t.Errorf("expected SysStatsMsg, got %T", msg)
+	}
+}
+
+func TestModel_HandleKey_Restart_ClearsSysStats(t *testing.T) {
+	m := newTestModelWithSize(t, 80, 24)
+
+	m.chart.UpdateSysStats(50.0, 70.0)
+	m.chart.UpdateSysStats(55.0, 72.0)
+
+	if m.chart.cpuHistory.Len() != 2 {
+		t.Fatal("precondition: expected 2 cpu samples")
+	}
+
+	// Press 'r' to restart
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+	result := updated.(Model)
+
+	if result.chart.cpuHistory.Len() != 0 {
+		t.Error("expected cpuHistory to be cleared after restart")
+	}
+	if result.chart.memHistory.Len() != 0 {
+		t.Error("expected memHistory to be cleared after restart")
+	}
+}
+
 func TestModel_HandleKey_Quit_CancelsContext(t *testing.T) {
 	cfg := config.AppConfig{N: 1000, Timeout: time.Minute}
 	m := NewModel(context.Background(), nil, cfg, "v1.0.0")

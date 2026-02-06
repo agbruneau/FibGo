@@ -109,3 +109,11 @@ var statusErrorStyle = lipgloss.NewStyle().
 	Foreground(colorError).
 	Bold(true)
 
+// cpuSparklineStyle for CPU sparkline characters (green).
+var cpuSparklineStyle = lipgloss.NewStyle().
+	Foreground(colorSuccess)
+
+// memSparklineStyle for memory sparkline characters (purple).
+var memSparklineStyle = lipgloss.NewStyle().
+	Foreground(colorMagenta)
+
