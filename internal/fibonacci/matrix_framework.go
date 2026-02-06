@@ -83,5 +83,11 @@ func (f *MatrixFramework) ExecuteMatrixLoop(ctx context.Context, reporter Progre
 		// stepIndex becomes `i`, resulting in increasing work values.
 		workDone = ReportStepProgress(reporter, &lastReportedProgress, totalWork, workDone, numBits-1-i, numBits, powers)
 	}
-	return new(big.Int).Set(state.res.a), nil
+	// Optimization: Avoid copying the entire result by "stealing" res.a from
+	// the matrix state. We replace it with a fresh empty big.Int so the state
+	// remains valid for pool return via releaseMatrixState. This eliminates an
+	// O(n) copy of the result, trading it for a single 24-byte allocation.
+	result := state.res.a
+	state.res.a = new(big.Int)
+	return result, nil
 }

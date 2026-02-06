@@ -249,5 +249,12 @@ func (f *DoublingFramework) ExecuteDoublingLoop(ctx context.Context, reporter Pr
 		// Harmonized reporting via common utility function
 		workDone = ReportStepProgress(reporter, &lastReportedProgress, totalWork, workDone, i, numBits, powers)
 	}
-	return new(big.Int).Set(s.FK), nil
+	// Optimization: Avoid copying the entire result by "stealing" FK from the
+	// calculation state. We replace FK with a fresh empty big.Int so the state
+	// remains valid for pool return via ReleaseState. This eliminates an O(n)
+	// copy where n is the word count of the result (e.g., ~109K words / ~850 KB
+	// for F(10M)), trading it for a single 24-byte big.Int header allocation.
+	result := s.FK
+	s.FK = new(big.Int)
+	return result, nil
 }
