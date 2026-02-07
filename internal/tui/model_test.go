@@ -362,7 +362,6 @@ func TestModel_Update_MemStatsMsg(t *testing.T) {
 
 	msg := MemStatsMsg{
 		Alloc:        1024 * 1024 * 10,
-		HeapInuse:    1024 * 1024 * 20,
 		NumGC:        5,
 		NumGoroutine: 12,
 	}

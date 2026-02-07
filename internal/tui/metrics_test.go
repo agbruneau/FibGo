@@ -11,7 +11,6 @@ func TestMetricsModel_UpdateMemStats(t *testing.T) {
 
 	msg := MemStatsMsg{
 		Alloc:        1024 * 1024 * 50, // 50 MB
-		HeapInuse:    1024 * 1024 * 80,
 		NumGC:        10,
 		NumGoroutine: 8,
 	}
@@ -96,7 +95,6 @@ func TestMetricsModel_View(t *testing.T) {
 
 	m.UpdateMemStats(MemStatsMsg{
 		Alloc:        1024 * 1024 * 50,
-		HeapInuse:    1024 * 1024 * 80,
 		NumGC:        10,
 		NumGoroutine: 8,
 	})
