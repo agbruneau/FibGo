@@ -47,7 +47,7 @@ Presentation (internal/cli, internal/tui)  — CLI output or TUI dashboard
 
 **CalculatorFactory** (`internal/fibonacci/registry.go`): Creates/caches `Calculator` instances. `DefaultFactory` pre-registers "fast", "matrix", "fft". Global instance via `GlobalFactory()`. GMP calculator auto-registers via `init()` when built with `-tags=gmp`.
 
-**MultiplicationStrategy** (`internal/fibonacci/strategy.go`): Abstraction for multiply/square operations. Strategies: `SmartStrategy` (selects Karatsuba vs FFT by operand size), `FFTStrategy` (always FFT).
+**MultiplicationStrategy** (`internal/fibonacci/strategy.go`): Abstraction for multiply/square operations. Strategies: `AdaptiveStrategy` (selects math/big vs FFT by operand size), `FFTOnlyStrategy` (always FFT), `KaratsubaStrategy` (always math/big, for testing).
 
 **ProgressReporter / ResultPresenter** (`internal/orchestration/interfaces.go`): Decouple orchestration from presentation. CLI implementations in `internal/cli/presenter.go`. TUI implementations in `internal/tui/bridge.go`. `NullProgressReporter` for quiet mode/testing.
 
@@ -60,8 +60,8 @@ Presentation (internal/cli, internal/tui)  — CLI output or TUI dashboard
 | `internal/fibonacci` | `fastdoubling.go`, `matrix.go`, `fft_based.go` | Algorithm implementations |
 | `internal/fibonacci` | `registry.go`, `calculator.go`, `strategy.go` | Factory, interfaces, strategies |
 | `internal/fibonacci` | `observer.go`, `common.go`, `constants.go` | Progress, task semaphore, thresholds |
-| `internal/bigfft` | `fft.go`, `fermat.go`, `pool.go`, `karatsuba.go` | FFT/Karatsuba multiplication with pooling |
-| `internal/bigfft` | `arith_amd64.go`, `arith_amd64.s` | Assembly-optimized FFT (AVX2/AVX-512) |
+| `internal/bigfft` | `fft.go`, `fermat.go`, `pool.go` | FFT multiplication with pooling |
+| `internal/bigfft` | `arith_amd64.go`, `arith_generic.go`, `arith_decl.go` | Vector arithmetic via `go:linkname` to `math/big` |
 | `internal/orchestration` | `orchestrator.go`, `interfaces.go` | Parallel execution via `errgroup` |
 | `internal/cli` | `output.go`, `presenter.go`, `ui.go`, `progress_eta.go` | CLI output, progress display |
 | `internal/tui` | `model.go`, `bridge.go`, `styles.go`, `messages.go` | Interactive TUI dashboard (btop-style, Bubble Tea) |
@@ -101,7 +101,7 @@ Presentation (internal/cli, internal/tui)  — CLI output or TUI dashboard
 
 - **Decorator**: `FibCalculator` wraps `coreCalculator` to add small-N fast path and progress reporting
 - **Factory + Registry**: `DefaultFactory` with lazy creation and caching; GMP auto-registers via `init()`
-- **Strategy**: `MultiplicationStrategy` selects Karatsuba vs FFT based on operand bit size
+- **Strategy**: `MultiplicationStrategy` selects math/big vs FFT based on operand bit size
 - **Observer**: `ProgressSubject`/`ProgressObserver` for progress events; `ChannelObserver` bridges to channels
 - **Object Pooling**: `sync.Pool` for `big.Int` and calculation states; `MaxPooledBitLen = 4M bits` cap
 - **Interface-Based Decoupling**: Orchestration depends on `ProgressReporter`/`ResultPresenter` interfaces, not CLI directly
@@ -109,7 +109,7 @@ Presentation (internal/cli, internal/tui)  — CLI output or TUI dashboard
 ## Build Tags & Platform-Specific Code
 
 - **GMP**: `go build -tags=gmp` — requires libgmp. `calculator_gmp.go` auto-registers via `init()`
-- **amd64 ASM**: `internal/bigfft/arith_amd64.s` — runtime CPU feature detection (AVX2/AVX-512)
+- **amd64 CPU detection**: `internal/bigfft/cpu_amd64.go` — runtime CPU feature detection (AVX2/AVX-512)
 - **PGO**: Profile stored at `cmd/fibcalc/default.pgo`
 
 ## Naming Conventions

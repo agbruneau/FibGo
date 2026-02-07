@@ -193,8 +193,8 @@ func TestProgressSubject_ConcurrentAccess(t *testing.T) {
 	}
 }
 
-// TestProgressSubject_AsProgressReporter verifies adapter function.
-func TestProgressSubject_AsProgressReporter(t *testing.T) {
+// TestProgressSubject_AsProgressCallback verifies adapter function.
+func TestProgressSubject_AsProgressCallback(t *testing.T) {
 	t.Parallel()
 
 	subject := NewProgressSubject()
@@ -202,7 +202,7 @@ func TestProgressSubject_AsProgressReporter(t *testing.T) {
 	subject.Register(mock)
 
 	// Get reporter for calcIndex 5
-	reporter := subject.AsProgressReporter(5)
+	reporter := subject.AsProgressCallback(5)
 
 	// Call reporter
 	reporter(0.25)

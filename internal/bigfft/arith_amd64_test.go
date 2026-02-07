@@ -58,7 +58,7 @@ func TestSIMDLevel(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Correctness Tests for addVV
+// Correctness Tests for AddVV
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestAddVV_Correctness(t *testing.T) {
@@ -94,19 +94,17 @@ func TestAddVV_Correctness(t *testing.T) {
 			zRef := make([]Word, tc.size)
 			cRef := addVV(zRef, x, y)
 
-			// AVX2 implementation
-			if HasAVX2() {
-				zAVX2 := make([]Word, tc.size)
-				cAVX2 := addVVAvx2(zAVX2, x, y)
+			// Test via public API
+			zTest := make([]Word, tc.size)
+			cTest := AddVV(zTest, x, y)
 
-				// Compare results
-				if cRef != cAVX2 {
-					t.Errorf("Carry mismatch: ref=%d, avx2=%d", cRef, cAVX2)
-				}
-				for i := range zRef {
-					if zRef[i] != zAVX2[i] {
-						t.Errorf("Result mismatch at index %d: ref=%x, avx2=%x", i, zRef[i], zAVX2[i])
-					}
+			// Compare results
+			if cRef != cTest {
+				t.Errorf("Carry mismatch: ref=%d, test=%d", cRef, cTest)
+			}
+			for i := range zRef {
+				if zRef[i] != zTest[i] {
+					t.Errorf("Result mismatch at index %d: ref=%x, test=%x", i, zRef[i], zTest[i])
 				}
 			}
 		})
@@ -131,23 +129,21 @@ func TestAddVV_CarryPropagation(t *testing.T) {
 	zRef := make([]Word, size)
 	cRef := addVV(zRef, x, y)
 
-	if HasAVX2() {
-		zAVX2 := make([]Word, size)
-		cAVX2 := addVVAvx2(zAVX2, x, y)
+	zTest := make([]Word, size)
+	cTest := AddVV(zTest, x, y)
 
-		if cRef != cAVX2 {
-			t.Errorf("Carry chain mismatch: ref=%d, avx2=%d", cRef, cAVX2)
-		}
-		for i := range zRef {
-			if zRef[i] != zAVX2[i] {
-				t.Errorf("Result mismatch at index %d: ref=%x, avx2=%x", i, zRef[i], zAVX2[i])
-			}
+	if cRef != cTest {
+		t.Errorf("Carry chain mismatch: ref=%d, test=%d", cRef, cTest)
+	}
+	for i := range zRef {
+		if zRef[i] != zTest[i] {
+			t.Errorf("Result mismatch at index %d: ref=%x, test=%x", i, zRef[i], zTest[i])
 		}
 	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Correctness Tests for subVV
+// Correctness Tests for SubVV
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestSubVV_Correctness(t *testing.T) {
@@ -180,17 +176,15 @@ func TestSubVV_Correctness(t *testing.T) {
 			zRef := make([]Word, tc.size)
 			cRef := subVV(zRef, x, y)
 
-			if HasAVX2() {
-				zAVX2 := make([]Word, tc.size)
-				cAVX2 := subVVAvx2(zAVX2, x, y)
+			zTest := make([]Word, tc.size)
+			cTest := SubVV(zTest, x, y)
 
-				if cRef != cAVX2 {
-					t.Errorf("Borrow mismatch: ref=%d, avx2=%d", cRef, cAVX2)
-				}
-				for i := range zRef {
-					if zRef[i] != zAVX2[i] {
-						t.Errorf("Result mismatch at index %d: ref=%x, avx2=%x", i, zRef[i], zAVX2[i])
-					}
+			if cRef != cTest {
+				t.Errorf("Borrow mismatch: ref=%d, test=%d", cRef, cTest)
+			}
+			for i := range zRef {
+				if zRef[i] != zTest[i] {
+					t.Errorf("Result mismatch at index %d: ref=%x, test=%x", i, zRef[i], zTest[i])
 				}
 			}
 		})
@@ -198,7 +192,7 @@ func TestSubVV_Correctness(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Correctness Tests for addMulVVW
+// Correctness Tests for AddMulVVW
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestAddMulVVW_Correctness(t *testing.T) {
@@ -230,20 +224,17 @@ func TestAddMulVVW_Correctness(t *testing.T) {
 
 			// Initialize z with random values (accumulator)
 			zRef := generateRandomWords(tc.size, 45)
-			zAVX2 := copyWords(zRef)
+			zTest := copyWords(zRef)
 
 			cRef := addMulVVW(zRef, x, y)
+			cTest := AddMulVVW(zTest, x, y)
 
-			if HasAVX2() {
-				cAVX2 := addMulVVWAvx2(zAVX2, x, y)
-
-				if cRef != cAVX2 {
-					t.Errorf("Carry mismatch: ref=%d, avx2=%d", cRef, cAVX2)
-				}
-				for i := range zRef {
-					if zRef[i] != zAVX2[i] {
-						t.Errorf("Result mismatch at index %d: ref=%x, avx2=%x", i, zRef[i], zAVX2[i])
-					}
+			if cRef != cTest {
+				t.Errorf("Carry mismatch: ref=%d, test=%d", cRef, cTest)
+			}
+			for i := range zRef {
+				if zRef[i] != zTest[i] {
+					t.Errorf("Result mismatch at index %d: ref=%x, test=%x", i, zRef[i], zTest[i])
 				}
 			}
 		})
@@ -304,19 +295,11 @@ func BenchmarkAddVV(b *testing.B) {
 		y := generateRandomWords(size, 43)
 		z := make([]Word, size)
 
-		b.Run("Default/"+itoa(size), func(b *testing.B) {
+		b.Run(itoa(size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				addVV(z, x, y)
+				AddVV(z, x, y)
 			}
 		})
-
-		if HasAVX2() {
-			b.Run("AVX2/"+itoa(size), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					addVVAvx2(z, x, y)
-				}
-			})
-		}
 	}
 }
 
@@ -329,19 +312,11 @@ func BenchmarkSubVV(b *testing.B) {
 		y := generateRandomWords(size, 43)
 		z := make([]Word, size)
 
-		b.Run("Default/"+itoa(size), func(b *testing.B) {
+		b.Run(itoa(size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				subVV(z, x, y)
+				SubVV(z, x, y)
 			}
 		})
-
-		if HasAVX2() {
-			b.Run("AVX2/"+itoa(size), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					subVVAvx2(z, x, y)
-				}
-			})
-		}
 	}
 }
 
@@ -354,26 +329,15 @@ func BenchmarkAddMulVVW(b *testing.B) {
 		y := Word(0x123456789ABCDEF0)
 		z := make([]Word, size)
 
-		b.Run("Default/"+itoa(size), func(b *testing.B) {
+		b.Run(itoa(size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				// Reset z for fair comparison
 				for j := range z {
 					z[j] = 0
 				}
-				addMulVVW(z, x, y)
+				AddMulVVW(z, x, y)
 			}
 		})
-
-		if HasAVX2() {
-			b.Run("AVX2/"+itoa(size), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					for j := range z {
-						z[j] = 0
-					}
-					addMulVVWAvx2(z, x, y)
-				}
-			})
-		}
 	}
 }
 
@@ -420,181 +384,4 @@ func TestIntegrationWithBigInt(t *testing.T) {
 			t.Errorf("Addition mismatch:\nexpected: %s\ngot: %s", expected.String(), result.String())
 		}
 	})
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Implementation Selection Tests
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestUseAVX2(t *testing.T) {
-	// Save original state
-	originalLevel := implLevel
-	defer func() {
-		// Restore original implementation
-		selectImplementation()
-	}()
-
-	result := UseAVX2()
-	if HasAVX2() {
-		if !result {
-			t.Error("UseAVX2() returned false but AVX2 is available")
-		}
-		if implLevel != SIMDAVX2 {
-			t.Errorf("expected implLevel SIMDAVX2, got %s", implLevel.String())
-		}
-	} else {
-		if result {
-			t.Error("UseAVX2() returned true but AVX2 is not available")
-		}
-	}
-	_ = originalLevel // Use variable
-}
-
-func TestUseDefault(t *testing.T) {
-	// Save original state
-	defer func() {
-		// Restore original implementation
-		selectImplementation()
-	}()
-
-	// First enable AVX2 if available
-	UseAVX2()
-
-	// Then switch to default
-	UseDefault()
-
-	if implLevel != SIMDNone {
-		t.Errorf("expected implLevel SIMDNone after UseDefault, got %s", implLevel.String())
-	}
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Auto Selection Function Tests
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestAddVVAuto(t *testing.T) {
-	tests := []struct {
-		name string
-		size int
-	}{
-		{"Empty", 0},
-		{"BelowThreshold", MinSIMDVectorLen - 1},
-		{"AtThreshold", MinSIMDVectorLen},
-		{"AboveThreshold", MinSIMDVectorLen * 2},
-		{"Large", 64},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			if tc.size == 0 {
-				c := AddVVAuto(nil, nil, nil)
-				if c != 0 {
-					t.Errorf("Empty AddVVAuto returned %d, expected 0", c)
-				}
-				return
-			}
-
-			x := generateRandomWords(tc.size, 42)
-			y := generateRandomWords(tc.size, 43)
-			z := make([]Word, tc.size)
-			zRef := make([]Word, tc.size)
-
-			// Reference result
-			cRef := addVV(zRef, x, y)
-
-			// Auto result
-			c := AddVVAuto(z, x, y)
-
-			if c != cRef {
-				t.Errorf("Carry mismatch: auto=%d, ref=%d", c, cRef)
-			}
-			for i := range z {
-				if z[i] != zRef[i] {
-					t.Errorf("Result mismatch at index %d: auto=%x, ref=%x", i, z[i], zRef[i])
-				}
-			}
-		})
-	}
-}
-
-func TestSubVVAuto(t *testing.T) {
-	tests := []struct {
-		name string
-		size int
-	}{
-		{"Empty", 0},
-		{"BelowThreshold", MinSIMDVectorLen - 1},
-		{"AtThreshold", MinSIMDVectorLen},
-		{"AboveThreshold", MinSIMDVectorLen * 2},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			if tc.size == 0 {
-				c := SubVVAuto(nil, nil, nil)
-				if c != 0 {
-					t.Errorf("Empty SubVVAuto returned %d, expected 0", c)
-				}
-				return
-			}
-
-			x := generateRandomWords(tc.size, 42)
-			y := generateRandomWords(tc.size, 43)
-			z := make([]Word, tc.size)
-			zRef := make([]Word, tc.size)
-
-			cRef := subVV(zRef, x, y)
-			c := SubVVAuto(z, x, y)
-
-			if c != cRef {
-				t.Errorf("Borrow mismatch: auto=%d, ref=%d", c, cRef)
-			}
-			for i := range z {
-				if z[i] != zRef[i] {
-					t.Errorf("Result mismatch at index %d: auto=%x, ref=%x", i, z[i], zRef[i])
-				}
-			}
-		})
-	}
-}
-
-func TestAddMulVVWAuto(t *testing.T) {
-	tests := []struct {
-		name string
-		size int
-	}{
-		{"Empty", 0},
-		{"BelowThreshold", MinSIMDVectorLen - 1},
-		{"AtThreshold", MinSIMDVectorLen},
-		{"AboveThreshold", MinSIMDVectorLen * 2},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			if tc.size == 0 {
-				c := AddMulVVWAuto(nil, nil, 0)
-				if c != 0 {
-					t.Errorf("Empty AddMulVVWAuto returned %d, expected 0", c)
-				}
-				return
-			}
-
-			x := generateRandomWords(tc.size, 42)
-			y := Word(0x123456789ABCDEF0)
-			z := generateRandomWords(tc.size, 45)
-			zRef := copyWords(z)
-
-			cRef := addMulVVW(zRef, x, y)
-			c := AddMulVVWAuto(z, x, y)
-
-			if c != cRef {
-				t.Errorf("Carry mismatch: auto=%d, ref=%d", c, cRef)
-			}
-			for i := range z {
-				if z[i] != zRef[i] {
-					t.Errorf("Result mismatch at index %d: auto=%x, ref=%x", i, z[i], zRef[i])
-				}
-			}
-		})
-	}
 }

@@ -10,14 +10,13 @@ The `internal/bigfft` package implements **Schonhage-Strassen FFT multiplication
 Fermat rings for arbitrarily large integers. It is the computational backbone of all
 Fibonacci algorithms in this project once operand sizes exceed ~500,000 bits.
 
-The subsystem comprises ~33 source files totalling approximately 8,000 lines of Go and
-~9,000 lines of hand-written amd64 assembly, organized around five concerns:
+The subsystem comprises ~30 source files totalling approximately 8,000 lines of Go,
+organized around four concerns:
 
 1. **Public API** -- panic-safe entry points for multiplication and squaring
 2. **FFT core** -- polynomial decomposition, forward/inverse transforms, pointwise operations
 3. **Fermat arithmetic** -- modular arithmetic in Z/(2^k+1) where multiplications reduce to shifts
 4. **Memory management** -- four pool hierarchies, a bump allocator, pre-warming, and capacity estimation
-5. **SIMD acceleration** -- runtime CPU detection and AVX2/AVX-512 dispatch on amd64
 
 ---
 
@@ -30,10 +29,9 @@ func Mul(x, y *big.Int) (res *big.Int, err error)
 func MulTo(z, x, y *big.Int) (res *big.Int, err error)
 func Sqr(x *big.Int) (res *big.Int, err error)
 func SqrTo(z, x *big.Int) (res *big.Int, err error)
-func KaratsubaMultiplyTo(z, x, y *big.Int) *big.Int
 ```
 
-All five functions wrap their core logic in `defer/recover` to convert panics into
+All four functions wrap their core logic in `defer/recover` to convert panics into
 returned errors. This guarantees that a malformed input or internal bug never crashes
 the caller.
 
@@ -511,9 +509,7 @@ flowchart TD
 
 ---
 
-## SIMD Acceleration (amd64)
-
-### CPU Feature Detection
+## CPU Feature Detection (amd64)
 
 **File**: `internal/bigfft/cpu_amd64.go`
 
@@ -537,43 +533,20 @@ const (
 )
 ```
 
-### Function Dispatch
+### Vector Arithmetic
 
-**File**: `internal/bigfft/arith_amd64.go`
+**Files**: `internal/bigfft/arith_amd64.go`, `internal/bigfft/arith_generic.go`
 
-Three function-pointer variables enable runtime dispatch:
+Three exported functions (`AddVV`, `SubVV`, `AddMulVVW`) delegate to
+`math/big` internal functions via `go:linkname` (declared in `arith_decl.go`).
+On amd64 and non-amd64 platforms alike, these use the same `math/big` internals,
+which Go's standard library already optimizes with platform-appropriate assembly.
 
-```go
-var addVVFunc     func(z, x, y []Word) Word
-var subVVFunc     func(z, x, y []Word) Word
-var addMulVVWFunc func(z, x []Word, y Word) Word
-```
-
-At `init()`, these are set to the default `go:linkname` implementations, then
-`selectImplementation()` upgrades them to AVX2 or AVX-512 if available.
-
-**Minimum SIMD vector length**: `MinSIMDVectorLen = 8`. Below this threshold,
-scalar operations avoid SIMD overhead. The `*Auto` variants (`AddVVAuto`,
-`SubVVAuto`, `AddMulVVWAuto`) check length before dispatching.
-
-### Assembly Routines
-
-**File**: `internal/bigfft/arith_amd64.s`
-
-Three AVX2-optimized routines declared in Go and implemented in assembly:
-
-| Routine | Operation |
-|---------|-----------|
-| `addVVAvx2(z, x, y)` | z = x + y (vector addition with carry) |
-| `subVVAvx2(z, x, y)` | z = x - y (vector subtraction with borrow) |
-| `addMulVVWAvx2(z, x, y)` | z += x * y (multiply-accumulate, y is scalar) |
-
-### Fallback
+### go:linkname Declarations
 
 **File**: `internal/bigfft/arith_decl.go`
 
-On non-amd64 platforms (or when SIMD is disabled), seven `go:linkname` directives
-bind directly to `math/big` internal functions:
+Seven `go:linkname` directives bind directly to `math/big` internal functions:
 
 ```go
 //go:linkname addVV math/big.addVV
@@ -584,60 +557,6 @@ bind directly to `math/big` internal functions:
 //go:linkname mulAddVWW math/big.mulAddVWW
 //go:linkname addMulVVW math/big.addMulVVW
 ```
-
-### Testing Controls
-
-```go
-func DisableAVX2()     // Force scalar path
-func DisableAVX512()   // Fall back to AVX2 or scalar
-func EnableAllSIMD()   // Restore best available
-```
-
-These are intended for benchmarking and regression testing to isolate SIMD effects.
-
----
-
-## Karatsuba Multiplication
-
-**File**: `internal/bigfft/karatsuba.go`
-
-```go
-func KaratsubaMultiplyTo(z, x, y *big.Int) *big.Int
-```
-
-**Complexity**: O(n^1.585) -- used in the 3-tier selection between
-`KaratsubaThreshold` (2,048 bits) and `FFTThreshold` (500,000 bits).
-
-### Implementation Details
-
-| Constant | Value | Purpose |
-|----------|-------|---------|
-| `DefaultKaratsubaThreshold` | 32 words | Switch to schoolbook below this |
-| `DefaultParallelKaratsubaThreshold` | 4096 words | Minimum for parallel recursion |
-| `MaxKaratsubaParallelDepth` | 3 | Limit goroutine tree depth |
-
-The algorithm recursively splits operands at the midpoint:
-
-```
-x = x1 * B^k + x0
-y = y1 * B^k + y0
-
-z0 = x0 * y0
-z2 = x1 * y1
-z1 = (x0 + x1)(y0 + y1) - z0 - z2
-
-result = z0 + z1*B^k + z2*B^(2k)
-```
-
-**Asymmetric operands**: When `len(x) > 2*len(y)`, the larger operand is split into
-chunks of size `len(y)` and multiplied piecewise.
-
-**Parallelism**: At each recursion level, z0 and z2 may run in parallel if the
-semaphore (shared with FFT, sized `runtime.NumCPU()`) has capacity and operands
-exceed `karatsubaParallelThreshold`.
-
-**Squaring variant**: `KaratsubaSqrTo` exploits `(x0+x1)^2 - x0^2 - x1^2` to
-compute the cross-term, reusing the squaring recursion throughout.
 
 ---
 
@@ -667,17 +586,16 @@ of 10 using the FFT multiplier.
 | `fft_poly.go` | ~417 | `Poly` and `PolValues` types; transform, multiply, inverse |
 | `fft_cache.go` | ~412 | `TransformCache`: thread-safe LRU for FFT transforms |
 | `fermat.go` | ~219 | Fermat ring arithmetic: Z/(2^k+1) |
-| `karatsuba.go` | ~349 | `KaratsubaMultiplyTo`, `KaratsubaSqrTo` with parallel recursion |
 | `pool.go` | ~370 | `sync.Pool` hierarchies (4 types, 33 size classes), `fftState` |
 | `pool_warming.go` | ~99 | `PreWarmPools`, `EnsurePoolsWarmed` |
 | `bump.go` | ~242 | `BumpAllocator`: O(1) bump allocation with capacity estimation |
 | `allocator.go` | ~110 | `TempAllocator` interface, `PoolAllocator`, `BumpAllocatorAdapter` |
 | `memory_est.go` | ~77 | `EstimateMemoryNeeds` for pool pre-warming |
 | `scan.go` | ~87 | `FromDecimalString`: subquadratic decimal parsing |
-| `arith_amd64.go` | ~155 | SIMD function dispatch (Go glue code, amd64 only) |
-| `arith_amd64.s` | ~9000 | AVX2/AVX-512 assembly routines (amd64 only) |
-| `arith_decl.go` | ~52 | Architecture-independent fallback via `go:linkname` |
-| `cpu_amd64.go` | ~240 | Runtime CPU feature detection (amd64 only) |
+| `arith_amd64.go` | ~35 | amd64 vector arithmetic wrappers delegating to `math/big` internals |
+| `arith_generic.go` | ~37 | Non-amd64 vector arithmetic wrappers delegating to `math/big` internals |
+| `arith_decl.go` | ~52 | Architecture-independent `go:linkname` declarations to `math/big` |
+| `cpu_amd64.go` | ~170 | Runtime CPU feature detection (amd64 only) |
 
 ---
 
@@ -708,11 +626,6 @@ flowchart TD
             Cache["TransformCache\nLRU, SHA-256 keyed"]
         end
 
-        subgraph SIMD["SIMD Layer (amd64)"]
-            Detect["CPU Detection"]
-            Dispatch["Function Pointers"]
-            ASM["AVX2 / AVX-512\nAssembly"]
-        end
     end
 
     FD --> API
@@ -723,8 +636,6 @@ flowchart TD
     Poly --> Cache
     Poly --> FFTRec
     FFTRec --> Fermat
-    Fermat --> Dispatch
-    Dispatch --> ASM
     Warm --> Pool
     Est --> Warm
     Est --> Bump
@@ -736,7 +647,7 @@ flowchart TD
 
 ### Called From
 
-- `internal/fibonacci/fft.go` -- `smartMultiply()` dispatches to `bigfft.MulTo` / `bigfft.SqrTo` / `bigfft.KaratsubaMultiplyTo`
+- `internal/fibonacci/fft.go` -- `smartMultiply()` dispatches to `bigfft.MulTo` / `bigfft.SqrTo` or falls back to `math/big`
 - `internal/fibonacci/calculator.go` -- `FibCalculator.CalculateWithObservers()` calls `bigfft.EnsurePoolsWarmed()` before calculation
 
 ### Configuration
@@ -746,7 +657,6 @@ FFT behavior is influenced by these `fibonacci.Options` fields:
 | Option | Default | Effect |
 |--------|---------|--------|
 | `FFTThreshold` | 500,000 bits | Bit-length above which `smartMultiply` routes to `bigfft.MulTo` |
-| `KaratsubaThreshold` | 2,048 bits | Bit-length above which `smartMultiply` routes to `bigfft.KaratsubaMultiplyTo` |
 
 The internal `fftThreshold` (1,800 words) within `bigfft` itself controls whether
 `Mul`/`Sqr` use FFT or fall through to `math/big`; this is separate from the

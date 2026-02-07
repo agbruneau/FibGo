@@ -23,9 +23,6 @@ func TestNormalizeOptions(t *testing.T) {
 		if normalized.FFTThreshold != DefaultFFTThreshold {
 			t.Errorf("FFTThreshold = %d, want %d", normalized.FFTThreshold, DefaultFFTThreshold)
 		}
-		if normalized.KaratsubaThreshold != DefaultKaratsubaThreshold {
-			t.Errorf("KaratsubaThreshold = %d, want %d", normalized.KaratsubaThreshold, DefaultKaratsubaThreshold)
-		}
 		if normalized.StrassenThreshold != DefaultStrassenThreshold {
 			t.Errorf("StrassenThreshold = %d, want %d", normalized.StrassenThreshold, DefaultStrassenThreshold)
 		}
@@ -34,10 +31,9 @@ func TestNormalizeOptions(t *testing.T) {
 	t.Run("preserves non-zero values", func(t *testing.T) {
 		t.Parallel()
 		opts := Options{
-			ParallelThreshold:  1234,
-			FFTThreshold:       5678,
-			KaratsubaThreshold: 9012,
-			StrassenThreshold:  3456,
+			ParallelThreshold: 1234,
+			FFTThreshold:      5678,
+			StrassenThreshold: 3456,
 		}
 		normalized := normalizeOptions(opts)
 
@@ -46,9 +42,6 @@ func TestNormalizeOptions(t *testing.T) {
 		}
 		if normalized.FFTThreshold != 5678 {
 			t.Errorf("FFTThreshold = %d, want 5678", normalized.FFTThreshold)
-		}
-		if normalized.KaratsubaThreshold != 9012 {
-			t.Errorf("KaratsubaThreshold = %d, want 9012", normalized.KaratsubaThreshold)
 		}
 		if normalized.StrassenThreshold != 3456 {
 			t.Errorf("StrassenThreshold = %d, want 3456", normalized.StrassenThreshold)

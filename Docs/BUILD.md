@@ -75,32 +75,18 @@ make pgo-rebuild
 | `pgo-check` | Verify PGO profile exists |
 | `pgo-clean` | Clean PGO artifacts |
 
-## SIMD and Assembly
+## Vector Arithmetic
 
-The `internal/bigfft` package includes hand-written assembly for amd64 to accelerate vector arithmetic operations used in FFT multiplication.
-
-### Source Files
+The `internal/bigfft` package uses `go:linkname` to access `math/big` internal vector arithmetic functions (`addVV`, `subVV`, `addMulVVW`, etc.) for performance. These are declared in `arith_decl.go` and wrapped by platform-specific files:
 
 | File | Responsibility |
 |------|---------------|
-| `internal/bigfft/arith_amd64.s` | AVX2 assembly routines (`addVVAvx2`, `subVVAvx2`, `addMulVVWAvx2`) |
+| `internal/bigfft/arith_decl.go` | `go:linkname` declarations to `math/big` internals (all platforms) |
+| `internal/bigfft/arith_amd64.go` | Exported wrappers for amd64 |
+| `internal/bigfft/arith_generic.go` | Exported wrappers for non-amd64 platforms |
 | `internal/bigfft/cpu_amd64.go` | Runtime CPU feature detection via `golang.org/x/sys/cpu` |
-| `internal/bigfft/arith_amd64.go` | Function pointer dispatch (`addVVFunc`, `subVVFunc`, `addMulVVWFunc`, `selectImplementation()`) |
-| `internal/bigfft/arith_decl.go` | Architecture-independent fallback via `go:linkname` to `math/big` internals |
 
-### Dispatch Hierarchy
-
-The implementation selection follows a priority order at startup:
-
-1. **AVX-512** (if available)
-2. **AVX2** (if available)
-3. **Default** (`go:linkname` to `math/big` internals)
-
-The minimum vector length for SIMD dispatch is controlled by `MinSIMDVectorLen = 8`.
-
-### Non-amd64 Architectures
-
-On architectures other than amd64, the `arith_decl.go` file provides fallback implementations that delegate to `math/big` internals via `go:linkname`. No assembly is used, and there is no performance penalty beyond missing SIMD acceleration.
+Go's `math/big` package already includes platform-optimized assembly for these operations, so the `go:linkname` approach provides the best available performance on all architectures without maintaining separate assembly code.
 
 ## Cross-Compilation
 

@@ -11,8 +11,10 @@ import (
 var concurrencySemaphore chan struct{}
 var concurrencyOnce sync.Once
 
-// getSemaphore returns the global concurrency semaphore, initializing it
-// to runtime.NumCPU() on the first call.
+// getSemaphore returns the global concurrency semaphore for FFT recursion,
+// initializing it to runtime.NumCPU() on the first call. This is independent
+// from the Fibonacci-level task semaphore (fibonacci/common.go, NumCPU*2).
+// See getTaskSemaphore documentation for interaction details.
 func getSemaphore() chan struct{} {
 	concurrencyOnce.Do(func() {
 		concurrencySemaphore = make(chan struct{}, runtime.NumCPU())

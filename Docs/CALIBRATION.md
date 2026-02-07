@@ -34,10 +34,10 @@ The calibration system tunes three thresholds that control algorithm and concurr
 | Threshold | Default | Unit | Description |
 |-----------|---------|------|-------------|
 | `ParallelThreshold` | 4096 | bits | Goroutine parallelism activation point for multiplication steps |
-| `FFTThreshold` | 500,000 | bits | Crossover point from Karatsuba to FFT multiplication |
+| `FFTThreshold` | 500,000 | bits | Crossover point from standard math/big to FFT multiplication |
 | `StrassenThreshold` | 3072 | bits | Activation point for Strassen matrix multiplication |
 
-These values interact with the 3-tier adaptive multiplication system described in [PERFORMANCE.md](PERFORMANCE.md):
+These values interact with the 2-tier adaptive multiplication system described in [PERFORMANCE.md](PERFORMANCE.md):
 
 ```go
 opts := fibonacci.Options{
@@ -128,7 +128,7 @@ The test sizes are chosen to span the critical algorithm crossover ranges:
 
 | Word Count | Approximate Bit Size | Region |
 |------------|---------------------|--------|
-| 500 | ~32K bits | Karatsuba territory |
+| 500 | ~32K bits | Standard math/big territory |
 | 2,000 | ~128K bits | Near parallel threshold |
 | 8,000 | ~512K bits | Near FFT threshold |
 | 16,000 | ~1M bits | FFT territory |
@@ -137,8 +137,8 @@ The test sizes are chosen to span the critical algorithm crossover ranges:
 
 For each word size, four configurations are tested:
 
-1. Karatsuba sequential
-2. Karatsuba parallel
+1. Standard math/big sequential
+2. Standard math/big parallel
 3. FFT sequential
 4. FFT parallel
 
@@ -148,9 +148,9 @@ Tests run in parallel with a semaphore limiting concurrency to `runtime.NumCPU()
 
 After all tests complete, the engine analyzes results:
 
-- `findFFTCrossover()`: Identifies the smallest bit size where FFT multiplication is faster than Karatsuba. Applies a 10% margin (multiplies the crossover by 9/10) to ensure FFT is clearly beneficial. Falls back to 1,000,000 bits if no crossover is found.
+- `findFFTCrossover()`: Identifies the smallest bit size where FFT multiplication is faster than standard `math/big`. Applies a 10% margin (multiplies the crossover by 9/10) to ensure FFT is clearly beneficial. Falls back to 1,000,000 bits if no crossover is found.
 
-- `findParallelCrossover()`: Identifies the smallest bit size where parallel Karatsuba is at least 10% faster than sequential Karatsuba. Returns 0 on single-core systems. Falls back to 4,096 bits if no crossover is found.
+- `findParallelCrossover()`: Identifies the smallest bit size where parallel multiplication is at least 10% faster than sequential. Returns 0 on single-core systems. Falls back to 4,096 bits if no crossover is found.
 
 ### Confidence Scoring
 

@@ -44,7 +44,7 @@ func (c *FFTBasedCalculator) Name() string {
 // Returns:
 //   - *big.Int: The calculated Fibonacci number.
 //   - error: An error if one occurred (e.g., context cancellation).
-func (c *FFTBasedCalculator) CalculateCore(ctx context.Context, reporter ProgressReporter, n uint64, opts Options) (*big.Int, error) {
+func (c *FFTBasedCalculator) CalculateCore(ctx context.Context, reporter ProgressCallback, n uint64, opts Options) (*big.Int, error) {
 	s := AcquireState()
 	defer ReleaseState(s)
 

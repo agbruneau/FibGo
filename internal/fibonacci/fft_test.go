@@ -28,10 +28,8 @@ func TestExecuteDoublingStepFFT(t *testing.T) {
 		}
 
 		err := executeDoublingStepFFT(context.Background(), state, opts, false)
-		// FFT execution may succeed or fail depending on implementation details
-		// We're mainly testing that the function doesn't panic and handles errors
 		if err != nil {
-			t.Logf("executeDoublingStepFFT returned error (may be expected): %v", err)
+			t.Errorf("executeDoublingStepFFT returned unexpected error: %v", err)
 		}
 	})
 
@@ -54,7 +52,7 @@ func TestExecuteDoublingStepFFT(t *testing.T) {
 
 		err := executeDoublingStepFFT(context.Background(), state, opts, true)
 		if err != nil {
-			t.Logf("executeDoublingStepFFT returned error (may be expected): %v", err)
+			t.Errorf("executeDoublingStepFFT returned unexpected error: %v", err)
 		}
 	})
 
@@ -76,9 +74,8 @@ func TestExecuteDoublingStepFFT(t *testing.T) {
 		}
 
 		err := executeDoublingStepFFT(context.Background(), state, opts, false)
-		// Should still work even with smaller numbers
 		if err != nil {
-			t.Logf("executeDoublingStepFFT returned error (may be expected): %v", err)
+			t.Errorf("executeDoublingStepFFT returned unexpected error: %v", err)
 		}
 	})
 }

@@ -65,12 +65,12 @@ var statePool = sync.Pool{
 - 20-30% performance improvement
 - Reduced GC pause times
 
-### 2. 3-Tier Adaptive Multiplication
+### 2. 2-Tier Adaptive Multiplication
 
 The `smartMultiply` function selects the optimal multiplication algorithm based on operand bit size:
 
 ```go
-func smartMultiply(z, x, y *big.Int, fftThreshold, karatsubaThreshold int) (*big.Int, error) {
+func smartMultiply(z, x, y *big.Int, fftThreshold int) (*big.Int, error) {
     bx := x.BitLen()
     by := y.BitLen()
 
@@ -79,12 +79,7 @@ func smartMultiply(z, x, y *big.Int, fftThreshold, karatsubaThreshold int) (*big
         return bigfft.MulTo(z, x, y)
     }
 
-    // Tier 2: Karatsuba Multiplication — O(n^1.585)
-    if karatsubaThreshold > 0 && bx > karatsubaThreshold && by > karatsubaThreshold {
-        return bigfft.KaratsubaMultiplyTo(z, x, y), nil
-    }
-
-    // Tier 3: Standard math/big — O(n^2)
+    // Tier 2: Standard math/big (uses Karatsuba internally for large operands)
     return z.Mul(x, y), nil
 }
 ```
@@ -92,8 +87,7 @@ func smartMultiply(z, x, y *big.Int, fftThreshold, karatsubaThreshold int) (*big
 | Tier | Algorithm | Complexity | Activation Threshold (default) |
 |------|-----------|------------|-------------------------------|
 | 1 | FFT (Schonhage-Strassen) | O(n log n) | > 500,000 bits |
-| 2 | Karatsuba | O(n^1.585) | > 2,048 bits |
-| 3 | Standard `math/big` | O(n^2) | Below Karatsuba threshold |
+| 2 | Standard `math/big` | O(n^2) / O(n^1.585) | Below FFT threshold |
 
 ### 3. Multi-core Parallelism
 
@@ -141,17 +135,15 @@ profile, err := calibration.RunCalibration(ctx)
 |-----------|---------|-------------|------------|
 | `ParallelThreshold` | 4096 bits | Parallelism activation threshold | Increase on slow CPU, decrease on many-core |
 | `FFTThreshold` | 500,000 bits | FFT multiplication threshold | Decrease on CPU with large L3 cache |
-| `KaratsubaThreshold` | 2,048 bits | Karatsuba multiplication threshold | Tune based on cache line size |
 | `StrassenThreshold` | 3,072 bits | Strassen algorithm threshold | Increase if addition overhead is visible |
 
 These are configured via the `fibonacci.Options` struct:
 
 ```go
 opts := fibonacci.Options{
-    ParallelThreshold:  4096,
-    FFTThreshold:       500_000,
-    KaratsubaThreshold: 2048,
-    StrassenThreshold:  3072,
+    ParallelThreshold: 4096,
+    FFTThreshold:      500_000,
+    StrassenThreshold: 3072,
 }
 ```
 

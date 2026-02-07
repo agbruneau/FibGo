@@ -3,8 +3,6 @@
 
 package fibonacci
 
-//go:generate mockgen -source=strategy.go -destination=mocks/mock_strategy.go -package=mocks
-
 import (
 	"context"
 	"fmt"
@@ -22,10 +20,13 @@ func setOrReturn(z, result *big.Int) *big.Int {
 	return result
 }
 
-// MultiplicationStrategy defines the interface for multiplication and squaring
-// operations used in Fibonacci calculations. Different strategies can choose
-// between Karatsuba, FFT, or other multiplication algorithms.
-type MultiplicationStrategy interface {
+// Multiplier defines pure multiplication and squaring operations used in
+// Fibonacci calculations. Different implementations can choose between
+// standard math/big, FFT, or other multiplication algorithms.
+//
+// This is the narrow interface: consumers that only need Multiply/Square
+// should depend on Multiplier rather than the wider DoublingStepExecutor.
+type Multiplier interface {
 	// Multiply computes x * y and stores the result in z (which may be reused).
 	// The result is returned, which may be z or a new *big.Int.
 	//
@@ -55,6 +56,14 @@ type MultiplicationStrategy interface {
 
 	// Name returns a descriptive name for the strategy.
 	Name() string
+}
+
+// DoublingStepExecutor extends Multiplier with a doubling-step-aware execution
+// method. Consumers that need the full doubling step (which combines multiple
+// multiplications with algorithm-specific optimizations like FFT transform
+// reuse) should depend on this interface.
+type DoublingStepExecutor interface {
+	Multiplier
 
 	// ExecuteStep performs a complete doubling step calculation:
 	// F(2k) = F(k) * (2*F(k+1) - F(k))
@@ -74,14 +83,21 @@ type MultiplicationStrategy interface {
 	ExecuteStep(ctx context.Context, s *CalculationState, opts Options, inParallel bool) error
 }
 
+// MultiplicationStrategy is a type alias preserved for backward compatibility.
+// New code should use the narrower Multiplier interface where only Multiply/Square
+// are needed, or DoublingStepExecutor where ExecuteStep is also required.
+//
+// Deprecated: Use Multiplier or DoublingStepExecutor instead.
+type MultiplicationStrategy = DoublingStepExecutor
+
 // AdaptiveStrategy uses smartMultiply and smartSquare to adaptively choose
-// between Karatsuba (via math/big) and FFT-based multiplication based on
-// operand sizes and thresholds.
+// between math/big and FFT-based multiplication based on operand sizes
+// and thresholds.
 type AdaptiveStrategy struct{}
 
 // Name returns the name of the adaptive strategy.
 func (s *AdaptiveStrategy) Name() string {
-	return "Adaptive (Karatsuba/FFT)"
+	return "Adaptive (math/big + FFT)"
 }
 
 // Multiply performs adaptive multiplication using smartMultiply.
@@ -138,9 +154,10 @@ func (s *FFTOnlyStrategy) ExecuteStep(ctx context.Context, state *CalculationSta
 	return executeDoublingStepFFT(ctx, state, opts, inParallel)
 }
 
-// KaratsubaStrategy forces Karatsuba multiplication (via math/big) for all
-// operations, regardless of operand size. This is primarily useful for
-// testing and comparison purposes.
+// KaratsubaStrategy forces standard multiplication via math/big.Mul for all
+// operations, regardless of operand size. Named "Karatsuba" because math/big
+// internally uses Karatsuba for large operands. Primarily useful for testing
+// and comparison purposes.
 type KaratsubaStrategy struct{}
 
 // Name returns the name of the Karatsuba-only strategy.
@@ -148,7 +165,7 @@ func (s *KaratsubaStrategy) Name() string {
 	return "Karatsuba-Only"
 }
 
-// Multiply performs Karatsuba multiplication using math/big.Mul.
+// Multiply performs multiplication using math/big.Mul.
 func (s *KaratsubaStrategy) Multiply(z, x, y *big.Int, opts Options) (*big.Int, error) {
 	if z == nil {
 		z = new(big.Int)
@@ -156,7 +173,7 @@ func (s *KaratsubaStrategy) Multiply(z, x, y *big.Int, opts Options) (*big.Int, 
 	return z.Mul(x, y), nil
 }
 
-// Square performs Karatsuba squaring using math/big.Mul.
+// Square performs squaring using math/big.Mul.
 func (s *KaratsubaStrategy) Square(z, x *big.Int, opts Options) (*big.Int, error) {
 	if z == nil {
 		z = new(big.Int)
@@ -164,7 +181,7 @@ func (s *KaratsubaStrategy) Square(z, x *big.Int, opts Options) (*big.Int, error
 	return z.Mul(x, x), nil
 }
 
-// ExecuteStep performs a standard doubling step using Karatsuba multiplication.
+// ExecuteStep performs a standard doubling step using math/big multiplication.
 func (s *KaratsubaStrategy) ExecuteStep(ctx context.Context, state *CalculationState, opts Options, inParallel bool) error {
 	return executeDoublingStepMultiplications(ctx, s, state, opts, inParallel)
 }

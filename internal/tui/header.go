@@ -6,7 +6,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/agbru/fibcalc/internal/cli"
+	"github.com/agbru/fibcalc/internal/format"
 )
 
 // HeaderModel renders the top bar: title, version, elapsed time.
@@ -54,7 +54,7 @@ func (h HeaderModel) View() string {
 	} else {
 		duration = time.Since(h.startTime)
 	}
-	elapsed := elapsedStyle.Render(fmt.Sprintf("Elapsed: %s", cli.FormatExecutionDuration(duration)))
+	elapsed := elapsedStyle.Render(fmt.Sprintf("Elapsed: %s", format.FormatExecutionDuration(duration)))
 
 	// Calculate spacing
 	titleLen := lipgloss.Width(title)

@@ -174,7 +174,7 @@ result, _ := calc.Calculate(ctx, progressChan, 0, 10_000_000, fibonacci.Options{
 
 ### FFT-Based (`"fft"`)
 
-**Recommended for**: FFT multiplication benchmarking, very large number tests (N > 100M), FFT vs Karatsuba performance comparison.
+**Recommended for**: FFT multiplication benchmarking, very large number tests (N > 100M), FFT vs standard math/big performance comparison.
 
 ```go
 factory := fibonacci.GlobalFactory()
@@ -206,15 +206,13 @@ opts := fibonacci.Options{
 opts := fibonacci.Options{
     ParallelThreshold: 4096,
     FFTThreshold:      500_000,
-    KaratsubaThreshold: 2048,
 }
 
 // Large calculations (N > 10,000,000): use calibration or defaults
 opts := fibonacci.Options{
-    ParallelThreshold:  4096,
-    FFTThreshold:       500_000,
-    KaratsubaThreshold: 2048,
-    StrassenThreshold:  3072,
+    ParallelThreshold: 4096,
+    FFTThreshold:      500_000,
+    StrassenThreshold: 3072,
 }
 ```
 

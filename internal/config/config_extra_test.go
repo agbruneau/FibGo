@@ -7,27 +7,6 @@ import (
 	"time"
 )
 
-// TestToCalculationOptions tests the ToCalculationOptions method.
-func TestToCalculationOptions(t *testing.T) {
-	cfg := AppConfig{
-		Threshold:         1234,
-		FFTThreshold:      5678,
-		StrassenThreshold: 9012,
-	}
-
-	opts := cfg.ToCalculationOptions()
-
-	if opts.ParallelThreshold != 1234 {
-		t.Errorf("expected ParallelThreshold=1234, got %d", opts.ParallelThreshold)
-	}
-	if opts.FFTThreshold != 5678 {
-		t.Errorf("expected FFTThreshold=5678, got %d", opts.FFTThreshold)
-	}
-	if opts.StrassenThreshold != 9012 {
-		t.Errorf("expected StrassenThreshold=9012, got %d", opts.StrassenThreshold)
-	}
-}
-
 // TestParseConfigEnvironmentVariables tests environment variable parsing.
 func TestParseConfigEnvironmentVariables(t *testing.T) {
 	// Save and defer restore of environment
@@ -113,8 +92,8 @@ func TestParseConfigEnvironmentVariables(t *testing.T) {
 		if cfg.N != DefaultN {
 			t.Errorf("expected default N=%d, got %d", DefaultN, cfg.N)
 		}
-		if cfg.Threshold != DefaultThreshold {
-			t.Errorf("expected default Threshold=%d, got %d", DefaultThreshold, cfg.Threshold)
+		if cfg.Threshold != 0 {
+			t.Errorf("expected default Threshold=0, got %d", cfg.Threshold)
 		}
 		if cfg.Timeout != DefaultTimeout {
 			t.Errorf("expected default Timeout=%v, got %v", DefaultTimeout, cfg.Timeout)

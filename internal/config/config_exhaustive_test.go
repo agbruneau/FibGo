@@ -5,8 +5,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/agbru/fibcalc/internal/fibonacci"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -67,7 +65,7 @@ func TestValidateThreshold(t *testing.T) {
 		{"LargeNegativeThreshold", -1000000, true},
 		{"ZeroThreshold", 0, false},
 		{"SmallThreshold", 1, false},
-		{"DefaultThreshold", fibonacci.DefaultParallelThreshold, false},
+		{"DefaultThreshold", 4096, false},
 		{"LargeThreshold", 1000000, false},
 		{"VeryLargeThreshold", 2147483647, false}, // Max int32
 	}
@@ -250,14 +248,14 @@ func TestParseConfigDefaults(t *testing.T) {
 	if cfg.Algo != "all" {
 		t.Errorf("Default Algo: expected 'all', got '%s'", cfg.Algo)
 	}
-	if cfg.Threshold != fibonacci.DefaultParallelThreshold {
-		t.Errorf("Default Threshold: expected %d, got %d", fibonacci.DefaultParallelThreshold, cfg.Threshold)
+	if cfg.Threshold != 0 {
+		t.Errorf("Default Threshold: expected 0, got %d", cfg.Threshold)
 	}
-	if cfg.FFTThreshold != 500000 {
-		t.Errorf("Default FFTThreshold: expected 500000, got %d", cfg.FFTThreshold)
+	if cfg.FFTThreshold != 0 {
+		t.Errorf("Default FFTThreshold: expected 0, got %d", cfg.FFTThreshold)
 	}
-	if cfg.StrassenThreshold != 3072 {
-		t.Errorf("Default StrassenThreshold: expected 3072, got %d", cfg.StrassenThreshold)
+	if cfg.StrassenThreshold != 0 {
+		t.Errorf("Default StrassenThreshold: expected 0, got %d", cfg.StrassenThreshold)
 	}
 	if cfg.Calibrate {
 		t.Error("Default Calibrate should be false")

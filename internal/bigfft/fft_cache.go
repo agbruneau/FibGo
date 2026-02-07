@@ -4,8 +4,8 @@ package bigfft
 
 import (
 	"container/list"
-	"crypto/sha256"
 	"encoding/binary"
+	"hash/fnv"
 	"sync"
 	"sync/atomic"
 )
@@ -41,7 +41,7 @@ func DefaultTransformCacheConfig() TransformCacheConfig {
 
 // cacheEntry holds a cached FFT transform result.
 type cacheEntry struct {
-	key    [32]byte // SHA-256 hash of input
+	key    uint64   // FNV-1a hash of input
 	values []fermat // cached polValues.values
 	k      uint     // FFT size parameter
 	n      int      // coefficient length
@@ -53,7 +53,7 @@ type cacheEntry struct {
 type TransformCache struct {
 	mu        sync.RWMutex
 	config    TransformCacheConfig
-	entries   map[[32]byte]*list.Element
+	entries   map[uint64]*list.Element
 	lru       *list.List
 	hits      atomic.Uint64
 	misses    atomic.Uint64
@@ -64,7 +64,7 @@ type TransformCache struct {
 func NewTransformCache(config TransformCacheConfig) *TransformCache {
 	return &TransformCache{
 		config:  config,
-		entries: make(map[[32]byte]*list.Element),
+		entries: make(map[uint64]*list.Element),
 		lru:     list.New(),
 	}
 }
@@ -91,32 +91,49 @@ func SetTransformCacheConfig(config TransformCacheConfig) {
 
 	// Optionally clear cache if disabled
 	if !config.Enabled {
-		cache.entries = make(map[[32]byte]*list.Element)
+		cache.entries = make(map[uint64]*list.Element)
 		cache.lru.Init()
 	}
 }
 
-// computeKey generates a cache key from the input data.
-// Uses SHA-256 for collision resistance with large numbers.
-func computeKey(data nat, k uint, n int) [32]byte {
-	h := sha256.New()
-
-	// Include FFT parameters in the key
-	var params [16]byte
-	binary.LittleEndian.PutUint64(params[0:8], uint64(k))
-	binary.LittleEndian.PutUint64(params[8:16], uint64(n))
-	h.Write(params[:])
-
-	// Write the number data
+// computeCacheKey generates a cache key from the input data using FNV-1a.
+// FNV-1a is much faster than SHA-256 and provides sufficient collision
+// resistance for cache key purposes.
+func computeCacheKey(data nat, k uint, n int) uint64 {
+	h := fnv.New64a()
 	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, uint64(k))
+	h.Write(buf)
+	binary.LittleEndian.PutUint64(buf, uint64(n))
+	h.Write(buf)
 	for _, word := range data {
 		binary.LittleEndian.PutUint64(buf, uint64(word))
 		h.Write(buf)
 	}
+	return h.Sum64()
+}
 
-	var key [32]byte
-	copy(key[:], h.Sum(nil))
-	return key
+// computePolyKey generates a cache key directly from polynomial coefficients,
+// avoiding the intermediate allocation of flattenPolyData.
+func computePolyKey(p *Poly, k uint, n int) uint64 {
+	h := fnv.New64a()
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, uint64(k))
+	h.Write(buf)
+	binary.LittleEndian.PutUint64(buf, uint64(n))
+	h.Write(buf)
+	for _, a := range p.A {
+		for _, word := range a {
+			binary.LittleEndian.PutUint64(buf, uint64(word))
+			h.Write(buf)
+		}
+	}
+	return h.Sum64()
+}
+
+// computeKey is an alias for computeCacheKey for backward compatibility.
+func computeKey(data nat, k uint, n int) uint64 {
+	return computeCacheKey(data, k, n)
 }
 
 // Get retrieves a cached transform if available.
@@ -126,8 +143,13 @@ func (tc *TransformCache) Get(data nat, k uint, n int) (PolValues, bool) {
 		return PolValues{}, false
 	}
 
-	key := computeKey(data, k, n)
+	key := computeCacheKey(data, k, n)
 
+	return tc.getByKey(key)
+}
+
+// getByKey retrieves a cached transform by precomputed key.
+func (tc *TransformCache) getByKey(key uint64) (PolValues, bool) {
 	tc.mu.RLock()
 	elem, found := tc.entries[key]
 	tc.mu.RUnlock()
@@ -166,8 +188,13 @@ func (tc *TransformCache) Put(data nat, pv PolValues) {
 		return
 	}
 
-	key := computeKey(data, pv.K, pv.N)
+	key := computeCacheKey(data, pv.K, pv.N)
 
+	tc.putByKey(key, pv)
+}
+
+// putByKey stores a transform result in the cache by precomputed key.
+func (tc *TransformCache) putByKey(key uint64, pv PolValues) {
 	tc.mu.Lock()
 	defer tc.mu.Unlock()
 
@@ -244,7 +271,7 @@ func (tc *TransformCache) Clear() {
 	tc.mu.Lock()
 	defer tc.mu.Unlock()
 
-	tc.entries = make(map[[32]byte]*list.Element)
+	tc.entries = make(map[uint64]*list.Element)
 	tc.lru.Init()
 	tc.hits.Store(0)
 	tc.misses.Store(0)
@@ -255,17 +282,31 @@ func (tc *TransformCache) Clear() {
 // Cached Transform Functions
 // ─────────────────────────────────────────────────────────────────────────────
 
+// polyBitLen estimates the total bit length of polynomial coefficients.
+func polyBitLen(p *Poly) int {
+	totalWords := 0
+	for _, a := range p.A {
+		totalWords += len(a)
+	}
+	return totalWords * _W
+}
+
 // TransformCached is like Transform but uses the global cache.
 // If the transform result is cached, it returns the cached value.
 // Otherwise, it computes the transform and caches the result.
 func (p *Poly) TransformCached(n int) (PolValues, error) {
 	cache := GetTransformCache()
 
-	// Build a flat representation of p.A for key computation
-	flatData := flattenPolyData(p)
+	// Check if caching is applicable
+	if !cache.config.Enabled || polyBitLen(p) < cache.config.MinBitLen {
+		return p.Transform(n)
+	}
+
+	// Compute key directly from polynomial coefficients (no intermediate allocation)
+	key := computePolyKey(p, p.K, n)
 
 	// Try cache lookup
-	if cached, found := cache.Get(flatData, p.K, n); found {
+	if cached, found := cache.getByKey(key); found {
 		return cached, nil
 	}
 
@@ -276,7 +317,7 @@ func (p *Poly) TransformCached(n int) (PolValues, error) {
 	}
 
 	// Cache the result
-	cache.Put(flatData, pv)
+	cache.putByKey(key, pv)
 
 	return pv, nil
 }
@@ -285,11 +326,16 @@ func (p *Poly) TransformCached(n int) (PolValues, error) {
 func (p *Poly) TransformCachedWithBump(n int, ba *BumpAllocator) (PolValues, error) {
 	cache := GetTransformCache()
 
-	// Build a flat representation of p.A for key computation
-	flatData := flattenPolyData(p)
+	// Check if caching is applicable
+	if !cache.config.Enabled || polyBitLen(p) < cache.config.MinBitLen {
+		return p.TransformWithBump(n, ba)
+	}
+
+	// Compute key directly from polynomial coefficients (no intermediate allocation)
+	key := computePolyKey(p, p.K, n)
 
 	// Try cache lookup
-	if cached, found := cache.Get(flatData, p.K, n); found {
+	if cached, found := cache.getByKey(key); found {
 		return cached, nil
 	}
 
@@ -300,26 +346,9 @@ func (p *Poly) TransformCachedWithBump(n int, ba *BumpAllocator) (PolValues, err
 	}
 
 	// Cache the result
-	cache.Put(flatData, pv)
+	cache.putByKey(key, pv)
 
 	return pv, nil
-}
-
-// flattenPolyData creates a flat nat from polynomial coefficients for caching.
-func flattenPolyData(p *Poly) nat {
-	totalLen := 0
-	for _, a := range p.A {
-		totalLen += len(a)
-	}
-
-	flat := make(nat, totalLen)
-	offset := 0
-	for _, a := range p.A {
-		copy(flat[offset:], a)
-		offset += len(a)
-	}
-
-	return flat
 }
 
 // MulCached multiplies p and q using cached transforms when beneficial.

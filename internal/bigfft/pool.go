@@ -4,6 +4,7 @@ package bigfft
 
 import (
 	"math/big"
+	"math/bits"
 	"sync"
 )
 
@@ -32,7 +33,30 @@ var wordSliceSizes = [...]int{64, 256, 1024, 4096, 16384, 65536, 262144, 1048576
 
 // getWordSlicePoolIndex returns the pool index for a given size.
 // Returns -1 if the size is too large for pooling.
+//
+// Uses O(1) bitwise computation instead of linear search.
+// wordSliceSizes are powers of 4 starting from 4^3 = 64:
+// index i corresponds to size 4^(i+3), so bits.Len(size) maps directly to the index.
 func getWordSlicePoolIndex(size int) int {
+	if size <= 0 {
+		return 0
+	}
+	if size > wordSliceSizes[len(wordSliceSizes)-1] {
+		return -1
+	}
+	// bits.Len(uint(size-1)) gives the number of bits needed to represent size-1.
+	// For size <= 64 (4^3), this is <= 6, yielding idx <= 0 after the formula.
+	// For size <= 256 (4^4), bits.Len is <= 8, yielding idx = 1. Etc.
+	idx := (bits.Len(uint(size-1)) - 5) / 2
+	if idx < 0 {
+		idx = 0
+	}
+	return idx
+}
+
+// getWordSlicePoolIndexLinear is the original O(n) linear search implementation,
+// kept as a reference for testing the optimized bitwise version.
+func getWordSlicePoolIndexLinear(size int) int {
 	for i, s := range wordSliceSizes {
 		if size <= s {
 			return i
@@ -60,6 +84,17 @@ func acquireWordSlice(size int) []big.Word {
 	slice := wordSlicePools[idx].Get().([]big.Word)
 	// Clear the slice before returning (Go 1.21+ built-in)
 	clear(slice)
+	return slice[:size]
+}
+
+// acquireWordSliceUnsafe returns a word slice from the pool without clearing it.
+// Use this only when the caller will immediately overwrite all elements (e.g., via copy).
+func acquireWordSliceUnsafe(size int) []big.Word {
+	idx := getWordSlicePoolIndex(size)
+	if idx < 0 {
+		return make([]big.Word, size)
+	}
+	slice := wordSlicePools[idx].Get().([]big.Word)
 	return slice[:size]
 }
 
@@ -110,7 +145,26 @@ var fermatSizes = [...]int{32, 128, 512, 2048, 8192, 32768, 131072, 524288, 2097
 
 // getFermatPoolIndex returns the pool index for a given size.
 // Returns -1 if the size is too large for pooling.
+//
+// Uses O(1) bitwise computation. fermatSizes are powers of 4 times 2,
+// starting from 2*4^2 = 32: {32, 128, 512, 2048, 8192, 32768, 131072, 524288, 2097152}.
 func getFermatPoolIndex(size int) int {
+	if size <= 0 {
+		return 0
+	}
+	if size > fermatSizes[len(fermatSizes)-1] {
+		return -1
+	}
+	idx := (bits.Len(uint(size-1)) - 4) / 2
+	if idx < 0 {
+		idx = 0
+	}
+	return idx
+}
+
+// getFermatPoolIndexLinear is the original O(n) linear search implementation,
+// kept as a reference for testing the optimized bitwise version.
+func getFermatPoolIndexLinear(size int) int {
 	for i, s := range fermatSizes {
 		if size <= s {
 			return i
@@ -178,7 +232,27 @@ var natSlicePools = [...]sync.Pool{
 var natSliceSizes = [...]int{8, 32, 128, 512, 2048, 8192, 32768}
 
 // getNatSlicePoolIndex returns the pool index for a given size.
+// Returns -1 if the size is too large for pooling.
+//
+// Uses O(1) bitwise computation. natSliceSizes are powers of 4 times 2,
+// starting from 2*4^1 = 8: {8, 32, 128, 512, 2048, 8192, 32768}.
 func getNatSlicePoolIndex(size int) int {
+	if size <= 0 {
+		return 0
+	}
+	if size > natSliceSizes[len(natSliceSizes)-1] {
+		return -1
+	}
+	idx := (bits.Len(uint(size-1)) - 2) / 2
+	if idx < 0 {
+		idx = 0
+	}
+	return idx
+}
+
+// getNatSlicePoolIndexLinear is the original O(n) linear search implementation,
+// kept as a reference for testing the optimized bitwise version.
+func getNatSlicePoolIndexLinear(size int) int {
 	for i, s := range natSliceSizes {
 		if size <= s {
 			return i
@@ -245,7 +319,27 @@ var fermatSlicePools = [...]sync.Pool{
 var fermatSliceSizes = [...]int{8, 32, 128, 512, 2048, 8192, 32768}
 
 // getFermatSlicePoolIndex returns the pool index for a given size.
+// Returns -1 if the size is too large for pooling.
+//
+// Uses O(1) bitwise computation. fermatSliceSizes are powers of 4 times 2,
+// starting from 2*4^1 = 8: {8, 32, 128, 512, 2048, 8192, 32768}.
 func getFermatSlicePoolIndex(size int) int {
+	if size <= 0 {
+		return 0
+	}
+	if size > fermatSliceSizes[len(fermatSliceSizes)-1] {
+		return -1
+	}
+	idx := (bits.Len(uint(size-1)) - 2) / 2
+	if idx < 0 {
+		idx = 0
+	}
+	return idx
+}
+
+// getFermatSlicePoolIndexLinear is the original O(n) linear search implementation,
+// kept as a reference for testing the optimized bitwise version.
+func getFermatSlicePoolIndexLinear(size int) int {
 	for i, s := range fermatSliceSizes {
 		if size <= s {
 			return i

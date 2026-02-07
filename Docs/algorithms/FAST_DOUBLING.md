@@ -164,7 +164,7 @@ framework := NewDoublingFramework(strategy)
 result, err := framework.ExecuteDoublingLoop(ctx, reporter, n, opts, state, inParallel)
 ```
 
-The `OptimizedFastDoubling` calculator uses an `AdaptiveStrategy` that selects between standard, Karatsuba, and FFT multiplication based on operand size. The `FFTBasedCalculator` uses an `FFTOnlyStrategy` that forces FFT for all operations.
+The `OptimizedFastDoubling` calculator uses an `AdaptiveStrategy` that selects between standard `math/big` and FFT multiplication based on operand size. The `FFTBasedCalculator` uses an `FFTOnlyStrategy` that forces FFT for all operations.
 
 ### 2. Zero-Allocation with sync.Pool
 
@@ -205,7 +205,7 @@ Parallelism considerations:
 The `smartMultiply` function selects the optimal multiplication algorithm based on operand size:
 
 ```go
-func smartMultiply(z, x, y *big.Int, fftThreshold, karatsubaThreshold int) (*big.Int, error) {
+func smartMultiply(z, x, y *big.Int, fftThreshold int) (*big.Int, error) {
     bx := x.BitLen()
     by := y.BitLen()
 
@@ -214,12 +214,7 @@ func smartMultiply(z, x, y *big.Int, fftThreshold, karatsubaThreshold int) (*big
         return bigfft.MulTo(z, x, y)
     }
 
-    // Tier 2: Karatsuba — O(n^1.585), for medium operands
-    if karatsubaThreshold > 0 && bx > karatsubaThreshold && by > karatsubaThreshold {
-        return bigfft.KaratsubaMultiplyTo(z, x, y), nil
-    }
-
-    // Tier 3: Standard math/big — O(n^2), for small operands
+    // Tier 2: Standard math/big (uses Karatsuba internally for large operands)
     return z.Mul(x, y), nil
 }
 ```
@@ -270,7 +265,6 @@ calc, _ := factory.Get("fast")
 result, _ := calc.Calculate(ctx, progressChan, 0, n, fibonacci.Options{
     ParallelThreshold: 4096,
     FFTThreshold:      500_000,
-    KaratsubaThreshold: 2048,
 })
 ```
 

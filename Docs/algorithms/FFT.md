@@ -82,16 +82,14 @@ func Sqr(x *big.Int) (res *big.Int, err error)
 // Squaring with destination reuse
 func SqrTo(z, x *big.Int) (res *big.Int, err error)
 
-// Karatsuba multiplication with destination reuse
-func KaratsubaMultiplyTo(z, x, y *big.Int) *big.Int
 ```
 
-### 3-Tier Multiplication Selection
+### 2-Tier Multiplication Selection
 
 The `smartMultiply` function in `internal/fibonacci/fft.go` selects the optimal algorithm:
 
 ```go
-func smartMultiply(z, x, y *big.Int, fftThreshold, karatsubaThreshold int) (*big.Int, error) {
+func smartMultiply(z, x, y *big.Int, fftThreshold int) (*big.Int, error) {
     bx := x.BitLen()
     by := y.BitLen()
 
@@ -100,12 +98,7 @@ func smartMultiply(z, x, y *big.Int, fftThreshold, karatsubaThreshold int) (*big
         return bigfft.MulTo(z, x, y)
     }
 
-    // Tier 2: Karatsuba — both operands > KaratsubaThreshold
-    if karatsubaThreshold > 0 && bx > karatsubaThreshold && by > karatsubaThreshold {
-        return bigfft.KaratsubaMultiplyTo(z, x, y), nil
-    }
-
-    // Tier 3: Standard math/big
+    // Tier 2: Standard math/big (uses Karatsuba internally for large operands)
     return z.Mul(x, y), nil
 }
 ```
@@ -120,15 +113,14 @@ internal/bigfft/
 +-- fft_poly.go         # Polynomial operations for FFT
 +-- fft_cache.go        # FFT transform caching
 +-- fermat.go           # Modular arithmetic (Fermat number ring)
-+-- karatsuba.go        # KaratsubaMultiplyTo implementation
 +-- pool.go             # sync.Pool-based object pools with size classes
 +-- allocator.go        # Memory allocator abstraction
 +-- bump.go             # Bump allocator for batch allocations
 +-- memory_est.go       # Memory estimation for pre-allocation
 +-- scan.go             # Conversion between big.Int and FFT representation
-+-- arith_amd64.go      # Assembly-optimized arithmetic (Go glue)
-+-- arith_amd64.s       # AVX2/AVX-512 assembly routines
-+-- arith_decl.go       # Architecture-independent function declarations
++-- arith_amd64.go      # amd64 vector arithmetic wrappers
++-- arith_generic.go    # Non-amd64 vector arithmetic wrappers
++-- arith_decl.go       # go:linkname declarations to math/big internals
 +-- cpu_amd64.go        # Runtime CPU feature detection
 ```
 
@@ -148,8 +140,7 @@ The FFT threshold is configured via the `fibonacci.Options` struct:
 
 ```go
 opts := fibonacci.Options{
-    FFTThreshold:       500_000,  // Default: 500,000 bits
-    KaratsubaThreshold: 2048,     // Default: 2,048 bits
+    FFTThreshold: 500_000,  // Default: 500,000 bits
 }
 ```
 

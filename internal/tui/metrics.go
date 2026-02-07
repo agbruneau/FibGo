@@ -7,7 +7,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/agbru/fibcalc/internal/cli"
+	"github.com/agbru/fibcalc/internal/format"
 	"github.com/agbru/fibcalc/internal/metrics"
 )
 
@@ -77,7 +77,7 @@ func (m MetricsModel) View() string {
 		formatMetricCol("GC Runs:", fmt.Sprintf("%d", m.numGC), colWidth),
 	}
 	rightCol := []string{
-		formatMetricCol("Speed:", cli.FormatETA(time.Duration(float64(time.Second)/max(m.speed, 0.001)))+"/calc", colWidth),
+		formatMetricCol("Speed:", format.FormatETA(time.Duration(float64(time.Second)/max(m.speed, 0.001)))+"/calc", colWidth),
 		formatMetricCol("Goroutines:", fmt.Sprintf("%d", m.numGoroutine), colWidth),
 	}
 

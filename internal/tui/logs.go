@@ -9,8 +9,8 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/agbru/fibcalc/internal/cli"
 	"github.com/agbru/fibcalc/internal/config"
+	"github.com/agbru/fibcalc/internal/format"
 	"github.com/agbru/fibcalc/internal/orchestration"
 )
 
@@ -108,7 +108,7 @@ func (l *LogsModel) AddResults(results []orchestration.CalculationResult) {
 		if len(res.Name) > maxNameLen {
 			maxNameLen = len(res.Name)
 		}
-		dur := cli.FormatExecutionDuration(res.Duration)
+		dur := format.FormatExecutionDuration(res.Duration)
 		if len(dur) > maxDurLen {
 			maxDurLen = len(dur)
 		}
@@ -124,7 +124,7 @@ func (l *LogsModel) AddResults(results []orchestration.CalculationResult) {
 		} else {
 			status = logSuccessStyle.Render("OK")
 		}
-		duration := cli.FormatExecutionDuration(res.Duration)
+		duration := format.FormatExecutionDuration(res.Duration)
 		entry := fmt.Sprintf("  %s  %s  %s",
 			logAlgoStyle.Render(fmt.Sprintf(nameFmt, res.Name)),
 			metricValueStyle.Render(fmt.Sprintf(durFmt, duration)),
@@ -140,10 +140,10 @@ func (l *LogsModel) AddFinalResult(msg FinalResultMsg) {
 	l.entries = append(l.entries, "")
 	l.entries = append(l.entries, logSuccessStyle.Render("--- Final Result ---"))
 	l.entries = append(l.entries, fmt.Sprintf("  Algorithm: %s", logAlgoStyle.Render(msg.Result.Name)))
-	l.entries = append(l.entries, fmt.Sprintf("  Duration:  %s", metricValueStyle.Render(cli.FormatExecutionDuration(msg.Result.Duration))))
+	l.entries = append(l.entries, fmt.Sprintf("  Duration:  %s", metricValueStyle.Render(format.FormatExecutionDuration(msg.Result.Duration))))
 	if msg.Result.Result != nil {
 		bits := msg.Result.Result.BitLen()
-		l.entries = append(l.entries, fmt.Sprintf("  Bits:      %s", metricValueStyle.Render(cli.FormatNumberString(fmt.Sprintf("%d", bits)))))
+		l.entries = append(l.entries, fmt.Sprintf("  Bits:      %s", metricValueStyle.Render(format.FormatNumberString(fmt.Sprintf("%d", bits)))))
 	}
 	l.trimEntries()
 	l.updateContent()

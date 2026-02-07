@@ -28,7 +28,7 @@ func (MockResultPresenter) HandleError(err error, duration time.Duration, out io
 // used for testing the orchestration logic without invoking real algorithms.
 type MockCalculator struct {
 	NameFunc      func() string
-	CalculateFunc func(ctx context.Context, reporter fibonacci.ProgressReporter, index int, n uint64, opts fibonacci.Options) (*big.Int, error)
+	CalculateFunc func(ctx context.Context, reporter fibonacci.ProgressCallback, index int, n uint64, opts fibonacci.Options) (*big.Int, error)
 }
 
 // Name returns the mocked name of the calculator.
@@ -67,7 +67,7 @@ func TestExecuteCalculations(t *testing.T) {
 			name: "Single success",
 			calculators: []fibonacci.Calculator{
 				&MockCalculator{
-					CalculateFunc: func(ctx context.Context, reporter fibonacci.ProgressReporter, index int, n uint64, opts fibonacci.Options) (*big.Int, error) {
+					CalculateFunc: func(ctx context.Context, reporter fibonacci.ProgressCallback, index int, n uint64, opts fibonacci.Options) (*big.Int, error) {
 						return big.NewInt(1), nil
 					},
 				},
@@ -79,7 +79,7 @@ func TestExecuteCalculations(t *testing.T) {
 			name: "Single failure",
 			calculators: []fibonacci.Calculator{
 				&MockCalculator{
-					CalculateFunc: func(ctx context.Context, reporter fibonacci.ProgressReporter, index int, n uint64, opts fibonacci.Options) (*big.Int, error) {
+					CalculateFunc: func(ctx context.Context, reporter fibonacci.ProgressCallback, index int, n uint64, opts fibonacci.Options) (*big.Int, error) {
 						return nil, errors.New("mock error")
 					},
 				},

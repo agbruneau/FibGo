@@ -7,7 +7,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/agbru/fibcalc/internal/cli"
+	"github.com/agbru/fibcalc/internal/format"
 )
 
 // ChartModel renders a progress bar, ETA, and system metrics sparklines.
@@ -79,9 +79,9 @@ func (c ChartModel) View() string {
 	// Header: "Progress Chart" left, ETA right
 	var statusStr string
 	if c.done {
-		statusStr = fmt.Sprintf("Completed in %s", cli.FormatExecutionDuration(c.elapsed))
+		statusStr = fmt.Sprintf("Completed in %s", format.FormatExecutionDuration(c.elapsed))
 	} else {
-		statusStr = fmt.Sprintf("ETA: %s", cli.FormatETA(c.eta))
+		statusStr = fmt.Sprintf("ETA: %s", format.FormatETA(c.eta))
 	}
 	titleLeft := metricLabelStyle.Render("  Progress Chart")
 	titleRight := elapsedStyle.Render(statusStr + "  ")

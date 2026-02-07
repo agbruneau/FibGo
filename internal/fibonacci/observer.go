@@ -108,16 +108,16 @@ func (s *ProgressSubject) ObserverCount() int {
 	return len(s.observers)
 }
 
-// AsProgressReporter returns a ProgressReporter function that notifies all observers.
+// AsProgressCallback returns a ProgressCallback function that notifies all observers.
 // This provides backward compatibility with existing calculator implementations that
-// use the functional ProgressReporter type.
+// use the functional ProgressCallback type.
 //
 // Parameters:
 //   - calcIndex: The calculator instance identifier to include in notifications.
 //
 // Returns:
-//   - ProgressReporter: A function that can be passed to core calculators.
-func (s *ProgressSubject) AsProgressReporter(calcIndex int) ProgressReporter {
+//   - ProgressCallback: A function that can be passed to core calculators.
+func (s *ProgressSubject) AsProgressCallback(calcIndex int) ProgressCallback {
 	return func(progress float64) {
 		s.Notify(calcIndex, progress)
 	}

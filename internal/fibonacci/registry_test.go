@@ -10,7 +10,7 @@ import (
 type mockCoreCalculator struct{}
 
 func (m *mockCoreCalculator) Name() string { return "mock" }
-func (m *mockCoreCalculator) CalculateCore(ctx context.Context, reporter ProgressReporter, n uint64, opts Options) (*big.Int, error) {
+func (m *mockCoreCalculator) CalculateCore(ctx context.Context, reporter ProgressCallback, n uint64, opts Options) (*big.Int, error) {
 	return big.NewInt(0), nil
 }
 

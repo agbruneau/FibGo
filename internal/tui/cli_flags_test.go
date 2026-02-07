@@ -73,9 +73,9 @@ func TestNewModel_ConfigPropagation(t *testing.T) {
 				N:                 config.DefaultN,
 				Timeout:           config.DefaultTimeout,
 				Algo:              config.DefaultAlgo,
-				Threshold:         config.DefaultThreshold,
-				FFTThreshold:      config.DefaultFFTThreshold,
-				StrassenThreshold: config.DefaultStrassenThreshold,
+				Threshold:         fibonacci.DefaultParallelThreshold,
+				FFTThreshold:      fibonacci.DefaultFFTThreshold,
+				StrassenThreshold: fibonacci.DefaultStrassenThreshold,
 				TUI:               true,
 			},
 		},
@@ -374,9 +374,9 @@ func TestStartCalculationCmd_ConfigPassthrough(t *testing.T) {
 		{
 			name:              "Default thresholds",
 			n:                 10,
-			threshold:         config.DefaultThreshold,
-			fftThreshold:      config.DefaultFFTThreshold,
-			strassenThreshold: config.DefaultStrassenThreshold,
+			threshold:         fibonacci.DefaultParallelThreshold,
+			fftThreshold:      fibonacci.DefaultFFTThreshold,
+			strassenThreshold: fibonacci.DefaultStrassenThreshold,
 		},
 		{
 			name:              "Custom thresholds",
@@ -388,9 +388,9 @@ func TestStartCalculationCmd_ConfigPassthrough(t *testing.T) {
 		{
 			name:              "N zero",
 			n:                 0,
-			threshold:         config.DefaultThreshold,
-			fftThreshold:      config.DefaultFFTThreshold,
-			strassenThreshold: config.DefaultStrassenThreshold,
+			threshold:         fibonacci.DefaultParallelThreshold,
+			fftThreshold:      fibonacci.DefaultFFTThreshold,
+			strassenThreshold: fibonacci.DefaultStrassenThreshold,
 		},
 	}
 

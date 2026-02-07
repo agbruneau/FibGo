@@ -10,7 +10,7 @@ import (
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // These tests verify that smartMultiply and smartSquare handle nil z parameter
-// correctly, as specified by the MultiplicationStrategy interface contract.
+// correctly, as specified by the Multiplier interface contract.
 // Before the fix, these functions would panic with a nil pointer dereference.
 
 // TestSmartMultiplyNilZ verifies that smartMultiply handles nil z parameter.
@@ -77,7 +77,7 @@ func TestSmartSquareNilZ(t *testing.T) {
 }
 
 // TestAdaptiveStrategyNilZ verifies that the AdaptiveStrategy correctly handles
-// nil z parameter, which is allowed by the MultiplicationStrategy interface.
+// nil z parameter, which is allowed by the Multiplier interface.
 // This test would PANIC before the fix was applied.
 func TestAdaptiveStrategyNilZ(t *testing.T) {
 	strategy := &AdaptiveStrategy{}
@@ -120,7 +120,7 @@ func TestAdaptiveStrategyNilZ(t *testing.T) {
 // TestStrategyConsistencyWithNilZ verifies that all strategies produce consistent
 // results when z is nil. This ensures the fix maintains API consistency.
 func TestStrategyConsistencyWithNilZ(t *testing.T) {
-	strategies := map[string]MultiplicationStrategy{
+	strategies := map[string]Multiplier{
 		"Adaptive":  &AdaptiveStrategy{},
 		"Karatsuba": &KaratsubaStrategy{},
 		"FFTOnly":   &FFTOnlyStrategy{},

@@ -42,6 +42,47 @@ func TestWordSlicePool(t *testing.T) {
 	}
 }
 
+func TestWordSlicePoolUnsafe(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		size     int
+		wantSize int // Expected size class
+	}{
+		{"small", 10, 64},
+		{"medium", 100, 256},
+		{"large", 1000, 1024},
+		{"xlarge", 5000, 16384},
+		{"too_large", 500000, 500000}, // Direct allocation
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			slice := acquireWordSliceUnsafe(tt.size)
+			if len(slice) != tt.size {
+				t.Errorf("acquireWordSliceUnsafe(%d) got length %d, want %d", tt.size, len(slice), tt.size)
+			}
+
+			// Verify that we can write to every element (caller's responsibility)
+			for i := range slice {
+				slice[i] = big.Word(i)
+			}
+
+			// Verify the writes took effect
+			for i := range slice {
+				if slice[i] != big.Word(i) {
+					t.Errorf("acquireWordSliceUnsafe(%d) write failed at index %d", tt.size, i)
+					break
+				}
+			}
+
+			// Release should not panic
+			releaseWordSlice(slice)
+		})
+	}
+}
+
 func TestFermatPool(t *testing.T) {
 	t.Parallel()
 	sizes := []int{16, 64, 256, 1024, 4096}
@@ -154,6 +195,159 @@ func TestReleaseNilSafe(t *testing.T) {
 	releaseNatSlice(nil)
 	releaseFermatSlice(nil)
 	releaseFFTState(nil)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tests for O(1) bitwise pool index functions vs original linear search
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestGetWordSlicePoolIndexConsistency(t *testing.T) {
+	t.Parallel()
+	// Test all sizes from 0 to max+100, verifying bitwise matches linear
+	maxSize := wordSliceSizes[len(wordSliceSizes)-1]
+	for size := 0; size <= maxSize+100; size++ {
+		got := getWordSlicePoolIndex(size)
+		want := getWordSlicePoolIndexLinear(size)
+		if got != want {
+			t.Fatalf("getWordSlicePoolIndex(%d): got %d, want %d", size, got, want)
+		}
+	}
+}
+
+func TestGetFermatPoolIndexConsistency(t *testing.T) {
+	t.Parallel()
+	// Test all sizes from 0 to max+100
+	maxSize := fermatSizes[len(fermatSizes)-1]
+	for size := 0; size <= maxSize+100; size++ {
+		got := getFermatPoolIndex(size)
+		want := getFermatPoolIndexLinear(size)
+		if got != want {
+			t.Fatalf("getFermatPoolIndex(%d): got %d, want %d", size, got, want)
+		}
+	}
+}
+
+func TestGetNatSlicePoolIndexConsistency(t *testing.T) {
+	t.Parallel()
+	// Test all sizes from 0 to max+100
+	maxSize := natSliceSizes[len(natSliceSizes)-1]
+	for size := 0; size <= maxSize+100; size++ {
+		got := getNatSlicePoolIndex(size)
+		want := getNatSlicePoolIndexLinear(size)
+		if got != want {
+			t.Fatalf("getNatSlicePoolIndex(%d): got %d, want %d", size, got, want)
+		}
+	}
+}
+
+func TestGetFermatSlicePoolIndexConsistency(t *testing.T) {
+	t.Parallel()
+	// Test all sizes from 0 to max+100
+	maxSize := fermatSliceSizes[len(fermatSliceSizes)-1]
+	for size := 0; size <= maxSize+100; size++ {
+		got := getFermatSlicePoolIndex(size)
+		want := getFermatSlicePoolIndexLinear(size)
+		if got != want {
+			t.Fatalf("getFermatSlicePoolIndex(%d): got %d, want %d", size, got, want)
+		}
+	}
+}
+
+// TestPoolIndexBoundaryValues tests the exact boundary values for each pool.
+func TestPoolIndexBoundaryValues(t *testing.T) {
+	t.Parallel()
+
+	t.Run("wordSlice", func(t *testing.T) {
+		t.Parallel()
+		for i, size := range wordSliceSizes {
+			// At the boundary, should return this index
+			if got := getWordSlicePoolIndex(size); got != i {
+				t.Errorf("getWordSlicePoolIndex(%d) = %d, want %d", size, got, i)
+			}
+			// One above previous boundary should return this index
+			if i > 0 {
+				if got := getWordSlicePoolIndex(wordSliceSizes[i-1] + 1); got != i {
+					t.Errorf("getWordSlicePoolIndex(%d) = %d, want %d", wordSliceSizes[i-1]+1, got, i)
+				}
+			}
+		}
+		// Above max should return -1
+		if got := getWordSlicePoolIndex(wordSliceSizes[len(wordSliceSizes)-1] + 1); got != -1 {
+			t.Errorf("getWordSlicePoolIndex(max+1) = %d, want -1", got)
+		}
+	})
+
+	t.Run("fermat", func(t *testing.T) {
+		t.Parallel()
+		for i, size := range fermatSizes {
+			if got := getFermatPoolIndex(size); got != i {
+				t.Errorf("getFermatPoolIndex(%d) = %d, want %d", size, got, i)
+			}
+		}
+		if got := getFermatPoolIndex(fermatSizes[len(fermatSizes)-1] + 1); got != -1 {
+			t.Errorf("getFermatPoolIndex(max+1) = %d, want -1", got)
+		}
+	})
+
+	t.Run("natSlice", func(t *testing.T) {
+		t.Parallel()
+		for i, size := range natSliceSizes {
+			if got := getNatSlicePoolIndex(size); got != i {
+				t.Errorf("getNatSlicePoolIndex(%d) = %d, want %d", size, got, i)
+			}
+		}
+		if got := getNatSlicePoolIndex(natSliceSizes[len(natSliceSizes)-1] + 1); got != -1 {
+			t.Errorf("getNatSlicePoolIndex(max+1) = %d, want -1", got)
+		}
+	})
+
+	t.Run("fermatSlice", func(t *testing.T) {
+		t.Parallel()
+		for i, size := range fermatSliceSizes {
+			if got := getFermatSlicePoolIndex(size); got != i {
+				t.Errorf("getFermatSlicePoolIndex(%d) = %d, want %d", size, got, i)
+			}
+		}
+		if got := getFermatSlicePoolIndex(fermatSliceSizes[len(fermatSliceSizes)-1] + 1); got != -1 {
+			t.Errorf("getFermatSlicePoolIndex(max+1) = %d, want -1", got)
+		}
+	})
+}
+
+func BenchmarkGetWordSlicePoolIndex(b *testing.B) {
+	sizes := []int{1, 32, 65, 200, 1000, 5000, 50000, 500000, 5000000}
+	b.Run("bitwise", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, s := range sizes {
+				getWordSlicePoolIndex(s)
+			}
+		}
+	})
+	b.Run("linear", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, s := range sizes {
+				getWordSlicePoolIndexLinear(s)
+			}
+		}
+	})
+}
+
+func BenchmarkGetFermatPoolIndex(b *testing.B) {
+	sizes := []int{1, 16, 33, 100, 1000, 5000, 50000, 500000}
+	b.Run("bitwise", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, s := range sizes {
+				getFermatPoolIndex(s)
+			}
+		}
+	})
+	b.Run("linear", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, s := range sizes {
+				getFermatPoolIndexLinear(s)
+			}
+		}
+	})
 }
 
 // TestPoolingOnlyForTemporaries verifies that pooling is used correctly

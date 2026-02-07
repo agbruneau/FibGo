@@ -148,7 +148,7 @@ classDiagram
 **Location**: `internal/fibonacci/strategy.go`
 
 The Strategy pattern encapsulates multiplication algorithms behind a common interface,
-allowing calculators to switch between Karatsuba, FFT, or adaptive selection at runtime
+allowing calculators to switch between standard math/big, FFT, or adaptive selection at runtime
 without modifying their doubling-step logic.
 
 For the 3-tier multiplication threshold system, see [algorithms/FFT.md](algorithms/FFT.md).
@@ -174,7 +174,7 @@ multiplications in a single step, avoiding redundant forward transforms.
 
 | Strategy | Selection Logic | Use Case |
 |----------|----------------|----------|
-| `AdaptiveStrategy` | Delegates to `smartMultiply`/`smartSquare`, which select standard, Karatsuba, or FFT based on operand bit length and `opts.FFTThreshold`/`opts.KaratsubaThreshold` | Default production strategy |
+| `AdaptiveStrategy` | Delegates to `smartMultiply`/`smartSquare`, which select standard `math/big` or FFT based on operand bit length and `opts.FFTThreshold` | Default production strategy |
 | `FFTOnlyStrategy` | Forces `mulFFT`/`sqrFFT` for every operation | Benchmarking FFT, very large N |
 | `KaratsubaStrategy` | Forces `math/big.Mul` for every operation | Testing, small-N comparison |
 
@@ -193,7 +193,7 @@ func (s *AdaptiveStrategy) ExecuteStep(state *CalculationState, opts Options, in
 
 When operand bits exceed `FFTThreshold`, the strategy switches to the FFT path with
 transform reuse. Below that threshold, it falls back to standard doubling-step
-multiplications that individually select Karatsuba or standard `big.Mul`.
+multiplications that use standard `big.Mul`.
 
 ---
 
@@ -598,7 +598,7 @@ FibCalculator.CalculateWithObservers()  -- Decorator: fast path, pool warming, d
   |
 OptimizedFastDoubling.CalculateCore()   -- Core algorithm uses Strategy for multiplication
   |
-AdaptiveStrategy.ExecuteStep()          -- Strategy selects FFT or Karatsuba
+AdaptiveStrategy.ExecuteStep()          -- Strategy selects FFT or math/big
   |
 ProgressSubject.Notify()                -- Observer forwards progress
   |

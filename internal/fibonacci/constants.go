@@ -18,11 +18,11 @@ const (
 	DefaultParallelThreshold = 4096
 
 	// DefaultFFTThreshold is the default bit size threshold at which the
-	// algorithm switches from Karatsuba multiplication (used by math/big) to
+	// algorithm switches from standard math/big multiplication to
 	// FFT-based multiplication (Schönhage-Strassen).
 	//
-	// Below this threshold, Karatsuba's O(n^1.585) complexity is faster due to
-	// lower constant factors. Above it, FFT's O(n log n) complexity wins.
+	// Below this threshold, math/big's O(n^1.585) complexity (Karatsuba internally)
+	// is faster due to lower constant factors. Above it, FFT's O(n log n) wins.
 	// Value of 500,000 bits is optimal on modern CPUs with large L3 caches,
 	// providing a good balance between FFT overhead and multiplication gains.
 	DefaultFFTThreshold = 500_000
@@ -48,13 +48,6 @@ const (
 	//
 	// 10,000,000 bits (~3M decimal digits) is the empirical crossover point.
 	ParallelFFTThreshold = 10_000_000
-
-	// DefaultKaratsubaThreshold is the bit size threshold at which we switch
-	// from math/big's default multiplication to our custom optimized Karatsuba.
-	//
-	// Values between 2048 and 500,000 bits benefit from the custom memory
-	// pooling and parallel recursion available in bigfft.KaratsubaMultiply.
-	DefaultKaratsubaThreshold = 2048
 
 	// CalibrationN is the standard Fibonacci index used for performance
 	// calibration runs. This value provides a good balance between:

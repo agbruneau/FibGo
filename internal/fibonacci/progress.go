@@ -15,14 +15,14 @@ type ProgressUpdate struct {
 	Value float64
 }
 
-// ProgressReporter defines the functional type for a progress reporting
+// ProgressCallback defines the functional type for a progress reporting
 // callback. This simplified interface is used by core calculation algorithms to
 // report their progress without being coupled to the channel-based communication
 // mechanism of the broader application.
 //
 // Parameters:
 //   - progress: The normalized progress value (0.0 to 1.0).
-type ProgressReporter func(progress float64)
+type ProgressCallback func(progress float64)
 
 // CalcTotalWork calculates the total work expected for O(log n) algorithms.
 // The number of weighted steps is modeled as a geometric series.
@@ -102,7 +102,7 @@ func PrecomputePowers4(numBits int) []float64 {
 //
 // Returns:
 //   - float64: The updated cumulative work done.
-func ReportStepProgress(progressReporter ProgressReporter, lastReported *float64, totalWork, workDone float64, i, numBits int, powers []float64) float64 {
+func ReportStepProgress(progressReporter ProgressCallback, lastReported *float64, totalWork, workDone float64, i, numBits int, powers []float64) float64 {
 	// Work for this step (bit i, counting down from numBits-1 to 0)
 	// The step index in the geometric series is (numBits - 1 - i).
 	// Fast doubling starts from MSB (small current value) and doubles up.

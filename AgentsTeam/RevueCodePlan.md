@@ -6,6 +6,35 @@
 
 ---
 
+## Suivi d'avancement
+
+**Derniere mise a jour** : 2026-02-07
+**Session** : Execution complete — 18/18 taches DONE
+**Verification finale** : go build OK, go test 18/18 OK, go vet OK
+
+| ID | Tache | Phase | Statut | Notes |
+|----|-------|-------|--------|-------|
+| 1.1 | Renommer `ProgressReporter` -> `ProgressCallback` | 1 | DONE | 13 fichiers modifies, build+tests OK |
+| 1.2 | Corriger assertions faibles `fft_test.go` | 1 | DONE | 3x `t.Logf` -> `t.Errorf` |
+| 1.3 | Corriger race condition tests de seuils | 1 | DONE | Group subtest pattern applique |
+| 1.4 | Supprimer mocks gomock inutilises | 1 | DONE | 4 fichiers + 4 directives supprimes |
+| 1.5 | Corriger commentaire `ProgressState` | 1 | DONE | Commentaire thread-safety corrige |
+| 2.1 | Supprimer Karatsuba custom | 2 | DONE | karatsuba.go + tests supprimes, docs MAJ |
+| 2.2 | Nettoyer ASM AVX2 mort | 2 | DONE | arith_amd64.s supprime, arith_amd64.go simplifie |
+| 2.3 | Deplacer `GetCalculatorsToRun` | 2 | DONE | cli -> orchestration |
+| 2.4 | Extraire `internal/format` | 2 | DONE | 3 fichiers format/ crees, TUI+calibration MAJ |
+| 3.1 | Evaluer/optimiser cache FFT | 3 | DONE | SHA-256->FNV-1a, flattenPolyData elimine |
+| 3.2 | Resoudre couplage config->fibonacci | 3 | DONE | Import fibonacci retire, constantes unifiees |
+| 3.3 | Separer `MultiplicationStrategy` (ISP) | 3 | DONE | Multiplier + DoublingStepExecutor + type alias |
+| 3.4 | Propager contexte goroutines paralleles | 3 | DONE | 6 goroutines avec ctx.Err() |
+| 3.5 | Activer race detector CI | 3 | DONE | .github/workflows/ci.yml cree |
+| 3.6 | Enrichir tests E2E | 3 | DONE | 6 nouveaux cas (2->8 total) |
+| 4.1 | Optimiser `acquireWordSlice` | 4 | DONE | acquireWordSliceUnsafe ajoute + tests |
+| 4.2 | Optimiser `getWordSlicePoolIndex` O(1) | 4 | DONE | 4 fonctions optimisees, 20x plus rapide |
+| 4.3 | Documenter invariant semaphores | 4 | DONE | Refs croisees common.go + fft_recursion.go |
+
+---
+
 ## Phase 1 — Quick wins (effort faible, impact eleve)
 
 ### 1.1 Renommer `fibonacci.ProgressReporter` -> `ProgressCallback`

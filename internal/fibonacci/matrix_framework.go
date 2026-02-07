@@ -36,7 +36,7 @@ func NewMatrixFramework() *MatrixFramework {
 // Returns:
 //   - *big.Int: The calculated Fibonacci number F(n).
 //   - error: An error if one occurred (e.g., context cancellation).
-func (f *MatrixFramework) ExecuteMatrixLoop(ctx context.Context, reporter ProgressReporter, n uint64, opts Options, state *matrixState) (*big.Int, error) {
+func (f *MatrixFramework) ExecuteMatrixLoop(ctx context.Context, reporter ProgressCallback, n uint64, opts Options, state *matrixState) (*big.Int, error) {
 	if n == 0 {
 		return big.NewInt(0), nil
 	}

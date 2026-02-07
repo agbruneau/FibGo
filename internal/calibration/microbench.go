@@ -30,7 +30,7 @@ const (
 // MicroBenchTestSizes defines the word sizes to test for threshold estimation.
 // These sizes are chosen to span the critical ranges where algorithm switches occur.
 var MicroBenchTestSizes = []int{
-	500,   // ~32K bits - small, definitely Karatsuba
+	500,   // ~32K bits - small, standard math/big territory
 	2000,  // ~128K bits - medium, near parallel threshold
 	8000,  // ~512K bits - large, near FFT threshold
 	16000, // ~1M bits - very large, FFT territory
@@ -123,7 +123,7 @@ func (mb *MicroBenchmark) runParallelTests(ctx context.Context) []testResult {
 
 	configs := make([]testConfig, 0, len(mb.TestSizes)*4)
 	for _, size := range mb.TestSizes {
-		// For each size, test: Karatsuba seq, Karatsuba par, FFT seq, FFT par
+		// For each size, test: math/big seq, math/big par, FFT seq, FFT par
 		configs = append(configs,
 			testConfig{size, false, false},
 			testConfig{size, false, true},
@@ -258,30 +258,30 @@ func (mb *MicroBenchmark) analyzeResults(results []testResult) ThresholdResults 
 	return tr
 }
 
-// findFFTCrossover determines the bit size where FFT becomes faster than Karatsuba.
+// findFFTCrossover determines the bit size where FFT becomes faster than standard math/big.
 func (mb *MicroBenchmark) findFFTCrossover(bySize map[int][]testResult) int {
 	var crossoverSize int
 
 	for size, results := range bySize {
-		var karatsubaDur, fftDur time.Duration
-		var karatsubaCount, fftCount int
+		var stdDur, fftDur time.Duration
+		var stdCount, fftCount int
 
 		for _, r := range results {
 			if r.useFFT {
 				fftDur += r.duration
 				fftCount++
 			} else {
-				karatsubaDur += r.duration
-				karatsubaCount++
+				stdDur += r.duration
+				stdCount++
 			}
 		}
 
-		if karatsubaCount > 0 && fftCount > 0 {
-			avgKaratsuba := karatsubaDur / time.Duration(karatsubaCount)
+		if stdCount > 0 && fftCount > 0 {
+			avgStd := stdDur / time.Duration(stdCount)
 			avgFFT := fftDur / time.Duration(fftCount)
 
 			// FFT is faster at this size
-			if avgFFT < avgKaratsuba {
+			if avgFFT < avgStd {
 				bitSize := size * 64 // Words to bits (64-bit)
 				if crossoverSize == 0 || bitSize < crossoverSize {
 					crossoverSize = bitSize
@@ -312,7 +312,7 @@ func (mb *MicroBenchmark) findParallelCrossover(bySize map[int][]testResult) int
 		var seqCount, parCount int
 
 		for _, r := range results {
-			if !r.useFFT { // Only compare Karatsuba seq vs par
+			if !r.useFFT { // Only compare math/big seq vs par
 				if r.parallel {
 					parDur += r.duration
 					parCount++

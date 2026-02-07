@@ -51,7 +51,7 @@ func smartMultiply(z, x, y *big.Int, fftThreshold int) (*big.Int, error) {
 		return bigfft.MulTo(z, x, y)
 	}
 
-	// Tier 2: math/big Multiplication (uses its own optimized Karatsuba internally)
+	// Tier 2: math/big Multiplication (uses optimized algorithms internally)
 	if z == nil {
 		z = new(big.Int)
 	}
@@ -68,7 +68,7 @@ func smartSquare(z, x *big.Int, fftThreshold int) (*big.Int, error) {
 		return bigfft.SqrTo(z, x)
 	}
 
-	// Tier 2: math/big Squaring (uses its own optimized Karatsuba internally)
+	// Tier 2: math/big Squaring (uses optimized algorithms internally)
 	if z == nil {
 		z = new(big.Int)
 	}
@@ -128,6 +128,10 @@ func executeDoublingStepFFT(ctx context.Context, s *CalculationState, opts Optio
 		resChan := make(chan result, 3)
 
 		go func() {
+			if err := ctx.Err(); err != nil {
+				resChan <- result{nil, fmt.Errorf("canceled before FFT operation: %w", err)}
+				return
+			}
 			v, err := fkPoly.Mul(&t4Poly)
 			if err != nil {
 				resChan <- result{nil, err}
@@ -143,6 +147,10 @@ func executeDoublingStepFFT(ctx context.Context, s *CalculationState, opts Optio
 		}()
 
 		go func() {
+			if err := ctx.Err(); err != nil {
+				resChan <- result{nil, fmt.Errorf("canceled before FFT operation: %w", err)}
+				return
+			}
 			v, err := fk1Poly.Sqr()
 			if err != nil {
 				resChan <- result{nil, err}
@@ -158,6 +166,10 @@ func executeDoublingStepFFT(ctx context.Context, s *CalculationState, opts Optio
 		}()
 
 		go func() {
+			if err := ctx.Err(); err != nil {
+				resChan <- result{nil, fmt.Errorf("canceled before FFT operation: %w", err)}
+				return
+			}
 			v, err := fkPoly.Sqr()
 			if err != nil {
 				resChan <- result{nil, err}

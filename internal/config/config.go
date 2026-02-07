@@ -9,7 +9,6 @@ import (
 	"time"
 
 	apperrors "github.com/agbru/fibcalc/internal/errors"
-	"github.com/agbru/fibcalc/internal/fibonacci"
 )
 
 const (
@@ -28,12 +27,6 @@ const (
 	DefaultTimeout = 5 * time.Minute
 	// DefaultAlgo is the default algorithm selection.
 	DefaultAlgo = "all"
-	// DefaultThreshold is the default parallelism threshold in bits.
-	DefaultThreshold = 4096
-	// DefaultFFTThreshold is the default FFT multiplication threshold in bits.
-	DefaultFFTThreshold = 500_000
-	// DefaultStrassenThreshold is the default Strassen algorithm threshold in bits.
-	DefaultStrassenThreshold = 3072
 )
 
 // AppConfig aggregates the application's configuration parameters, parsed from
@@ -78,16 +71,6 @@ type AppConfig struct {
 	ShowValue bool
 	// TUI, if true, launches the interactive TUI dashboard instead of CLI mode.
 	TUI bool
-}
-
-// ToCalculationOptions converts the application configuration into
-// fibonacci.Options for use by the calculators.
-func (c AppConfig) ToCalculationOptions() fibonacci.Options {
-	return fibonacci.Options{
-		ParallelThreshold: c.Threshold,
-		FFTThreshold:      c.FFTThreshold,
-		StrassenThreshold: c.StrassenThreshold,
-	}
 }
 
 // Validate checks the semantic consistency of the configuration parameters.
@@ -156,9 +139,9 @@ func ParseConfig(programName string, args []string, errorWriter io.Writer, avail
 	fs.BoolVar(&config.Details, "details", false, "Alias for -d.")
 	fs.DurationVar(&config.Timeout, "timeout", DefaultTimeout, "Maximum execution time for the calculation.")
 	fs.StringVar(&config.Algo, "algo", DefaultAlgo, algoHelp)
-	fs.IntVar(&config.Threshold, "threshold", DefaultThreshold, "Threshold (in bits) for activating parallelism in multiplications.")
-	fs.IntVar(&config.FFTThreshold, "fft-threshold", DefaultFFTThreshold, "Threshold (in bits) to enable FFT multiplication (0 to disable).")
-	fs.IntVar(&config.StrassenThreshold, "strassen-threshold", DefaultStrassenThreshold, "Threshold (in bits) to switch to Strassen's algorithm in matrix multiplication.")
+	fs.IntVar(&config.Threshold, "threshold", 0, "Threshold (in bits) for activating parallelism in multiplications (0 for auto).")
+	fs.IntVar(&config.FFTThreshold, "fft-threshold", 0, "Threshold (in bits) to enable FFT multiplication (0 for auto).")
+	fs.IntVar(&config.StrassenThreshold, "strassen-threshold", 0, "Threshold (in bits) to switch to Strassen's algorithm in matrix multiplication (0 for auto).")
 	fs.BoolVar(&config.Calibrate, "calibrate", false, "Runs calibration mode to determine the optimal parallelism threshold.")
 	fs.BoolVar(&config.AutoCalibrate, "auto-calibrate", false, "Enables quick automatic calibration at startup (may increase loading time).")
 	fs.StringVar(&config.CalibrationProfile, "calibration-profile", "", "Path to calibration profile file (default: ~/.fibcalc_calibration.json).")

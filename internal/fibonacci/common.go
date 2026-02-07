@@ -18,9 +18,12 @@ import (
 var taskSemaphore chan struct{}
 var taskSemaphoreOnce sync.Once
 
-// getTaskSemaphore returns the global task semaphore, initializing it
-// to runtime.NumCPU()*2 on the first call. The 2x multiplier allows for
-// some overlap between CPU-bound work and any I/O or synchronization waits.
+// getTaskSemaphore returns a semaphore limiting Fibonacci-level parallelism
+// to NumCPU*2 goroutines. This is independent from the FFT-level semaphore
+// (bigfft/fft_recursion.go, NumCPU goroutines). When both are active, up to
+// NumCPU*3 goroutines may be active simultaneously. This is mitigated by
+// ShouldParallelizeMultiplication() which disables Fibonacci-level parallelism
+// when FFT is active (except for operands > ParallelFFTThreshold = 10M bits).
 func getTaskSemaphore() chan struct{} {
 	taskSemaphoreOnce.Do(func() {
 		taskSemaphore = make(chan struct{}, runtime.NumCPU()*2)

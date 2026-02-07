@@ -15,33 +15,33 @@ import (
 )
 
 // DoublingFramework encapsulates the common Fast Doubling algorithm logic.
-// It uses a MultiplicationStrategy to perform multiplications, allowing
+// It uses a DoublingStepExecutor to perform multiplications, allowing
 // different strategies (adaptive, FFT-only, etc.) to be plugged in.
 type DoublingFramework struct {
-	strategy         MultiplicationStrategy
+	strategy         DoublingStepExecutor
 	dynamicThreshold *DynamicThresholdManager
 }
 
 // NewDoublingFramework creates a new Fast Doubling framework with the given strategy.
 //
 // Parameters:
-//   - strategy: The multiplication strategy to use.
+//   - strategy: The DoublingStepExecutor strategy to use.
 //
 // Returns:
 //   - *DoublingFramework: A new framework instance.
-func NewDoublingFramework(strategy MultiplicationStrategy) *DoublingFramework {
+func NewDoublingFramework(strategy DoublingStepExecutor) *DoublingFramework {
 	return &DoublingFramework{strategy: strategy}
 }
 
 // NewDoublingFrameworkWithDynamicThresholds creates a framework with dynamic threshold adjustment.
 //
 // Parameters:
-//   - strategy: The multiplication strategy to use.
+//   - strategy: The DoublingStepExecutor strategy to use.
 //   - dtm: The dynamic threshold manager (can be nil to disable).
 //
 // Returns:
 //   - *DoublingFramework: A new framework instance.
-func NewDoublingFrameworkWithDynamicThresholds(strategy MultiplicationStrategy, dtm *DynamicThresholdManager) *DoublingFramework {
+func NewDoublingFrameworkWithDynamicThresholds(strategy DoublingStepExecutor, dtm *DynamicThresholdManager) *DoublingFramework {
 	return &DoublingFramework{
 		strategy:         strategy,
 		dynamicThreshold: dtm,
@@ -52,16 +52,18 @@ func NewDoublingFrameworkWithDynamicThresholds(strategy MultiplicationStrategy, 
 // for a doubling step, either sequentially or in parallel based on the inParallel flag.
 // This function encapsulates the parallelization logic to keep ExecuteDoublingLoop clean.
 //
+// It depends on the narrow Multiplier interface since it only calls Multiply and Square.
+//
 // Parameters:
 //   - ctx: The context for cancellation checking between sequential multiplications.
-//   - strategy: The multiplication strategy to use.
+//   - strategy: The Multiplier to use for Multiply/Square operations.
 //   - s: The calculation state containing operands and temporaries.
 //   - opts: Configuration options for the calculation.
 //   - inParallel: Whether to execute multiplications in parallel.
 //
 // Returns:
 //   - error: An error if any multiplication failed, with context about which operation failed.
-func executeDoublingStepMultiplications(ctx context.Context, strategy MultiplicationStrategy, s *CalculationState, opts Options, inParallel bool) error {
+func executeDoublingStepMultiplications(ctx context.Context, strategy Multiplier, s *CalculationState, opts Options, inParallel bool) error {
 	if inParallel {
 		var wg sync.WaitGroup
 		var ec parallel.ErrorCollector
@@ -70,6 +72,10 @@ func executeDoublingStepMultiplications(ctx context.Context, strategy Multiplica
 		// 1. T3 = FK * T4
 		go func() {
 			defer wg.Done()
+			if err := ctx.Err(); err != nil {
+				ec.SetError(fmt.Errorf("canceled before multiply: %w", err))
+				return
+			}
 			var err error
 			// Note: We access s.T3, s.FK, s.T4 safely because each goroutine
 			// operates on disjoint destination sets or reads shared sources
@@ -84,6 +90,10 @@ func executeDoublingStepMultiplications(ctx context.Context, strategy Multiplica
 		// 2. T1 = FK1^2
 		go func() {
 			defer wg.Done()
+			if err := ctx.Err(); err != nil {
+				ec.SetError(fmt.Errorf("canceled before multiply: %w", err))
+				return
+			}
 			var err error
 			// T1 is destination for this goroutine.
 			s.T1, err = strategy.Square(s.T1, s.FK1, opts)
@@ -95,6 +105,10 @@ func executeDoublingStepMultiplications(ctx context.Context, strategy Multiplica
 		// 3. T2 = FK^2
 		go func() {
 			defer wg.Done()
+			if err := ctx.Err(); err != nil {
+				ec.SetError(fmt.Errorf("canceled before multiply: %w", err))
+				return
+			}
 			var err error
 			// T2 is destination for this goroutine.
 			s.T2, err = strategy.Square(s.T2, s.FK, opts)
@@ -150,7 +164,7 @@ func executeDoublingStepMultiplications(ctx context.Context, strategy Multiplica
 // Returns:
 //   - *big.Int: The calculated Fibonacci number F(n).
 //   - error: An error if one occurred (e.g., context cancellation).
-func (f *DoublingFramework) ExecuteDoublingLoop(ctx context.Context, reporter ProgressReporter, n uint64, opts Options, s *CalculationState, useParallel bool) (*big.Int, error) {
+func (f *DoublingFramework) ExecuteDoublingLoop(ctx context.Context, reporter ProgressCallback, n uint64, opts Options, s *CalculationState, useParallel bool) (*big.Int, error) {
 	numBits := bits.Len64(n)
 
 	// Calculate total work for progress reporting via common utility

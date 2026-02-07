@@ -5,27 +5,18 @@ import (
 	"time"
 )
 
-// TestNewProgressWithETA verifies proper initialization.
-func TestNewProgressWithETA(t *testing.T) {
+// TestCLINewProgressWithETA verifies the CLI wrapper delegates correctly.
+func TestCLINewProgressWithETA(t *testing.T) {
 	t.Parallel()
 	p := NewProgressWithETA(3)
 
 	if p.ProgressState == nil {
 		t.Fatal("ProgressState should not be nil")
 	}
-	if p.numCalculators != 3 {
-		t.Errorf("numCalculators = %d, want 3", p.numCalculators)
-	}
-	if p.progressRate != 0 {
-		t.Errorf("initial progressRate = %f, want 0", p.progressRate)
-	}
-	if p.startTime.IsZero() {
-		t.Error("startTime should not be zero")
-	}
 }
 
-// TestUpdateWithETA verifies progress updates and ETA calculation.
-func TestUpdateWithETA(t *testing.T) {
+// TestCLIUpdateWithETA verifies the CLI wrapper delegates correctly.
+func TestCLIUpdateWithETA(t *testing.T) {
 	t.Parallel()
 	p := NewProgressWithETA(2)
 
@@ -46,8 +37,8 @@ func TestUpdateWithETA(t *testing.T) {
 	}
 }
 
-// TestGetETA verifies ETA retrieval.
-func TestGetETA(t *testing.T) {
+// TestCLIGetETA verifies the CLI wrapper delegates correctly.
+func TestCLIGetETA(t *testing.T) {
 	t.Parallel()
 	p := NewProgressWithETA(1)
 
@@ -56,22 +47,10 @@ func TestGetETA(t *testing.T) {
 	if eta != 0 {
 		t.Errorf("initial ETA = %v, want 0", eta)
 	}
-
-	// Simulate some progress
-	p.Update(0, 0.5)
-	p.progressRate = 0.1 // 10% per second
-
-	eta = p.GetETA()
-	// With 50% remaining at 10%/s, ETA should be around 5 seconds
-	expectedETA := 5 * time.Second
-	tolerance := time.Second
-	if eta < expectedETA-tolerance || eta > expectedETA+tolerance {
-		t.Errorf("ETA = %v, want approximately %v", eta, expectedETA)
-	}
 }
 
-// TestFormatETA verifies ETA formatting.
-func TestFormatETA(t *testing.T) {
+// TestCLIFormatETA verifies the CLI wrapper delegates correctly.
+func TestCLIFormatETA(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name     string
@@ -102,8 +81,8 @@ func TestFormatETA(t *testing.T) {
 	}
 }
 
-// TestFormatProgressBarWithETA verifies combined progress and ETA formatting.
-func TestFormatProgressBarWithETA(t *testing.T) {
+// TestCLIFormatProgressBarWithETA verifies the CLI wrapper delegates correctly.
+func TestCLIFormatProgressBarWithETA(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name        string
@@ -162,8 +141,8 @@ func TestFormatProgressBarWithETA(t *testing.T) {
 	}
 }
 
-// TestProgressWithETAEdgeCases verifies edge case handling.
-func TestProgressWithETAEdgeCases(t *testing.T) {
+// TestCLIProgressWithETAEdgeCases verifies edge case handling via CLI wrappers.
+func TestCLIProgressWithETAEdgeCases(t *testing.T) {
 	t.Parallel()
 	t.Run("Progress exceeds 1.0", func(t *testing.T) {
 		t.Parallel()
@@ -199,21 +178,6 @@ func TestProgressWithETAEdgeCases(t *testing.T) {
 			t.Errorf("progress should be valid, got %f", progress)
 		}
 	})
-}
-
-// TestETACapping verifies that ETA is capped at reasonable values.
-func TestETACapping(t *testing.T) {
-	t.Parallel()
-	p := NewProgressWithETA(1)
-	p.Update(0, 0.001)         // Very small progress
-	p.progressRate = 0.0000001 // Very slow rate
-
-	eta := p.GetETA()
-	maxETA := 24 * time.Hour
-
-	if eta > maxETA {
-		t.Errorf("ETA = %v, should be capped at %v", eta, maxETA)
-	}
 }
 
 // contains is a helper function to check if a string contains a substring.

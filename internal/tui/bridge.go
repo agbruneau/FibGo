@@ -7,8 +7,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/agbru/fibcalc/internal/cli"
 	apperrors "github.com/agbru/fibcalc/internal/errors"
+	"github.com/agbru/fibcalc/internal/format"
 	"github.com/agbru/fibcalc/internal/fibonacci"
 	"github.com/agbru/fibcalc/internal/orchestration"
 )
@@ -45,7 +45,7 @@ func (t *TUIProgressReporter) DisplayProgress(wg *sync.WaitGroup, progressChan <
 		return
 	}
 
-	state := cli.NewProgressWithETA(numCalculators)
+	state := format.NewProgressWithETA(numCalculators)
 
 	for update := range progressChan {
 		avgProgress, eta := state.UpdateWithETA(update.CalculatorIndex, update.Value)
@@ -86,7 +86,7 @@ func (t *TUIResultPresenter) PresentResult(result orchestration.CalculationResul
 
 // FormatDuration delegates to the CLI formatter.
 func (t *TUIResultPresenter) FormatDuration(d time.Duration) string {
-	return cli.FormatExecutionDuration(d)
+	return format.FormatExecutionDuration(d)
 }
 
 // HandleError sends an error message to the TUI and returns the exit code.

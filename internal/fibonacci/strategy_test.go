@@ -280,12 +280,20 @@ func TestFFTOnlyStrategy(t *testing.T) {
 	})
 }
 
-// TestMultiplicationStrategyInterface verifies interface implementation.
-func TestMultiplicationStrategyInterface(t *testing.T) {
+// TestMultiplierInterface verifies that all strategies implement Multiplier.
+func TestMultiplierInterface(t *testing.T) {
 	t.Parallel()
-	var _ MultiplicationStrategy = &AdaptiveStrategy{}
-	var _ MultiplicationStrategy = &FFTOnlyStrategy{}
-	var _ MultiplicationStrategy = &KaratsubaStrategy{}
+	var _ Multiplier = &AdaptiveStrategy{}
+	var _ Multiplier = &FFTOnlyStrategy{}
+	var _ Multiplier = &KaratsubaStrategy{}
+}
+
+// TestDoublingStepExecutorInterface verifies that all strategies implement DoublingStepExecutor.
+func TestDoublingStepExecutorInterface(t *testing.T) {
+	t.Parallel()
+	var _ DoublingStepExecutor = &AdaptiveStrategy{}
+	var _ DoublingStepExecutor = &FFTOnlyStrategy{}
+	var _ DoublingStepExecutor = &KaratsubaStrategy{}
 }
 
 func TestKaratsubaStrategy_ExecuteStep(t *testing.T) {

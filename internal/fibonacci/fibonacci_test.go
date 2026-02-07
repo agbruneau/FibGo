@@ -118,8 +118,8 @@ func TestNilCoreCalculatorPanic(t *testing.T) {
 	_ = NewCalculator(nil)
 }
 
-// TestProgressReporter validates the monotonic notification of progress.
-func TestProgressReporter(t *testing.T) {
+// TestProgressCallback validates the monotonic notification of progress.
+func TestProgressCallback(t *testing.T) {
 	calculators := map[string]Calculator{
 		"FastDoubling": NewCalculator(&OptimizedFastDoubling{}),
 		"MatrixExp":    NewCalculator(&MatrixExponentiation{}),

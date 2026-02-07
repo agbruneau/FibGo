@@ -6,8 +6,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/agbru/fibcalc/internal/cli"
 	"github.com/agbru/fibcalc/internal/config"
+	"github.com/agbru/fibcalc/internal/format"
 	"github.com/agbru/fibcalc/internal/ui"
 )
 
@@ -24,7 +24,7 @@ func printCalibrationResults(out io.Writer, results []calibrationResult, bestThr
 		}
 		durationStr := fmt.Sprintf("%sN/A%s", ui.ColorRed(), ui.ColorReset())
 		if res.Err == nil {
-			durationStr = cli.FormatExecutionDuration(res.Duration)
+			durationStr = format.FormatExecutionDuration(res.Duration)
 			if res.Duration == 0 {
 				durationStr = "< 1µs"
 			}

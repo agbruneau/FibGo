@@ -3,8 +3,6 @@
 
 package fibonacci
 
-//go:generate mockgen -source=generator.go -destination=mocks/mock_generator.go -package=mocks
-
 import (
 	"context"
 	"math/big"

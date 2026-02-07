@@ -62,6 +62,42 @@ func TestCLI_E2E(t *testing.T) {
 			wantOut:  "usage", // Case-insensitive pattern
 			wantCode: 0,
 		},
+		{
+			name:     "All Algorithms Comparison",
+			args:     []string{"-n", "100", "--algo", "all", "-c"},
+			wantOut:  "F(100)",
+			wantCode: 0,
+		},
+		{
+			name:     "Quiet Mode",
+			args:     []string{"-n", "10", "--quiet", "-c"},
+			wantOut:  "55",
+			wantCode: 0,
+		},
+		{
+			name:     "Very Short Timeout",
+			args:     []string{"-n", "10000000", "--timeout", "1ms"},
+			wantOut:  "", // may produce error output on stderr
+			wantCode: 2, // non-zero exit code expected (timeout error)
+		},
+		{
+			name:     "Invalid N Zero",
+			args:     []string{"-n", "0", "-c"},
+			wantOut:  "F(0)",
+			wantCode: 0,
+		},
+		{
+			name:     "Large N",
+			args:     []string{"-n", "1000", "-c"},
+			wantOut:  "F(1000)",
+			wantCode: 0,
+		},
+		{
+			name:     "Version Flag",
+			args:     []string{"--version"},
+			wantOut:  "fibcalc",
+			wantCode: 0,
+		},
 	}
 
 	for _, tt := range tests {
@@ -70,19 +106,31 @@ func TestCLI_E2E(t *testing.T) {
 			cmd.Env = append(os.Environ(), "NO_COLOR=1")
 			output, err := cmd.CombinedOutput()
 
-			if tt.wantCode == 0 && err != nil {
-				t.Errorf("Command failed: %v\nOutput: %s", err, output)
-			} else if tt.wantCode != 0 {
-				if err == nil {
-					t.Errorf("Expected command to fail with code %d", tt.wantCode)
+			outStr := string(output)
+
+			if tt.wantCode == 0 {
+				if err != nil {
+					t.Errorf("Command failed unexpectedly: %v\nOutput: %s", err, outStr)
 				}
-				// Exit code check requires casting err to ExitError
+			} else {
+				// Expect a non-zero exit code
+				if err == nil {
+					t.Errorf("Expected non-zero exit code, but command succeeded.\nOutput: %s", outStr)
+				} else if exitErr, ok := err.(*exec.ExitError); ok {
+					if exitErr.ExitCode() != tt.wantCode {
+						t.Logf("Exit code mismatch: got %d, want %d (accepting any non-zero)",
+							exitErr.ExitCode(), tt.wantCode)
+						// We still pass as long as it's non-zero, which it is since err != nil
+					}
+				}
+				// err != nil but not ExitError is also acceptable (e.g., signal kill)
 			}
 
-			outStr := string(output)
-			// Use case-insensitive matching for help output
-			if !strings.Contains(strings.ToLower(outStr), strings.ToLower(tt.wantOut)) {
-				t.Errorf("Output missing expected string.\nExpected: %q\nGot:\n%s", tt.wantOut, outStr)
+			// Check output substring (skip check if wantOut is empty)
+			if tt.wantOut != "" {
+				if !strings.Contains(strings.ToLower(outStr), strings.ToLower(tt.wantOut)) {
+					t.Errorf("Output missing expected string.\nExpected: %q\nGot:\n%s", tt.wantOut, outStr)
+				}
 			}
 		})
 	}

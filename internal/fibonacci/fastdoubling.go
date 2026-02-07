@@ -40,7 +40,7 @@ import (
 // (`math/big`), the cost of each multiplication dominates. The number of bits in
 // F(n) is proportional to n. If M(k) is the time complexity of multiplying two
 // k-bit numbers, the total complexity of this algorithm is O(log n * M(n)).
-//   - For standard multiplication (Karatsuba), M(n) ≈ O(n^1.585).
+//   - For standard multiplication (math/big, which uses Karatsuba internally), M(n) ≈ O(n^1.585).
 //   - For FFT-based multiplication, M(n) ≈ O(n log n).
 //
 // Optimization Details:
@@ -90,7 +90,7 @@ func (fd *OptimizedFastDoubling) Name() string {
 // Returns:
 //   - *big.Int: The calculated Fibonacci number.
 //   - error: An error if one occurred (e.g., context cancellation).
-func (fd *OptimizedFastDoubling) CalculateCore(ctx context.Context, reporter ProgressReporter, n uint64, opts Options) (*big.Int, error) {
+func (fd *OptimizedFastDoubling) CalculateCore(ctx context.Context, reporter ProgressCallback, n uint64, opts Options) (*big.Int, error) {
 	s := AcquireState()
 	defer ReleaseState(s)
 

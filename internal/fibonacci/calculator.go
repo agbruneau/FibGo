@@ -1,5 +1,3 @@
-//go:generate mockgen -source=calculator.go -destination=mocks/mock_calculator.go -package=mocks
-
 package fibonacci
 
 import (
@@ -48,7 +46,7 @@ type Calculator interface {
 // coreCalculator defines the internal interface for a pure calculation
 // algorithm.
 type coreCalculator interface {
-	CalculateCore(ctx context.Context, reporter ProgressReporter, n uint64, opts Options) (*big.Int, error)
+	CalculateCore(ctx context.Context, reporter ProgressCallback, n uint64, opts Options) (*big.Int, error)
 	Name() string
 }
 
@@ -92,7 +90,7 @@ func (c *FibCalculator) Name() string {
 // It first checks for small values of `n` (≤93) which can be computed
 // efficiently using iterative addition without the overhead of the full
 // algorithm. For larger values, it adapts the progressChan into a
-// ProgressReporter callback and delegates the core calculation to the wrapped
+// ProgressCallback callback and delegates the core calculation to the wrapped
 // coreCalculator. This method ensures that progress is reported completely upon
 // successful calculation.
 //
@@ -153,9 +151,9 @@ func (c *FibCalculator) CalculateWithObservers(ctx context.Context, subject *Pro
 	}()
 
 	// Create a reporter that notifies all observers
-	var reporter ProgressReporter
+	var reporter ProgressCallback
 	if subject != nil {
-		reporter = subject.AsProgressReporter(calcIndex)
+		reporter = subject.AsProgressCallback(calcIndex)
 	} else {
 		reporter = func(float64) {} // No-op reporter
 	}

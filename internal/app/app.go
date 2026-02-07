@@ -92,21 +92,21 @@ func New(args []string, errWriter io.Writer) (*Application, error) {
 // Returns:
 //   - config.AppConfig: The configuration with adaptive thresholds applied.
 func applyAdaptiveThresholds(cfg config.AppConfig) config.AppConfig {
-	// Only adjust thresholds if they're at the static default values.
+	// Only adjust thresholds if they're at their zero default (not explicitly set).
 	// This preserves explicit user overrides via --threshold, --fft-threshold, etc.
 
 	// Parallel threshold: adapt based on CPU core count
-	if cfg.Threshold == fibonacci.DefaultParallelThreshold {
+	if cfg.Threshold == 0 {
 		cfg.Threshold = calibration.EstimateOptimalParallelThreshold()
 	}
 
 	// FFT threshold: adapt based on architecture (32-bit vs 64-bit)
-	if cfg.FFTThreshold == fibonacci.DefaultFFTThreshold {
+	if cfg.FFTThreshold == 0 {
 		cfg.FFTThreshold = calibration.EstimateOptimalFFTThreshold()
 	}
 
 	// Strassen threshold: adapt based on CPU core count
-	if cfg.StrassenThreshold == fibonacci.DefaultStrassenThreshold {
+	if cfg.StrassenThreshold == 0 {
 		cfg.StrassenThreshold = calibration.EstimateOptimalStrassenThreshold()
 	}
 
@@ -183,7 +183,7 @@ func (a *Application) runTUI(ctx context.Context, _ io.Writer) int {
 	ctx, stopSignals := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stopSignals()
 
-	calculatorsToRun := cli.GetCalculatorsToRun(a.Config, a.Factory)
+	calculatorsToRun := orchestration.GetCalculatorsToRun(a.Config, a.Factory)
 	return tui.Run(ctx, calculatorsToRun, a.Config, Version)
 }
 
@@ -196,7 +196,7 @@ func (a *Application) runCalculate(ctx context.Context, out io.Writer) int {
 	defer stopSignals()
 
 	// Get calculators to run
-	calculatorsToRun := cli.GetCalculatorsToRun(a.Config, a.Factory)
+	calculatorsToRun := orchestration.GetCalculatorsToRun(a.Config, a.Factory)
 
 	// Skip verbose output in quiet mode
 	if !a.Config.Quiet {

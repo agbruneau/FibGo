@@ -114,22 +114,24 @@ func TestFFTThresholdVariations(t *testing.T) {
 	var results []*big.Int
 	var mu sync.Mutex
 
-	for _, threshold := range thresholds {
-		t.Run(fmt.Sprintf("Threshold=%d", threshold), func(t *testing.T) {
-			t.Parallel()
-			opts := Options{
-				ParallelThreshold: DefaultParallelThreshold,
-				FFTThreshold:      threshold,
-			}
-			result, err := calc.Calculate(ctx, nil, 0, n, opts)
-			if err != nil {
-				t.Fatalf("Calculation with FFT threshold %d failed: %v", threshold, err)
-			}
-			mu.Lock()
-			results = append(results, result)
-			mu.Unlock()
-		})
-	}
+	t.Run("calculations", func(t *testing.T) {
+		for _, threshold := range thresholds {
+			t.Run(fmt.Sprintf("Threshold=%d", threshold), func(t *testing.T) {
+				t.Parallel()
+				opts := Options{
+					ParallelThreshold: DefaultParallelThreshold,
+					FFTThreshold:      threshold,
+				}
+				result, err := calc.Calculate(ctx, nil, 0, n, opts)
+				if err != nil {
+					t.Fatalf("Calculation with FFT threshold %d failed: %v", threshold, err)
+				}
+				mu.Lock()
+				results = append(results, result)
+				mu.Unlock()
+			})
+		}
+	}) // All parallel subtests complete here
 
 	// Verify all results are the same
 	if len(results) > 1 {
@@ -154,22 +156,24 @@ func TestStrassenThresholdVariations(t *testing.T) {
 	var results []*big.Int
 	var mu sync.Mutex
 
-	for _, threshold := range thresholds {
-		t.Run(fmt.Sprintf("StrassenThreshold=%d", threshold), func(t *testing.T) {
-			t.Parallel()
-			opts := Options{
-				ParallelThreshold: DefaultParallelThreshold,
-				StrassenThreshold: threshold,
-			}
-			result, err := calc.Calculate(ctx, nil, 0, n, opts)
-			if err != nil {
-				t.Fatalf("Calculation with Strassen threshold %d failed: %v", threshold, err)
-			}
-			mu.Lock()
-			results = append(results, result)
-			mu.Unlock()
-		})
-	}
+	t.Run("calculations", func(t *testing.T) {
+		for _, threshold := range thresholds {
+			t.Run(fmt.Sprintf("StrassenThreshold=%d", threshold), func(t *testing.T) {
+				t.Parallel()
+				opts := Options{
+					ParallelThreshold: DefaultParallelThreshold,
+					StrassenThreshold: threshold,
+				}
+				result, err := calc.Calculate(ctx, nil, 0, n, opts)
+				if err != nil {
+					t.Fatalf("Calculation with Strassen threshold %d failed: %v", threshold, err)
+				}
+				mu.Lock()
+				results = append(results, result)
+				mu.Unlock()
+			})
+		}
+	}) // All parallel subtests complete here
 
 	// Verify all results are the same
 	if len(results) > 1 {

@@ -48,7 +48,7 @@ The Fibonacci Calculator is designed according to **Clean Architecture** princip
 │  │                            ▼                                     │   │
 │  │  ┌──────────────────────────────────────────────────────────────┐│   │
 │  │  │                    internal/bigfft                           ││   │
-│  │  │  • FFT/Karatsuba multiplication for very large numbers      ││   │
+│  │  │  • FFT multiplication for very large numbers                ││   │
 │  │  │  • Object pooling, bump allocation, SIMD dispatch           ││   │
 │  │  └──────────────────────────────────────────────────────────────┘│   │
 │  └──────────────────────────────────────────────────────────────────┘   │
@@ -112,7 +112,7 @@ Business core of the application. Contains algorithm implementations, the factor
 | `matrix_ops.go` | Matrix multiplication and squaring operations |
 | `matrix_types.go` | `Matrix2x2` type definition |
 | `fft_based.go` | `FFTBasedCalculator` — forces FFT for all multiplications |
-| `fft.go` | `smartMultiply` / `smartSquare` — 3-tier multiplication selection (FFT, Karatsuba, standard) |
+| `fft.go` | `smartMultiply` / `smartSquare` — 2-tier multiplication selection (FFT or standard math/big) |
 | `progress.go` | Progress calculation utilities (`CalcTotalWork`, `ReportStepProgress`) |
 | `common.go` | Task semaphore, shared utilities |
 | `generator.go` | `Generator` interface for Fibonacci sequence generation |
@@ -122,7 +122,7 @@ Business core of the application. Contains algorithm implementations, the factor
 
 ### `internal/bigfft`
 
-FFT and Karatsuba multiplication for `big.Int`, with object pooling, memory management, and platform-specific SIMD dispatch.
+FFT multiplication for `big.Int`, with object pooling, memory management, and platform-specific SIMD dispatch.
 
 | File | Responsibility |
 |------|---------------|
@@ -132,16 +132,15 @@ FFT and Karatsuba multiplication for `big.Int`, with object pooling, memory mana
 | `fft_poly.go` | Polynomial operations for FFT |
 | `fft_cache.go` | FFT transform caching |
 | `fermat.go` | Modular arithmetic for FFT (Fermat number ring) |
-| `karatsuba.go` | `KaratsubaMultiplyTo` implementation |
 | `pool.go` | `sync.Pool`-based object pools with size classes |
 | `pool_warming.go` | Pool pre-warming for adaptive buffer pre-allocation |
 | `allocator.go` | Memory allocator abstraction |
 | `bump.go` | Bump allocator for batch allocations |
 | `memory_est.go` | Memory estimation for pre-allocation |
 | `scan.go` | Bit scanning utilities |
-| `arith_amd64.go` | Assembly-optimized arithmetic (Go glue) |
-| `arith_amd64.s` | AVX2/AVX-512 assembly routines |
-| `arith_decl.go` | Architecture-independent function declarations |
+| `arith_amd64.go` | amd64 vector arithmetic wrappers |
+| `arith_generic.go` | Non-amd64 vector arithmetic wrappers |
+| `arith_decl.go` | `go:linkname` declarations to `math/big` internals |
 | `cpu_amd64.go` | Runtime CPU feature detection |
 
 ### `internal/orchestration`
@@ -328,14 +327,14 @@ type ResultPresenter interface {
 
 ### ADR-002: Dynamic Multiplication Algorithm Selection
 
-**Context**: FFT multiplication is more efficient than Karatsuba for very large numbers, but has significant overhead for small numbers.
+**Context**: FFT multiplication is more efficient than standard `math/big` for very large numbers, but has significant overhead for small numbers.
 
-**Decision**: Implement a 3-tier `smartMultiply` function that selects the algorithm based on operand size: FFT (> 500K bits), Karatsuba (> 2048 bits), or standard `math/big` (below).
+**Decision**: Implement a 2-tier `smartMultiply` function that selects the algorithm based on operand size: FFT (> 500K bits) or standard `math/big` (below). `math/big` internally uses Karatsuba for large operands.
 
 **Consequences**:
 
 - Optimal performance across the entire value range
-- Configurable via `FFTThreshold` and `KaratsubaThreshold` in `Options`
+- Configurable via `FFTThreshold` in `Options`
 - Requires calibration for each architecture
 
 ### ADR-003: Adaptive Parallelism
@@ -384,7 +383,7 @@ type ResultPresenter interface {
 
 1. **Zero-Allocation**: Object pools avoid allocations in critical loops
 2. **Smart Parallelism**: Enabled only when beneficial
-3. **3-Tier Multiplication**: FFT, Karatsuba, or standard selected by operand size
+3. **2-Tier Multiplication**: FFT or standard math/big selected by operand size
 4. **Strassen**: Enabled for matrices with large elements
 5. **Symmetric Squaring**: Specific optimization reducing multiplications
 

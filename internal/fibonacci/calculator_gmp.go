@@ -99,7 +99,7 @@ func gmpToStdBigInt(g *gmp.Int) *big.Int {
 }
 
 // CalculateCore executes the calculation using GMP's optimized arithmetic.
-func (c *GMPCalculator) CalculateCore(ctx context.Context, reporter ProgressReporter, n uint64, opts Options) (*big.Int, error) {
+func (c *GMPCalculator) CalculateCore(ctx context.Context, reporter ProgressCallback, n uint64, opts Options) (*big.Int, error) {
 	// Handle base cases
 	if n == 0 {
 		return big.NewInt(0), nil

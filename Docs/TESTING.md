@@ -285,7 +285,7 @@ go test -v ./test/e2e/
 | Package | Key Test Files | Testing Approach |
 |---------|---------------|-----------------|
 | `internal/fibonacci` | `fibonacci_test.go`, `fibonacci_golden_test.go`, `fibonacci_fuzz_test.go`, `fibonacci_property_test.go` | Unit, golden, fuzz, property-based, benchmarks |
-| `internal/bigfft` | `fft_precision_test.go`, `fft_parallel_test.go`, `karatsuba_test.go`, `pool_test.go` | Unit, precision, parallel correctness, pool recycling |
+| `internal/bigfft` | `fft_precision_test.go`, `fft_parallel_test.go`, `pool_test.go` | Unit, precision, parallel correctness, pool recycling |
 | `internal/cli` | `output_test.go`, `ui_test.go`, `goldens_test.go`, `progress_eta_test.go` | Unit, golden output, ETA accuracy |
 | `internal/tui` | `model_test.go`, `bridge_test.go`, `header_test.go`, `chart_test.go`, `metrics_test.go` | Unit, sub-model testing, message handling |
 | `internal/orchestration` | `orchestrator_test.go`, `orchestration_spy_test.go` | Integration, spy-based config propagation |

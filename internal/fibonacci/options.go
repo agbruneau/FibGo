@@ -12,9 +12,6 @@ type Options struct {
 	// FFTThreshold is the bit size threshold for using FFT-based multiplication.
 	// If 0, a default value may be used by the implementation.
 	FFTThreshold int
-	// KaratsubaThreshold is the bit size threshold for using optimized Karatsuba multiplication.
-	// If 0, a default value may be used by the implementation.
-	KaratsubaThreshold int
 	// StrassenThreshold is the bit size threshold for switching to Strassen's algorithm.
 	// If 0, a default value may be used by the implementation.
 	StrassenThreshold int
@@ -53,9 +50,6 @@ func normalizeOptions(opts Options) Options {
 	}
 	if normalized.FFTThreshold == 0 {
 		normalized.FFTThreshold = DefaultFFTThreshold
-	}
-	if normalized.KaratsubaThreshold == 0 {
-		normalized.KaratsubaThreshold = DefaultKaratsubaThreshold
 	}
 	if normalized.StrassenThreshold == 0 {
 		normalized.StrassenThreshold = DefaultStrassenThreshold
