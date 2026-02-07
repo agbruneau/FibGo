@@ -147,7 +147,7 @@ classDiagram
 
 ---
 
-## 2. Strategy Pattern
+## 2. Strategy Pattern (with Interface Segregation Principle)
 
 **Location**: `internal/fibonacci/strategy.go`
 
@@ -159,7 +159,8 @@ For the 3-tier multiplication threshold system, see [algorithms/FFT.md](algorith
 
 ### Interfaces
 
-The Strategy pattern uses Interface Segregation (ISP) with two levels:
+The Strategy pattern applies the **Interface Segregation Principle (ISP)** with two levels,
+ensuring consumers only depend on the methods they actually need:
 
 ```go
 // internal/fibonacci/strategy.go
@@ -177,7 +178,9 @@ type DoublingStepExecutor interface {
     ExecuteStep(ctx context.Context, s *CalculationState, opts Options, inParallel bool) error
 }
 
-// Deprecated type alias preserved for backward compatibility
+// Deprecated: MultiplicationStrategy is a type alias for DoublingStepExecutor.
+// New code should use Multiplier (for basic operations) or DoublingStepExecutor
+// (for optimized doubling steps) directly.
 type MultiplicationStrategy = DoublingStepExecutor
 ```
 
@@ -193,6 +196,11 @@ parameter enables cancellation checking between multiplications.
 | `AdaptiveStrategy` | Delegates to `smartMultiply`/`smartSquare`, which select standard `math/big` or FFT based on operand bit length and `opts.FFTThreshold` | Default production strategy |
 | `FFTOnlyStrategy` | Forces `mulFFT`/`sqrFFT` for every operation | Benchmarking FFT, very large N |
 | `KaratsubaStrategy` | Forces `math/big.Mul` for every operation | Testing, small-N comparison |
+
+> **Deprecation notice**: The `MultiplicationStrategy` type alias is deprecated. New code
+> should depend on `Multiplier` (narrow, for consumers that only need `Multiply`/`Square`)
+> or `DoublingStepExecutor` (wide, for consumers that need `ExecuteStep`). The alias is
+> retained for backward compatibility but may be removed in a future version.
 
 ### AdaptiveStrategy Threshold Logic
 
@@ -631,7 +639,7 @@ CLIProgressReporter.DisplayProgress()   -- Interface adapter consumes channel
 | Pattern | Location | Key Types | Purpose |
 |---------|----------|-----------|---------|
 | Observer | `internal/fibonacci/observer.go`, `observers.go` | `ProgressObserver`, `ProgressSubject` (with `Freeze()`), `ChannelObserver`, `LoggingObserver`, `NoOpObserver` | Decouple algorithms from progress consumers |
-| Strategy | `internal/fibonacci/strategy.go` | `Multiplier`, `DoublingStepExecutor`, `AdaptiveStrategy`, `FFTOnlyStrategy`, `KaratsubaStrategy` | Swap multiplication algorithms at runtime |
+| Strategy + ISP | `internal/fibonacci/strategy.go` | `Multiplier` (narrow), `DoublingStepExecutor` (wide), `MultiplicationStrategy` (deprecated alias), `AdaptiveStrategy`, `FFTOnlyStrategy`, `KaratsubaStrategy` | Swap multiplication algorithms at runtime; ISP ensures consumers depend only on needed methods |
 | Factory + Registry | `internal/fibonacci/registry.go` | `CalculatorFactory`, `DefaultFactory`, `GlobalFactory()` | Lazy creation, caching, and dynamic registration of calculators |
 | Decorator | `internal/fibonacci/calculator.go` | `Calculator`, `coreCalculator`, `FibCalculator` | Add small-N fast path, observer bridging, pool warming around core algorithms |
 | Ports and Adapters | `internal/orchestration/interfaces.go`, `internal/cli/presenter.go`, `internal/tui/bridge.go` | `ProgressReporter`, `ResultPresenter`, `CLIProgressReporter`, `TUIProgressReporter`, `programRef` | Decouple orchestration from CLI/TUI presentation |

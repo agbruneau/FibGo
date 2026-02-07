@@ -211,7 +211,12 @@ full multiplications, dramatically reducing cost.
 
 The `Mul` method switches between `basicMul` (schoolbook, for operands below
 `smallMulThreshold = 30` words) and `big.Int.Mul` for larger operands, with subsequent
-modular reduction.
+modular reduction. The `Sqr` method provides an optimized squaring path that similarly
+dispatches between `basicSqr` and `big.Int.Mul` based on operand size.
+
+The `smallMulThreshold` (30 words, ~1,920 bits on 64-bit) was determined empirically.
+Below this threshold, the schoolbook `basicMul`/`basicSqr` functions avoid `big.Int`
+allocation overhead and are faster for the small operands common in early FFT recursion levels.
 
 ---
 
@@ -246,10 +251,25 @@ The FFT uses a **Cooley-Tukey radix-2 decimation-in-frequency** decomposition:
 
 ### Parallelism Control
 
-| Constant | Value | Purpose |
-|----------|-------|---------|
+FFT parallelism is controlled by two **runtime-configurable** variables (default values shown):
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
 | `ParallelFFTRecursionThreshold` | 4 | Minimum k for parallel recursion |
 | `MaxParallelFFTDepth` | 3 | Maximum parallel recursion depth |
+
+These can be adjusted at runtime via the `FFTParallelismConfig` struct:
+
+```go
+// Read current configuration
+config := bigfft.GetFFTParallelismConfig()
+
+// Update configuration
+bigfft.SetFFTParallelismConfig(bigfft.FFTParallelismConfig{
+    RecursionThreshold: 5,  // Increase minimum for parallel recursion
+    MaxDepth:           2,  // Reduce parallel depth
+})
+```
 
 Parallelism uses a semaphore channel sized to `runtime.NumCPU()`. When a goroutine
 slot is available, the second half of the recursion runs in a new goroutine with
@@ -259,10 +279,10 @@ If no slot is available, execution falls through to sequential.
 ```mermaid
 flowchart TD
     FFT["fourierRecursiveUnified(size=k)"]
-    FFT -->|"size >= 4 AND depth < 3"| TryParallel{"Semaphore\navailable?"}
+    FFT -->|"size >= threshold AND depth < maxDepth"| TryParallel{"Semaphore\navailable?"}
     TryParallel -->|Yes| Par["Parallel: half1 here, half2 in goroutine"]
     TryParallel -->|No| Seq["Sequential: half1 then half2"]
-    FFT -->|"size < 4 OR depth >= 3"| Seq
+    FFT -->|"size < threshold OR depth >= maxDepth"| Seq
     Par --> Reconstruct["Butterfly Reconstruction"]
     Seq --> Reconstruct
 ```
@@ -582,7 +602,7 @@ of 10 using the FFT multiplier.
 |------|-------|---------------|
 | `fft.go` | ~224 | Public API: `Mul`, `MulTo`, `Sqr`, `SqrTo`; FFT size selection |
 | `fft_core.go` | ~105 | Core FFT: `fftmulTo`, `fftsqrTo`, `fourier`, `fourierWithBump` |
-| `fft_recursion.go` | ~138 | Recursive FFT decomposition with parallelism |
+| `fft_recursion.go` | ~138 | Recursive FFT decomposition with runtime-configurable parallelism (`FFTParallelismConfig`) |
 | `fft_poly.go` | ~417 | `Poly` and `PolValues` types; transform, multiply, inverse |
 | `fft_cache.go` | ~412 | `TransformCache`: thread-safe LRU for FFT transforms |
 | `fermat.go` | ~219 | Fermat ring arithmetic: Z/(2^k+1) |

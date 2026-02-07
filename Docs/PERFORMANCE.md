@@ -108,7 +108,7 @@ Classic 2x2 multiplication: 8 multiplications
 Strassen 2x2: 7 multiplications + 18 additions
 ```
 
-Enabled via `StrassenThreshold` (default: 3072 bits) when matrix elements are large enough for the multiplication savings to compensate for additional additions.
+Enabled via `StrassenThreshold` (default: 3,072 bits via config; internal default: 256 bits) when matrix elements are large enough for the multiplication savings to compensate for additional additions. The internal default can be adjusted at runtime via `fibonacci.SetDefaultStrassenThreshold()`, and the per-calculation threshold is set via `Options.StrassenThreshold`.
 
 ### 5. Symmetric Matrix Squaring
 
@@ -131,19 +131,50 @@ profile, err := calibration.RunCalibration(ctx)
 
 ### Configuration Parameters
 
+#### Algorithm Thresholds
+
 | Parameter | Default | Description | Adjustment |
 |-----------|---------|-------------|------------|
-| `ParallelThreshold` | 4096 bits | Parallelism activation threshold | Increase on slow CPU, decrease on many-core |
+| `ParallelThreshold` | 4,096 bits | Parallelism activation threshold | Increase on slow CPU, decrease on many-core |
 | `FFTThreshold` | 500,000 bits | FFT multiplication threshold | Decrease on CPU with large L3 cache |
 | `StrassenThreshold` | 3,072 bits | Strassen algorithm threshold | Increase if addition overhead is visible |
 
-These are configured via the `fibonacci.Options` struct:
+#### FFT Cache Settings
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `FFTCacheMinBitLen` | 100,000 bits | Minimum operand bit length to cache FFT transforms |
+| `FFTCacheMaxEntries` | 128 entries | Maximum number of cached FFT transforms |
+| `FFTCacheEnabled` | `true` | Enable/disable FFT transform caching |
+
+#### Dynamic Threshold Adjustment
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `EnableDynamicThresholds` | `false` | Enable real-time threshold adjustment based on per-iteration timing |
+| `DynamicAdjustmentInterval` | 5 iterations | Iterations between threshold checks (when enabled) |
+
+#### FFT Parallelism (bigfft package)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ParallelFFTRecursionThreshold` | 4 | Minimum FFT size (log2) for parallel recursion |
+| `MaxParallelFFTDepth` | 3 | Maximum depth of parallel FFT recursion |
+
+These FFT parallelism settings are runtime-configurable via `bigfft.SetFFTParallelismConfig()`.
+
+All threshold parameters are configured via the `fibonacci.Options` struct:
 
 ```go
 opts := fibonacci.Options{
-    ParallelThreshold: 4096,
-    FFTThreshold:      500_000,
-    StrassenThreshold: 3072,
+    ParallelThreshold:         4096,
+    FFTThreshold:              500_000,
+    StrassenThreshold:         3072,
+    FFTCacheEnabled:           boolPtr(true),
+    FFTCacheMaxEntries:        128,
+    FFTCacheMinBitLen:         100_000,
+    EnableDynamicThresholds:   false,
+    DynamicAdjustmentInterval: 5,
 }
 ```
 

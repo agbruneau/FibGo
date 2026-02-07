@@ -101,15 +101,15 @@ Business core of the application. Contains algorithm implementations, the factor
 | `strategy.go` | `Multiplier` (narrow) and `DoublingStepExecutor` (wide) interfaces, `MultiplicationStrategy` (deprecated alias); `AdaptiveStrategy`, `FFTOnlyStrategy`, `KaratsubaStrategy` |
 | `observer.go` | `ProgressObserver` interface, `ProgressSubject` (observable) |
 | `observers.go` | Observer implementations: `ChannelObserver`, `LoggingObserver`, `NoOpObserver` |
-| `options.go` | `Options` struct for calculation configuration |
-| `constants.go` | Performance tuning constants and thresholds |
+| `options.go` | `Options` struct: `ParallelThreshold`, `FFTThreshold`, `StrassenThreshold`, FFT cache settings (`FFTCacheMinBitLen`, `FFTCacheMaxEntries`, `FFTCacheEnabled`), dynamic threshold settings (`EnableDynamicThresholds`, `DynamicAdjustmentInterval`); `normalizeOptions()` fills zero values with defaults |
+| `constants.go` | Performance tuning constants: `DefaultParallelThreshold` (4096), `DefaultFFTThreshold` (500,000), `DefaultStrassenThreshold` (3072), `ParallelFFTThreshold` (5,000,000), `CalibrationN` (10,000,000), `ProgressReportThreshold` (0.01) |
 | `threshold_types.go` | Threshold type definitions |
 | `dynamic_threshold.go` | Runtime threshold adjustment logic |
 | `fastdoubling.go` | `OptimizedFastDoubling` algorithm implementation, `CalculationState` type and pool |
 | `doubling_framework.go` | `DoublingFramework` — shared iteration framework for doubling-based algorithms |
 | `matrix.go` | `MatrixExponentiation` algorithm implementation |
 | `matrix_framework.go` | `MatrixFramework` — shared framework for matrix-based algorithms |
-| `matrix_ops.go` | Matrix multiplication and squaring operations |
+| `matrix_ops.go` | Matrix multiplication and squaring operations, Strassen dispatch (`multiplyMatrices`, `multiplyMatrixStrassen`), runtime threshold control (`Set/GetDefaultStrassenThreshold`) |
 | `matrix_types.go` | `matrix` type (2x2), `matrixState` pool type |
 | `fft_based.go` | `FFTBasedCalculator` — forces FFT for all multiplications |
 | `fft.go` | `smartMultiply` / `smartSquare` — 2-tier multiplication selection (FFT or standard math/big) |
@@ -131,13 +131,14 @@ FFT multiplication for `big.Int`, with object pooling, memory management, and pl
 | `fft_recursion.go` | Recursive FFT decomposition |
 | `fft_poly.go` | Polynomial operations for FFT |
 | `fft_cache.go` | FFT transform caching |
-| `fermat.go` | Modular arithmetic for FFT (Fermat number ring) |
+| `fermat.go` | Fermat ring arithmetic: `fermat` type (Z/(2^k+1)), `Shift`, `ShiftHalf`, `Add`, `Sub`, `Mul`, `Sqr`, `norm`; `smallMulThreshold` for schoolbook/big.Int cutover |
 | `pool.go` | `sync.Pool`-based object pools with size classes |
 | `pool_warming.go` | Pool pre-warming for adaptive buffer pre-allocation |
 | `allocator.go` | Memory allocator abstraction |
 | `bump.go` | Bump allocator for batch allocations |
 | `memory_est.go` | Memory estimation for pre-allocation |
 | `scan.go` | Bit scanning utilities |
+| `fft_recursion.go` | Recursive FFT decomposition with runtime-configurable parallelism (`FFTParallelismConfig`, `Set/GetFFTParallelismConfig`) |
 | `arith_amd64.go` | amd64 vector arithmetic wrappers |
 | `arith_generic.go` | Non-amd64 vector arithmetic wrappers |
 | `arith_decl.go` | `go:linkname` declarations to `math/big` internals |
@@ -151,6 +152,7 @@ Concurrent execution management with Clean Architecture decoupling.
 |------|---------------|
 | `orchestrator.go` | `ExecuteCalculations()`, `AnalyzeComparisonResults()` — parallel execution via `errgroup` |
 | `interfaces.go` | `ProgressReporter`, `ResultPresenter` interfaces, `NullProgressReporter` |
+| `calculator_selection.go` | `GetCalculatorsToRun()` — calculator selection logic from config |
 
 ### `internal/cli`
 

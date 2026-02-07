@@ -284,8 +284,8 @@ go test -v ./test/e2e/
 
 | Package | Key Test Files | Testing Approach |
 |---------|---------------|-----------------|
-| `internal/fibonacci` | `fibonacci_test.go`, `fibonacci_golden_test.go`, `fibonacci_fuzz_test.go`, `fibonacci_property_test.go` | Unit, golden, fuzz, property-based, benchmarks |
-| `internal/bigfft` | `fft_precision_test.go`, `fft_parallel_test.go`, `pool_test.go` | Unit, precision, parallel correctness, pool recycling |
+| `internal/fibonacci` | `fibonacci_test.go`, `fibonacci_golden_test.go`, `fibonacci_fuzz_test.go`, `fibonacci_property_test.go`, `fibonacci_strassen_test.go` | Unit, golden, fuzz, property-based, Strassen correctness, benchmarks |
+| `internal/bigfft` | `fft_precision_test.go`, `fft_parallel_test.go`, `pool_test.go`, `fermat_test.go` | Unit, precision, parallel correctness, pool recycling, Fermat arithmetic |
 | `internal/cli` | `output_test.go`, `ui_test.go`, `goldens_test.go`, `progress_eta_test.go` | Unit, golden output, ETA accuracy |
 | `internal/tui` | `model_test.go`, `bridge_test.go`, `header_test.go`, `chart_test.go`, `metrics_test.go`, `sparkline_test.go`, `footer_test.go`, `logs_test.go`, `keymap_test.go`, `cli_flags_test.go` | Unit, sub-model testing, message handling |
 | `internal/orchestration` | `orchestrator_test.go`, `orchestration_spy_test.go`, `calculator_selection_test.go` | Integration, spy-based config propagation, calculator selection |
@@ -296,6 +296,37 @@ go test -v ./test/e2e/
 | `test/e2e` | `cli_e2e_test.go` | End-to-end binary testing |
 | `cmd/fibcalc` | `main_test.go` | Entry point smoke test |
 | `cmd/generate-golden` | `main_test.go` | Golden generator validation |
+
+## Strassen Algorithm Testing
+
+File: `internal/fibonacci/fibonacci_strassen_test.go`
+
+Tests for the Strassen matrix multiplication optimization:
+
+| Test | Description |
+|------|-------------|
+| `TestStrassenConfiguration` | Verifies `Options.StrassenThreshold` is correctly accepted and applied |
+| `TestStrassenThresholdEffect` | Tests that different threshold values produce correct results |
+| `TestStrassenOptionsPrecedence` | Tests that `Options.StrassenThreshold` overrides the global default set by `SetDefaultStrassenThreshold()` |
+
+```bash
+go test -v -run TestStrassen ./internal/fibonacci/
+```
+
+## Fermat Arithmetic Testing
+
+File: `internal/bigfft/fermat_test.go`
+
+Tests for the Fermat ring arithmetic used by the FFT subsystem:
+
+- Squaring vs multiplication equivalence (`x*x == x^2`)
+- Edge cases: zero, one, maximum word values
+- Size boundary testing around `smallMulThreshold`
+- Modular reduction correctness
+
+```bash
+go test -v -run TestFermat ./internal/bigfft/
+```
 
 ## Concurrency Testing
 

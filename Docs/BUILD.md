@@ -246,7 +246,7 @@ The implementation is in `internal/cli/completion.go`.
 
 ## Environment Variables
 
-All environment variables use the `FIBCALC_` prefix. Configuration priority is: CLI flags > Environment variables > Defaults.
+All environment variables use the `FIBCALC_` prefix. Configuration priority is: CLI flags > Environment variables > Adaptive hardware estimation > Static defaults.
 
 ### Calculation Parameters
 
@@ -260,9 +260,11 @@ All environment variables use the `FIBCALC_` prefix. Configuration priority is: 
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `FIBCALC_THRESHOLD` | Parallelism activation threshold (bits) | `4096` |
-| `FIBCALC_FFT_THRESHOLD` | FFT multiplication threshold (bits) | `500000` |
-| `FIBCALC_STRASSEN_THRESHOLD` | Strassen algorithm threshold (bits) | `3072` |
+| `FIBCALC_THRESHOLD` | Parallelism activation threshold (bits) | `0` (auto: hardware-adaptive) |
+| `FIBCALC_FFT_THRESHOLD` | FFT multiplication threshold (bits) | `0` (auto: hardware-adaptive) |
+| `FIBCALC_STRASSEN_THRESHOLD` | Strassen algorithm threshold (bits) | `0` (auto: hardware-adaptive) |
+
+When set to `0` (the default), thresholds are resolved via: calibration profile > hardware-adaptive estimation > static defaults (parallelism=4,096, FFT=500,000, Strassen=3,072).
 
 ### Output Control
 

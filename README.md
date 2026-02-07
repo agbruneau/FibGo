@@ -49,7 +49,7 @@ FibCalc serves as both a practical high-performance tool and a reference impleme
 
 - **Fast Doubling** (Default): The fastest known method ($O(\log n)$), utilizing the identity $F(2k) = F(k)(2F(k+1) - F(k))$.
 - **Matrix Exponentiation**: Classic $O(\log n)$ approach enhanced with **Strassen's Algorithm** for large matrices and symmetric squaring optimizations.
-- **FFT-Based Multiplication**: Automatically switches to Fast Fourier Transform for multiplication when numbers exceed a configurable threshold (default ~500k bits), reducing complexity from $O(n^{1.585})$ to $O(n \log n)$.
+- **FFT-Based Multiplication**: Automatically switches to Fast Fourier Transform (Schonhage-Strassen over Fermat rings) for multiplication when numbers exceed a configurable threshold (default ~500k bits), reducing complexity from $O(n^{1.585})$ to $O(n \log n)$.
 - **GMP Support**: Optional build tag to use the GNU Multiple Precision Arithmetic Library for maximum raw performance on supported systems.
 
 ### High-Performance Engineering
@@ -59,7 +59,8 @@ FibCalc serves as both a practical high-performance tool and a reference impleme
 - **Zero-Copy Result Return**: Eliminates expensive O(n) result copies by stealing pointers from pooled calculation state, trading a full copy for a single 24-byte `big.Int` header allocation.
 - **FFT Transform Caching**: Thread-safe LRU cache for forward FFT transforms avoids recomputation of repeated values, providing 15-30% speedup in iterative algorithms.
 - **Transform Reuse**: Optimized squaring uses a single forward transform (vs two in multiplication), reducing FFT work per doubling step.
-- **Dynamic Threshold Adjustment**: FFT and parallel execution thresholds are adjusted at runtime based on observed per-iteration performance metrics, with hysteresis to prevent oscillation.
+- **Dynamic Threshold Adjustment**: FFT and parallel execution thresholds are adjusted at runtime based on observed per-iteration performance metrics, with hysteresis to prevent oscillation. Strassen thresholds are also runtime-configurable via `SetDefaultStrassenThreshold()`.
+- **Runtime-Configurable FFT Parallelism**: FFT recursion parallelism thresholds (`ParallelFFTRecursionThreshold`, `MaxParallelFFTDepth`) can be tuned at runtime via `SetFFTParallelismConfig()` for hardware-specific optimization.
 - **Adaptive Parallelism**: Automatically parallelizes recursive branches and matrix operations across CPU cores based on input size and hardware capabilities.
 - **Concurrency Limiting**: Task semaphore limits concurrent goroutines to `runtime.NumCPU()*2`, preventing contention and memory pressure during parallel multiplication.
 - **Optimized Memory Zeroing**: Uses Go 1.21+ `clear()` builtin for efficient slice zeroing in FFT operations.
@@ -71,7 +72,7 @@ FibCalc serves as both a practical high-performance tool and a reference impleme
 
 - **Clean Architecture**: Strict separation of concerns (Core Logic, Orchestration, Interface, Infrastructure) with interface-based decoupling.
 - **Interface-Based Decoupling**: The orchestration layer uses `ProgressReporter` and `ResultPresenter` interfaces to avoid depending on CLI, enabling testability and alternative presentations.
-- **Strategy + Interface Segregation**: Narrow `Multiplier` interface for basic operations, wider `DoublingStepExecutor` for optimized doubling steps. Three concrete strategies: `AdaptiveStrategy`, `FFTOnlyStrategy`, `KaratsubaStrategy`.
+- **Strategy + Interface Segregation (ISP)**: Narrow `Multiplier` interface for basic operations, wider `DoublingStepExecutor` for optimized doubling steps. Three concrete strategies: `AdaptiveStrategy`, `FFTOnlyStrategy`, `KaratsubaStrategy`. The legacy `MultiplicationStrategy` type alias is deprecated.
 - **Framework Pattern**: `DoublingFramework` and `MatrixFramework` encapsulate algorithm loops, accepting pluggable strategies.
 - **Modern CLI**: Features progress spinners, ETA calculation, formatted output, and colour themes.
 - **Interactive TUI Dashboard**: Optional btop-inspired terminal dashboard (`--tui`) with real-time progress logs, system memory metrics, progress bar with ETA, sparkline charts, and keyboard navigation — powered by [Bubble Tea](https://github.com/charmbracelet/bubbletea).
@@ -165,8 +166,8 @@ graph TD
 |-----------|----------------|
 | `cmd/fibcalc` | Application entry point. Delegates to `app.New()` and `app.Run()`. |
 | `cmd/generate-golden` | Golden file generator for test data. |
-| `internal/fibonacci` | Core domain logic. Algorithms (`FastDoubling`, `MatrixExponentiation`, `FFTBased`), frameworks, interfaces, strategies, observer pattern, state pooling, dynamic thresholds, sequence generation. |
-| `internal/bigfft` | Specialized FFT arithmetic for `big.Int`: Fermat number operations, FFT core and recursion, polynomial operations, thread-safe LRU transform cache, bump allocator, memory pool with pre-warming, memory estimation. |
+| `internal/fibonacci` | Core domain logic. Algorithms (`FastDoubling`, `MatrixExponentiation`, `FFTBased`), frameworks, interfaces, strategies (ISP: `Multiplier`/`DoublingStepExecutor`), observer pattern, state pooling, dynamic thresholds, runtime Strassen configuration (`Set/GetDefaultStrassenThreshold`), sequence generation. |
+| `internal/bigfft` | Specialized FFT arithmetic for `big.Int`: Fermat ring arithmetic (Z/(2^k+1)) with optimized `smallMulThreshold`, FFT core and recursion with runtime-configurable parallelism (`FFTParallelismConfig`), polynomial operations, thread-safe LRU transform cache, bump allocator, memory pool with pre-warming, memory estimation. |
 | `internal/orchestration` | Concurrent calculator execution via `errgroup`, result aggregation and comparison, calculator selection. Defines `ProgressReporter`/`ResultPresenter` interfaces for Clean Architecture decoupling. |
 | `internal/cli` | Progress bar with ETA, spinner, output formatting (Display\*/Format\*/Write\*/Print\*), shell completion (bash/zsh/fish/powershell), duration helpers. |
 | `internal/tui` | Interactive TUI dashboard (btop-style) powered by Bubble Tea: model (Elm architecture), header/footer panels, scrollable logs, runtime metrics, progress chart with sparklines, bridge adapters for orchestration interfaces. |
@@ -229,7 +230,7 @@ fibcalc [flags]
 | `-completion` | | | Generate shell completion script (bash, zsh, fish, powershell). |
 | `--version` | `-V` | | Display version information. |
 
-> **Note**: Threshold defaults of `0` trigger automatic hardware-adaptive estimation based on CPU core count and architecture. Static defaults used by the algorithm internals: parallelism = 4,096 bits, FFT = 500,000 bits, Strassen = 3,072 bits.
+> **Note**: Threshold defaults of `0` trigger automatic hardware-adaptive estimation based on CPU core count and architecture. Static defaults used by the algorithm internals: parallelism = 4,096 bits, FFT = 500,000 bits, Strassen = 3,072 bits (config level); the internal Strassen default is 256 bits, adjustable at runtime via `SetDefaultStrassenThreshold()`.
 
 > **Note**: Colored output can be disabled by setting the `NO_COLOR` environment variable (see [no-color.org](https://no-color.org/)).
 

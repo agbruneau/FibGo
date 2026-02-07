@@ -224,7 +224,39 @@ graph TD
     P7 --> C22
 ```
 
-The implementation switches to Strassen when elements exceed `StrassenThreshold` (default: 3072 bits via config; internal default is 256 bits).
+#### Threshold Mechanism
+
+The `multiplyMatrices()` function dynamically dispatches between the classic and Strassen algorithms based on operand bit size. Two threshold levels exist:
+
+| Threshold | Value | Scope |
+|-----------|-------|-------|
+| Internal default (`defaultStrassenThresholdBits`) | 256 bits | Set at package init, controls `multiplyMatrices()` when no explicit threshold is provided |
+| Config default (`DefaultStrassenThreshold`) | 3,072 bits | Used by `normalizeOptions()` when `Options.StrassenThreshold == 0` |
+
+When `Options.StrassenThreshold` is set explicitly, it takes precedence over both defaults. When `Options.StrassenThreshold == 0`, `normalizeOptions()` fills it with `DefaultStrassenThreshold` (3,072).
+
+#### Runtime Configuration
+
+The internal default can be adjusted at runtime via atomic operations:
+
+```go
+// Set custom internal default
+fibonacci.SetDefaultStrassenThreshold(512)
+
+// Read current internal default
+current := fibonacci.GetDefaultStrassenThreshold()
+```
+
+This is primarily used by the calibration system to tune the threshold based on hardware benchmarks.
+
+#### Implementation Details
+
+The `multiplyMatrixStrassen()` function uses a two-phase approach:
+
+1. **`computeStrassenIntermediates()`** -- Pre-computes the seven Strassen products P1-P7 using temporary storage from the pooled `matrixState`.
+2. **`assembleStrassenResult()`** -- Combines the intermediates into the four result matrix elements.
+
+Independent Strassen products can be parallelized when operands exceed the `ParallelThreshold`.
 
 ### 2. Symmetric Matrix Squaring
 
