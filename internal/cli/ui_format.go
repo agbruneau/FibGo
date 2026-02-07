@@ -4,7 +4,7 @@ package cli
 
 import "strings"
 
-// formatNumberString inserts thousand separators into a numeric string.
+// FormatNumberString inserts thousand separators into a numeric string.
 // Optimized to reduce memory allocations
 //
 // Parameters:
@@ -12,7 +12,7 @@ import "strings"
 //
 // Returns:
 //   - string: The formatted string with comma separators.
-func formatNumberString(s string) string {
+func FormatNumberString(s string) string {
 	if s == "" {
 		return ""
 	}

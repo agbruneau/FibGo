@@ -13,7 +13,6 @@ import (
 // MetricsModel displays runtime memory and performance metrics.
 type MetricsModel struct {
 	alloc        uint64
-	heapInuse    uint64
 	numGC        uint32
 	numGoroutine int
 	speed        float64 // progress per second
@@ -39,7 +38,6 @@ func (m *MetricsModel) SetSize(w, h int) {
 // UpdateMemStats updates memory statistics.
 func (m *MetricsModel) UpdateMemStats(msg MemStatsMsg) {
 	m.alloc = msg.Alloc
-	m.heapInuse = msg.HeapInuse
 	m.numGC = msg.NumGC
 	m.numGoroutine = msg.NumGoroutine
 }
@@ -69,13 +67,11 @@ func (m MetricsModel) View() string {
 
 	leftCol := []string{
 		formatMetricCol("Memory:", formatBytes(m.alloc), colWidth),
-		formatMetricCol("Heap:", formatBytes(m.heapInuse), colWidth),
 		formatMetricCol("GC Runs:", fmt.Sprintf("%d", m.numGC), colWidth),
 	}
 	rightCol := []string{
 		formatMetricCol("Speed:", cli.FormatETA(time.Duration(float64(time.Second)/max(m.speed, 0.001)))+"/calc", colWidth),
 		formatMetricCol("Goroutines:", fmt.Sprintf("%d", m.numGoroutine), colWidth),
-		"", // empty to align rows
 	}
 
 	var rows strings.Builder

@@ -98,7 +98,7 @@ func DisplayProgress(wg *sync.WaitGroup, progressChan <-chan fibonacci.ProgressU
 //   - bitLen: The number of bits in the result.
 func displayResultHeader(out io.Writer, bitLen int) {
 	fmt.Fprintf(out, "Result binary size: %s%s%s bits.\n",
-		ui.ColorCyan(), formatNumberString(fmt.Sprintf("%d", bitLen)), ui.ColorReset())
+		ui.ColorCyan(), FormatNumberString(fmt.Sprintf("%d", bitLen)), ui.ColorReset())
 }
 
 // displayDetailedAnalysis prints detailed execution metrics including
@@ -120,7 +120,7 @@ func displayDetailedAnalysis(out io.Writer, result *big.Int, duration time.Durat
 	resultStr := result.String()
 	numDigits := len(resultStr)
 	fmt.Fprintf(out, "Number of digits      : %s%s%s\n",
-		ui.ColorCyan(), formatNumberString(fmt.Sprintf("%d", numDigits)), ui.ColorReset())
+		ui.ColorCyan(), FormatNumberString(fmt.Sprintf("%d", numDigits)), ui.ColorReset())
 
 	if numDigits > 6 {
 		f := new(big.Float).SetInt(result)
@@ -144,7 +144,7 @@ func displayCalculatedValue(out io.Writer, result *big.Int, n uint64, verbose bo
 	if verbose {
 		fmt.Fprintf(out, "F(%s%d%s) =\n%s%s%s\n",
 			ui.ColorMagenta(), n, ui.ColorReset(),
-			ui.ColorGreen(), formatNumberString(resultStr), ui.ColorReset())
+			ui.ColorGreen(), FormatNumberString(resultStr), ui.ColorReset())
 		return
 	}
 
@@ -159,7 +159,7 @@ func displayCalculatedValue(out io.Writer, result *big.Int, n uint64, verbose bo
 
 	fmt.Fprintf(out, "F(%s%d%s) = %s%s%s\n",
 		ui.ColorMagenta(), n, ui.ColorReset(),
-		ui.ColorGreen(), formatNumberString(resultStr), ui.ColorReset())
+		ui.ColorGreen(), FormatNumberString(resultStr), ui.ColorReset())
 }
 
 // DisplayResult formats and prints the final calculation result.

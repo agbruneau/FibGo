@@ -117,7 +117,7 @@ func (l *LogsModel) AddFinalResult(msg FinalResultMsg) {
 	l.entries = append(l.entries, fmt.Sprintf("  Duration:  %s", metricValueStyle.Render(cli.FormatExecutionDuration(msg.Result.Duration))))
 	if msg.Result.Result != nil {
 		bits := msg.Result.Result.BitLen()
-		l.entries = append(l.entries, fmt.Sprintf("  Bits:      %s", metricValueStyle.Render(fmt.Sprintf("%d", bits))))
+		l.entries = append(l.entries, fmt.Sprintf("  Bits:      %s", metricValueStyle.Render(cli.FormatNumberString(fmt.Sprintf("%d", bits)))))
 	}
 	l.trimEntries()
 	l.updateContent()
@@ -148,9 +148,14 @@ func (l *LogsModel) Update(msg tea.Msg) {
 
 // View renders the logs panel.
 func (l LogsModel) View() string {
+	return l.renderToHeight(l.height)
+}
+
+// renderToHeight renders the logs panel to the specified total height.
+func (l LogsModel) renderToHeight(h int) string {
 	return panelStyle.
 		Width(l.width - 2).
-		Height(l.height - 2).
+		Height(max(h-2, 0)).
 		Render(l.viewport.View())
 }
 

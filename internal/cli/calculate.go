@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"io"
-	"math"
 	"runtime"
 
 	"github.com/agbru/fibcalc/internal/config"
@@ -55,28 +54,6 @@ func PrintExecutionConfig(cfg config.AppConfig, out io.Writer) {
 		ui.ColorCyan(), cfg.Threshold, ui.ColorReset(), ui.ColorCyan(), cfg.FFTThreshold, ui.ColorReset())
 }
 
-// PrintFeasibilityWarning checks if the requested computation is likely infeasible
-// and prints a warning. F(n) has approximately n*log10(φ) ≈ n*0.20898 decimal digits
-// and n*log2(φ) ≈ n*0.6942 bits. The result alone requires n*0.6942/8 bytes of RAM,
-// and temporary variables multiply this by ~6x.
-func PrintFeasibilityWarning(cfg config.AppConfig, out io.Writer) {
-	// Estimate result size
-	resultBits := float64(cfg.N) * math.Log2(math.Phi)
-	resultDigits := float64(cfg.N) * math.Log10(math.Phi)
-	resultMemGB := resultBits / 8 / (1024 * 1024 * 1024)
-	// Working memory needs ~6x the result size (FK, FK1, T1-T4)
-	workingMemGB := resultMemGB * 6
-
-	// Warn if result exceeds 1 GB of RAM or 1 billion digits
-	if resultDigits > 1e9 || workingMemGB > 1 {
-		fmt.Fprintf(out, "\n%s⚠  WARNING: F(%d) will have ~%.0f billion digits (~%.1f GB result).%s\n",
-			ui.ColorYellow(), cfg.N, resultDigits/1e9, resultMemGB, ui.ColorReset())
-		fmt.Fprintf(out, "%s   Estimated working memory: ~%.1f GB. This computation may exceed your timeout (%s) and available RAM.%s\n",
-			ui.ColorYellow(), workingMemGB, cfg.Timeout, ui.ColorReset())
-		fmt.Fprintf(out, "%s   Consider using a smaller N or increasing --timeout.%s\n\n",
-			ui.ColorYellow(), ui.ColorReset())
-	}
-}
 
 // PrintExecutionMode displays the execution mode (single algorithm vs comparison).
 //

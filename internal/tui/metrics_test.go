@@ -20,9 +20,6 @@ func TestMetricsModel_UpdateMemStats(t *testing.T) {
 	if m.alloc != msg.Alloc {
 		t.Errorf("expected alloc %d, got %d", msg.Alloc, m.alloc)
 	}
-	if m.heapInuse != msg.HeapInuse {
-		t.Errorf("expected heapInuse %d, got %d", msg.HeapInuse, m.heapInuse)
-	}
 	if m.numGC != msg.NumGC {
 		t.Errorf("expected numGC %d, got %d", msg.NumGC, m.numGC)
 	}
@@ -110,9 +107,6 @@ func TestMetricsModel_View(t *testing.T) {
 	}
 	if !strings.Contains(view, "Memory") {
 		t.Error("expected view to contain 'Memory' label")
-	}
-	if !strings.Contains(view, "Heap") {
-		t.Error("expected view to contain 'Heap' label")
 	}
 	if !strings.Contains(view, "GC Runs") {
 		t.Error("expected view to contain 'GC Runs' label")

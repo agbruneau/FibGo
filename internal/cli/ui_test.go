@@ -162,9 +162,9 @@ func TestFormatNumberString(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := formatNumberString(tt.input)
+		got := FormatNumberString(tt.input)
 		if got != tt.expected {
-			t.Errorf("formatNumberString(%q) = %q; want %q", tt.input, got, tt.expected)
+			t.Errorf("FormatNumberString(%q) = %q; want %q", tt.input, got, tt.expected)
 		}
 	}
 }

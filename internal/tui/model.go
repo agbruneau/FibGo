@@ -221,12 +221,14 @@ func (m Model) View() string {
 	header := m.header.View()
 	footer := m.footer.View()
 
-	logs := m.logs.View()
 	metrics := m.metrics.View()
 	chart := m.chart.View()
 
 	// Right column: metrics on top, chart on bottom
 	rightCol := lipgloss.JoinVertical(lipgloss.Left, metrics, chart)
+
+	// Render logs panel to match the right column's actual height
+	logs := m.logs.renderToHeight(lipgloss.Height(rightCol))
 
 	// Main body: logs on left, right column on right
 	body := lipgloss.JoinHorizontal(lipgloss.Top, logs, rightCol)
@@ -322,7 +324,6 @@ func sampleMemStatsCmd() tea.Cmd {
 		runtime.ReadMemStats(&ms)
 		return MemStatsMsg{
 			Alloc:        ms.Alloc,
-			HeapInuse:    ms.HeapInuse,
 			NumGC:        ms.NumGC,
 			NumGoroutine: runtime.NumGoroutine(),
 		}
