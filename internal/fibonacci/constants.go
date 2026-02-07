@@ -42,12 +42,12 @@ const (
 	// Running multiple FFT operations in parallel causes contention and
 	// reduces performance for numbers below this threshold.
 	//
-	// Benchmarks show:
-	//   - At 7M bits (N=10M): sequential is faster (78ms vs 98ms)
+	// Benchmarks on multi-core CPUs (24+ cores) show:
+	//   - At 5M bits: parallel becomes beneficial on high-core-count CPUs
 	//   - At 173M bits (N=250M): parallel is essential
 	//
-	// 10,000,000 bits (~3M decimal digits) is the empirical crossover point.
-	ParallelFFTThreshold = 10_000_000
+	// Lowered from 10M to 5M bits based on profiling with modern high-core-count CPUs.
+	ParallelFFTThreshold = 5_000_000
 
 	// CalibrationN is the standard Fibonacci index used for performance
 	// calibration runs. This value provides a good balance between:

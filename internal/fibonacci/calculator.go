@@ -150,10 +150,13 @@ func (c *FibCalculator) CalculateWithObservers(ctx context.Context, subject *Pro
 			Msg("calculation completed")
 	}()
 
-	// Create a reporter that notifies all observers
+	// Create a reporter that notifies all observers.
+	// Fast path: if no observers are registered, use a no-op reporter
+	// to avoid lock acquisition and iteration overhead on every progress update.
+	// Use Freeze() to create a lock-free snapshot for the calculation loop.
 	var reporter ProgressCallback
-	if subject != nil {
-		reporter = subject.AsProgressCallback(calcIndex)
+	if subject != nil && subject.ObserverCount() > 0 {
+		reporter = subject.Freeze(calcIndex)
 	} else {
 		reporter = func(float64) {} // No-op reporter
 	}

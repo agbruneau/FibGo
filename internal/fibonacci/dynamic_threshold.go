@@ -107,9 +107,6 @@ func NewDynamicThresholdManagerFromConfig(cfg DynamicThresholdConfig) *DynamicTh
 // RecordIteration records timing data for a completed iteration.
 // This should be called after each doubling step in the algorithm.
 func (m *DynamicThresholdManager) RecordIteration(bitLen int, duration time.Duration, usedFFT, usedParallel bool) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	metric := IterationMetric{
 		BitLen:       bitLen,
 		Duration:     duration,
@@ -117,7 +114,7 @@ func (m *DynamicThresholdManager) RecordIteration(bitLen int, duration time.Dura
 		UsedParallel: usedParallel,
 	}
 
-	// Write to ring buffer
+	// Write to ring buffer (no mutex needed: called from single goroutine in the doubling loop)
 	m.metrics[m.metricsHead] = metric
 	m.metricsHead = (m.metricsHead + 1) % MaxMetricsHistory
 	m.metricsCount++
@@ -155,10 +152,8 @@ func (m *DynamicThresholdManager) GetParallelThreshold() int {
 
 // ShouldAdjust checks if thresholds should be adjusted based on collected metrics.
 // Returns the new thresholds and whether an adjustment was made.
+// No mutex needed: called from single goroutine in the doubling loop.
 func (m *DynamicThresholdManager) ShouldAdjust() (newFFT, newParallel int, adjusted bool) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	// Check if we should evaluate adjustments
 	if m.iterationCount%m.adjustmentInterval != 0 {
 		return m.currentFFTThreshold, m.currentParallelThreshold, false

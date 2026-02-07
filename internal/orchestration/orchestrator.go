@@ -33,7 +33,9 @@ type CalculationResult struct {
 // ProgressBufferMultiplier defines the buffer size multiplier for the progress
 // channel. A larger buffer reduces the likelihood of blocking calculation
 // goroutines when the UI is slow to consume updates.
-const ProgressBufferMultiplier = 5
+// Increased from 5 to 50 to prevent channel contention for large calculations
+// where progress updates are frequent and the UI may lag behind.
+const ProgressBufferMultiplier = 50
 
 // ExecuteCalculations orchestrates the concurrent execution of one or more
 // Fibonacci calculations.
@@ -52,7 +54,6 @@ const ProgressBufferMultiplier = 5
 // Returns:
 //   - []CalculationResult: A slice containing the results of each calculation.
 func ExecuteCalculations(ctx context.Context, calculators []fibonacci.Calculator, cfg config.AppConfig, progressReporter ProgressReporter, out io.Writer) []CalculationResult {
-	g, ctx := errgroup.WithContext(ctx)
 	results := make([]CalculationResult, len(calculators))
 	progressChan := make(chan fibonacci.ProgressUpdate, len(calculators)*ProgressBufferMultiplier)
 
@@ -60,24 +61,35 @@ func ExecuteCalculations(ctx context.Context, calculators []fibonacci.Calculator
 	displayWg.Add(1)
 	go progressReporter.DisplayProgress(&displayWg, progressChan, len(calculators), out)
 
-	for i, calc := range calculators {
-		idx, calculator := i, calc
-		g.Go(func() error {
-			startTime := time.Now()
-			opts := fibonacci.Options{
-				ParallelThreshold: cfg.Threshold,
-				FFTThreshold:      cfg.FFTThreshold,
-				StrassenThreshold: cfg.StrassenThreshold,
-			}
-			res, err := calculator.Calculate(ctx, progressChan, idx, cfg.N, opts)
-			results[idx] = CalculationResult{
-				Name: calculator.Name(), Result: res, Duration: time.Since(startTime), Err: err,
-			}
-			return nil
-		})
+	opts := fibonacci.Options{
+		ParallelThreshold: cfg.Threshold,
+		FFTThreshold:      cfg.FFTThreshold,
+		StrassenThreshold: cfg.StrassenThreshold,
 	}
 
-	g.Wait()
+	// Fast path: single calculator doesn't need errgroup overhead
+	if len(calculators) == 1 {
+		startTime := time.Now()
+		res, err := calculators[0].Calculate(ctx, progressChan, 0, cfg.N, opts)
+		results[0] = CalculationResult{
+			Name: calculators[0].Name(), Result: res, Duration: time.Since(startTime), Err: err,
+		}
+	} else {
+		g, ctx := errgroup.WithContext(ctx)
+		for i, calc := range calculators {
+			idx, calculator := i, calc
+			g.Go(func() error {
+				startTime := time.Now()
+				res, err := calculator.Calculate(ctx, progressChan, idx, cfg.N, opts)
+				results[idx] = CalculationResult{
+					Name: calculator.Name(), Result: res, Duration: time.Since(startTime), Err: err,
+				}
+				return nil
+			})
+		}
+		g.Wait()
+	}
+
 	close(progressChan)
 	displayWg.Wait()
 

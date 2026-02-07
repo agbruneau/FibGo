@@ -94,6 +94,19 @@ func (fd *OptimizedFastDoubling) CalculateCore(ctx context.Context, reporter Pro
 	s := AcquireState()
 	defer ReleaseState(s)
 
+	// Pre-size big.Int temporary buffers based on expected result size.
+	// F(n) has approximately n * log2(φ) ≈ n * 0.694 bits.
+	// Pre-sizing avoids repeated reallocation during the doubling loop.
+	// Only pre-size temporaries (T1-T4), not FK/FK1 which are already initialized.
+	if n > 10000 {
+		estimatedBits := int(float64(n) * 0.694)
+		estimatedWords := (estimatedBits + 63) / 64
+		preSizeBigInt(s.T1, estimatedWords)
+		preSizeBigInt(s.T2, estimatedWords)
+		preSizeBigInt(s.T3, estimatedWords)
+		preSizeBigInt(s.T4, estimatedWords)
+	}
+
 	// Normalize options to ensure consistent default threshold handling
 	normalizedOpts := normalizeOptions(opts)
 	useParallel := runtime.GOMAXPROCS(0) > 1 && normalizedOpts.ParallelThreshold > 0

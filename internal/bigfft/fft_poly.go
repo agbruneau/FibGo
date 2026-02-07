@@ -164,9 +164,9 @@ func (p *Poly) transform(n int, alloc TempAllocator) (PolValues, error) {
 	input, _, cleanup := alloc.AllocFermatSlice(K, n)
 	defer cleanup()
 
-	// Use regular allocation for output buffers (they are returned and cannot be pooled)
-	valbits := make([]big.Word, wordCount)
-	values := make([]fermat, K)
+	// Use pooled allocation for output buffers (contiguous backing array)
+	valbits := acquireWordSliceUnsafe(wordCount)
+	values := acquireFermatSlice(K)
 
 	for i := 0; i < K; i++ {
 		if i < len(p.A) {
@@ -212,9 +212,9 @@ func (v *PolValues) invTransform(alloc TempAllocator) (Poly, error) {
 	wordCount := (n + 1) * K
 
 	// Perform an inverse Fourier transform to recover p.
-	// Use regular allocation since pbits data is returned via a[i]
-	pbits := make([]big.Word, wordCount)
-	p := make([]fermat, K)
+	// Use pooled allocation for output buffers (contiguous backing array)
+	pbits := acquireWordSliceUnsafe(wordCount)
+	p := acquireFermatSlice(K)
 	for i := 0; i < K; i++ {
 		p[i] = fermat(pbits[i*(n+1) : (i+1)*(n+1)])
 	}
@@ -240,8 +240,8 @@ func (v *PolValues) invTransform(alloc TempAllocator) (Poly, error) {
 	u, cleanup := alloc.AllocFermatTemp(n)
 	defer cleanup()
 
-	// Use regular allocation for a since it's returned
-	a := make([]nat, K)
+	// Use pooled allocation for a
+	a := acquireNatSlice(K)
 	for i := 0; i < K; i++ {
 		u.Shift(p[i], -int(k))
 		copy(p[i], u)
@@ -334,10 +334,10 @@ func (p *PolValues) mul(q *PolValues, alloc TempAllocator) (PolValues, error) {
 	var r PolValues
 	r.K, r.N = p.K, p.N
 
-	// Use regular allocation for returned data
-	r.Values = make([]fermat, K)
+	// Use pooled allocation for returned data (contiguous backing array)
+	r.Values = acquireFermatSlice(K)
 	wordCount := K * (n + 1)
-	bits := make([]big.Word, wordCount)
+	bits := acquireWordSliceUnsafe(wordCount)
 
 	// Use allocator for temporary multiplication result
 	// The temporary buffer needs to be 8*n (or 8*n - 1 if optimized)
@@ -372,10 +372,10 @@ func (p *PolValues) sqr(alloc TempAllocator) (PolValues, error) {
 	var r PolValues
 	r.K, r.N = p.K, p.N
 
-	// Use regular allocation for returned data
-	r.Values = make([]fermat, K)
+	// Use pooled allocation for returned data (contiguous backing array)
+	r.Values = acquireFermatSlice(K)
 	wordCount := K * (n + 1)
-	bits := make([]big.Word, wordCount)
+	bits := acquireWordSliceUnsafe(wordCount)
 
 	// Use allocator for temporary multiplication result
 	buf, cleanup := alloc.AllocFermatTemp(8 * n)

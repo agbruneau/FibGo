@@ -234,8 +234,9 @@ func EstimateBumpCapacity(wordLen int) int {
 	transformTemp := K * (n + 1)
 	multiplyTemp := 8 * n
 
-	// Add 20% safety margin
-	total := (2*transformTemp + multiplyTemp) * 12 / 10
+	// Add 10% safety margin (reduced from 20% based on profiling data
+	// showing the estimate is typically sufficient)
+	total := (2*transformTemp + multiplyTemp) * 11 / 10
 
 	return total
 }

@@ -122,3 +122,25 @@ func (s *ProgressSubject) AsProgressCallback(calcIndex int) ProgressCallback {
 		s.Notify(calcIndex, progress)
 	}
 }
+
+// Freeze creates a snapshot of the current observers and returns a ProgressCallback
+// that notifies the snapshot without acquiring any locks. This is useful in
+// performance-critical paths where observer registration is complete and won't change.
+//
+// Parameters:
+//   - calcIndex: The calculator instance identifier to include in notifications.
+//
+// Returns:
+//   - ProgressCallback: A lock-free function that can be passed to core calculators.
+func (s *ProgressSubject) Freeze(calcIndex int) ProgressCallback {
+	s.mu.RLock()
+	snapshot := make([]ProgressObserver, len(s.observers))
+	copy(snapshot, s.observers)
+	s.mu.RUnlock()
+
+	return func(progress float64) {
+		for _, observer := range snapshot {
+			observer.Update(calcIndex, progress)
+		}
+	}
+}

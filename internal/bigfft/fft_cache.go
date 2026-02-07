@@ -6,6 +6,7 @@ import (
 	"container/list"
 	"encoding/binary"
 	"hash/fnv"
+	"math/big"
 	"sync"
 	"sync/atomic"
 )
@@ -167,12 +168,16 @@ func (tc *TransformCache) getByKey(key uint64) (PolValues, bool) {
 
 	entry := elem.Value.(*cacheEntry)
 
-	// Return a copy of the cached values to avoid data races
-	valuesCopy := make([]fermat, len(entry.values))
+	// Return a copy of the cached values using a contiguous buffer to avoid
+	// K separate allocations and improve cache locality
+	K := len(entry.values)
+	n := entry.n
+	wordCount := K * (n + 1)
+	backing := make([]big.Word, wordCount)
+	valuesCopy := make([]fermat, K)
 	for i, v := range entry.values {
-		c := make(fermat, len(v))
-		copy(c, v)
-		valuesCopy[i] = c
+		valuesCopy[i] = fermat(backing[i*(n+1) : (i+1)*(n+1)])
+		copy(valuesCopy[i], v)
 	}
 
 	return PolValues{
@@ -214,12 +219,15 @@ func (tc *TransformCache) putByKey(key uint64, pv PolValues) {
 		}
 	}
 
-	// Create a deep copy of the values
-	valuesCopy := make([]fermat, len(pv.Values))
+	// Create a deep copy using a contiguous buffer to reduce allocations
+	K := len(pv.Values)
+	n := pv.N
+	wordCount := K * (n + 1)
+	backing := make([]big.Word, wordCount)
+	valuesCopy := make([]fermat, K)
 	for i, v := range pv.Values {
-		c := make(fermat, len(v))
-		copy(c, v)
-		valuesCopy[i] = c
+		valuesCopy[i] = fermat(backing[i*(n+1) : (i+1)*(n+1)])
+		copy(valuesCopy[i], v)
 	}
 
 	entry := &cacheEntry{
