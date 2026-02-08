@@ -136,9 +136,9 @@ func (c ChartModel) renderProgressBar() string {
 }
 
 // sparklineWidth computes the number of characters available for the sparkline.
-// Line format: "  CPU  xxx.x%  <sparkline>"  (~15 chars for label+pct, +2 border)
+// Line format: "  CPU: xxx.x% [sparkline]" → 16 chars prefix/suffix + 2 border.
 func (c ChartModel) sparklineWidth() int {
-	w := c.width - 17
+	w := c.width - 18
 	if w < 1 {
 		return 0
 	}

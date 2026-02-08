@@ -176,7 +176,7 @@ func TestChartModel_SetSize_ResizesBuffers(t *testing.T) {
 	chart := NewChartModel()
 	chart.SetSize(50, 15)
 
-	expectedWidth := 50 - 17 // sparklineWidth
+	expectedWidth := 50 - 18 // sparklineWidth
 	if chart.cpuHistory.Cap() != expectedWidth {
 		t.Errorf("expected cpu buffer cap %d, got %d", expectedWidth, chart.cpuHistory.Cap())
 	}
