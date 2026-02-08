@@ -101,12 +101,10 @@ func (c ChartModel) View() string {
 		b.WriteString(progressBar)
 	}
 
-	// Render system sparklines if space allows
-	if c.height >= 10 && c.sparklineWidth() > 0 {
+	// Render CPU braille chart if space allows
+	if c.height >= 8 && c.sparklineWidth() > 0 {
 		b.WriteString("\n\n")
-		b.WriteString(c.renderSparklineLine("CPU", c.cpuHistory, cpuSparklineStyle))
-		b.WriteString("\n")
-		b.WriteString(c.renderSparklineLine("MEM", c.memHistory, memSparklineStyle))
+		b.WriteString(c.renderBrailleSection())
 	}
 
 	return panelStyle.
@@ -155,4 +153,27 @@ func (c ChartModel) renderSparklineLine(label string, buf *RingBuffer, style lip
 		metricLabelStyle.Render(label),
 		pctStr,
 		sparkStr)
+}
+
+// renderBrailleSection renders CPU and MEM sparkline indicators.
+func (c ChartModel) renderBrailleSection() string {
+	var b strings.Builder
+
+	// CPU label: percentage after colon, then sparkline
+	cpuPct := c.cpuHistory.Last()
+	cpuLabel := fmt.Sprintf("  %s %s [%s]",
+		metricLabelStyle.Render("CPU:"),
+		metricValueStyle.Render(fmt.Sprintf("%5.1f%%", cpuPct)),
+		cpuSparklineStyle.Render(RenderSparkline(c.cpuHistory.Slice())))
+	b.WriteString(cpuLabel)
+
+	// MEM label: percentage after colon, then sparkline
+	memPct := c.memHistory.Last()
+	memLabel := fmt.Sprintf("\n  %s %s [%s]",
+		metricLabelStyle.Render("MEM:"),
+		metricValueStyle.Render(fmt.Sprintf("%5.1f%%", memPct)),
+		memSparklineStyle.Render(RenderSparkline(c.memHistory.Slice())))
+	b.WriteString(memLabel)
+
+	return b.String()
 }

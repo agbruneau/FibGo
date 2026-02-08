@@ -254,10 +254,10 @@ func (m Model) View() string {
 
 // Layout constants for the TUI dashboard.
 const (
-	headerHeight  = 1
-	footerHeight  = 1
-	minBodyHeight = 4
-	metricsFixedH = 8 // compact: title + up to 4 data rows + borders
+	headerHeight   = 1
+	footerHeight   = 1
+	minBodyHeight  = 4
+	metricsFixedH  = 7 // compact: top line + 1 data row + borders; expands to ~9 with indicators
 )
 
 func (m *Model) layoutPanels() {
@@ -270,8 +270,8 @@ func (m *Model) layoutPanels() {
 	rightWidth := m.width - logsWidth
 
 	metricsH := metricsFixedH
-	if metricsH > bodyHeight*2/3 {
-		metricsH = bodyHeight * 2 / 3
+	if metricsH > bodyHeight/2 {
+		metricsH = bodyHeight / 2
 	}
 	chartH := bodyHeight - metricsH
 
@@ -292,8 +292,8 @@ func (m Model) metricsHeight() int {
 		bodyHeight = minBodyHeight
 	}
 	metricsH := metricsFixedH
-	if metricsH > bodyHeight*2/3 {
-		metricsH = bodyHeight * 2 / 3
+	if metricsH > bodyHeight/2 {
+		metricsH = bodyHeight / 2
 	}
 	return metricsH
 }

@@ -100,9 +100,6 @@ func TestMetricsModel_View(t *testing.T) {
 	})
 
 	view := m.View()
-	if !strings.Contains(view, "Metrics") {
-		t.Error("expected view to contain 'Metrics' header")
-	}
 	if !strings.Contains(view, "Memory") {
 		t.Error("expected view to contain 'Memory' label")
 	}

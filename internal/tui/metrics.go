@@ -70,14 +70,24 @@ func (m *MetricsModel) UpdateIndicators(ind *metrics.Indicators) {
 
 // View renders the metrics panel.
 func (m MetricsModel) View() string {
-	colWidth := (m.width - 6) / 2 // two columns with padding
+	var rows strings.Builder
+
+	// Compact top line: Memory: X | GC Runs: Y
+	memStr := metricValueStyle.Render(formatBytes(m.alloc))
+	gcStr := metricValueStyle.Render(fmt.Sprintf("%d", m.numGC))
+	pipe := metricLabelStyle.Render(" | ")
+	topLine := fmt.Sprintf("  %s %s%s%s %s",
+		metricLabelStyle.Render("Memory:"), memStr,
+		pipe,
+		metricLabelStyle.Render("GC Runs:"), gcStr)
+	rows.WriteString(topLine)
+
+	colWidth := (m.width - 6) / 2
 
 	leftCol := []string{
-		formatMetricCol("Memory:", formatBytes(m.alloc), colWidth),
-		formatMetricCol("GC Runs:", fmt.Sprintf("%d", m.numGC), colWidth),
+		formatMetricCol("Speed:", format.FormatETA(time.Duration(float64(time.Second)/max(m.speed, 0.001)))+"/calc", colWidth),
 	}
 	rightCol := []string{
-		formatMetricCol("Speed:", format.FormatETA(time.Duration(float64(time.Second)/max(m.speed, 0.001)))+"/calc", colWidth),
 		formatMetricCol("Goroutines:", fmt.Sprintf("%d", m.numGoroutine), colWidth),
 	}
 
@@ -96,8 +106,6 @@ func (m MetricsModel) View() string {
 		)
 	}
 
-	var rows strings.Builder
-	rows.WriteString(metricLabelStyle.Render("  Metrics"))
 	for i := range leftCol {
 		rows.WriteString("\n")
 		rows.WriteString(leftCol[i])

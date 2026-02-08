@@ -43,11 +43,14 @@ func (h *HeaderModel) SetWidth(w int) {
 
 // View renders the header.
 func (h HeaderModel) View() string {
-	title := titleStyle.Render("FibGo Monitor")
-	version := ""
+	titleText := "FibGo Monitor"
 	if h.version != "" && h.version != "dev" {
-		version = versionStyle.Render(h.version)
+		titleText += " " + h.version
 	}
+	title := titleStyle.Render(titleText)
+
+	pipe := versionStyle.Render(" | ")
+
 	var duration time.Duration
 	if !h.endTime.IsZero() {
 		duration = h.endTime.Sub(h.startTime)
@@ -56,24 +59,20 @@ func (h HeaderModel) View() string {
 	}
 	elapsed := elapsedStyle.Render(fmt.Sprintf("Elapsed: %s", format.FormatExecutionDuration(duration)))
 
-	// Calculate spacing
-	titleLen := lipgloss.Width(title)
-	versionLen := lipgloss.Width(version)
-	elapsedLen := lipgloss.Width(elapsed)
+	leftPart := title + pipe + elapsed
+	leftLen := lipgloss.Width(leftPart)
 
-	innerWidth := h.width - 2 // content width after subtracting horizontal padding
+	innerWidth := h.width - 2
 	if innerWidth < 0 {
 		innerWidth = 0
 	}
 
-	gap := innerWidth - titleLen - versionLen - elapsedLen
-	if gap < 2 {
-		gap = 2
+	gap := innerWidth - leftLen
+	if gap < 0 {
+		gap = 0
 	}
-	leftGap := gap / 2
-	rightGap := gap - leftGap
 
-	row := title + spaces(leftGap) + version + spaces(rightGap) + elapsed
+	row := leftPart + spaces(gap)
 
 	return headerStyle.Width(h.width).Render(row)
 }

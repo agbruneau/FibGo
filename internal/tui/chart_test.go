@@ -146,14 +146,14 @@ func TestChartModel_UpdateSysStats(t *testing.T) {
 
 func TestChartModel_View_ContainsSparklines(t *testing.T) {
 	chart := NewChartModel()
-	chart.SetSize(50, 15) // height >= 10, sparklines visible
+	chart.SetSize(50, 15) // height >= 8, braille chart visible
 
 	chart.UpdateSysStats(50.0, 75.0)
 	chart.UpdateSysStats(60.0, 80.0)
 
 	view := chart.View()
 	if !strings.Contains(view, "CPU") {
-		t.Error("expected view to contain 'CPU' sparkline label")
+		t.Error("expected view to contain 'CPU' label in braille section")
 	}
 	if !strings.Contains(view, "MEM") {
 		t.Error("expected view to contain 'MEM' sparkline label")
@@ -162,13 +162,13 @@ func TestChartModel_View_ContainsSparklines(t *testing.T) {
 
 func TestChartModel_View_HidesSparklines_SmallHeight(t *testing.T) {
 	chart := NewChartModel()
-	chart.SetSize(50, 8) // height < 10, sparklines hidden
+	chart.SetSize(50, 6) // height < 8, braille chart hidden
 
 	chart.UpdateSysStats(50.0, 75.0)
 
 	view := chart.View()
 	if strings.Contains(view, "CPU") {
-		t.Error("expected sparklines to be hidden for small height")
+		t.Error("expected braille chart to be hidden for small height")
 	}
 }
 

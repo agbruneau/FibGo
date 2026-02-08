@@ -104,27 +104,28 @@ func (m Model) View() string {
 ## 3. Layout
 
 ```
-+------------------------------ Header (3 rows) ------------------------------+
-| FibGo Monitor            v1.0.0                      Elapsed: 00:01:23      |
++--- Header (1 row) ---------------------------------------------------------+
+| FibGo Monitor v1.0.0 | Elapsed: 0m 12s                                     |
 +-------- Logs (60%) --------+----- Right Column (40%) ----------------------+
-|                            |  Metrics (40% of right height)                 |
-| [15:04:05] Fast...  45%   |   Memory:     1.2 GB                           |
-| [15:04:06] Matrix.. 42%   |   Heap:       980 MB                           |
-|                            |   GC Runs:    12                               |
-|                            |   Goroutines: 24                               |
-|                            +---- Chart (60% of right height) ---------------+
-|                            |  Progress Chart                                |
-|                            |  [####.....] 62.3%                             |
-|                            |  ETA: 45s                                      |
+|                            |  Metrics (compact fixed height)                |
+| [15:04:05] FFT Based 45%  |   Memory: 1.2 GB | GC Runs: 12               |
+| [15:04:06] Matrix..  42%  |   Speed:   4m46s/calc  Goroutines: 18         |
+|                            +---- Chart (expands to fill) ------------------+
+|                            |  Progress Chart                ETA: 45s       |
+|                            |                                                |
+|                            |  [████████░░░░░░░░░░░] 62.3%                  |
+|                            |                                                |
+|                            |  CPU: [▅▆▇█▇▆▅▄▃▂] 85.4%                     |
+|                            |  MEM: [▃▃▃▄▄▃▃▃▃▃] 39.0%                     |
 +----------------------------+------------------------------------------------+
 | q: Quit  r: Restart  space: Pause/Resume                  Status: Running   |
 +-----------------------------------------------------------------------------+
 ```
 
-Constants: `headerHeight=3`, `footerHeight=3`, `minBodyHeight=4`.
+Constants: `headerHeight=1`, `footerHeight=1`, `minBodyHeight=4`, `metricsFixedH=7`.
 
 `layoutPanels()` is called on every `WindowSizeMsg`: logsWidth = 60%, rightWidth = 40%,
-metricsH = 40% of body, chartH = 60% of body.
+metricsH = fixed 7 (capped at half body height), chartH = remaining body height.
 
 ---
 
@@ -132,10 +133,10 @@ metricsH = 40% of body, chartH = 60% of body.
 
 | Sub-Model | File | Responsibility |
 |-----------|------|----------------|
-| `HeaderModel` | `header.go` | Title, version, elapsed time (freezes on done via `SetDone()`, resets via `Reset()`) |
+| `HeaderModel` | `header.go` | Title, version, elapsed time with pipe separator (freezes on done via `SetDone()`, resets via `Reset()`) |
 | `LogsModel` | `logs.go` | Scrollable viewport, auto-scroll, color-coded entries, max 10,000 entries |
-| `MetricsModel` | `metrics.go` | Memory, heap, GC, goroutines, speed (EMA smoothing, alpha=0.3) |
-| `ChartModel` | `chart.go` | Progress bar with filled/empty blocks, percentage, ETA or completion time |
+| `MetricsModel` | `metrics.go` | Compact top line (Memory \| GC Runs), speed, goroutines, post-calc indicators (EMA smoothing, alpha=0.3) |
+| `ChartModel` | `chart.go` | Progress bar, ETA, CPU/MEM sparkline indicators |
 | `FooterModel` | `footer.go` | Keyboard shortcuts display, status indicator (Running/Paused/Done/Error) |
 
 **LogsModel** uses a Bubbles `viewport.Model` for scrolling. Auto-scroll tracks whether
@@ -152,7 +153,8 @@ if m.speed > 0 {
 }
 ```
 
-**ChartModel** renders a progress bar using Unicode block characters. Bar width adapts to
+**ChartModel** renders a progress bar using Unicode block characters, plus CPU and MEM
+sparkline indicators using Unicode block elements (`▁▂▃▄▅▆▇█`). Bar width adapts to
 the panel width. When done, displays total elapsed time instead of ETA.
 
 **FooterModel** status priority: Error > Done > Paused > Running.
@@ -171,7 +173,7 @@ the panel width. When done, displays total elapsed time instead of ETA.
 | `FinalResultMsg` | `Result`, `N`, `Verbose`, `Details`, `ShowValue` | `TUIResultPresenter` | logs |
 | `ErrorMsg` | `Err`, `Duration` | `TUIResultPresenter` | logs, footer |
 | `TickMsg` | `time.Time` | `tickCmd()` (500ms) | triggers `sampleMemStatsCmd()` |
-| `MemStatsMsg` | `Alloc`, `HeapInuse`, `NumGC`, `NumGoroutine` | `sampleMemStatsCmd()` | metrics |
+| `MemStatsMsg` | `Alloc`, `NumGC`, `NumGoroutine` | `sampleMemStatsCmd()` | metrics |
 | `CalculationCompleteMsg` | `ExitCode`, `Generation` | `startCalculationCmd()` | header, chart, footer |
 | `ContextCancelledMsg` | `Err`, `Generation` | `watchContextCmd()` | triggers `tea.Quit` |
 
@@ -304,31 +306,32 @@ case CalculationCompleteMsg:
 
 **File**: `internal/tui/styles.go`
 
-### Color Palette
+### Color Palette (Orange Theme)
 
 | Variable | Hex | Role |
 |----------|-----|------|
 | `colorBg` | `#000000` | Background |
-| `colorText` | `#a9b1d6` | Default text |
-| `colorBorder` | `#3b4261` | Panel borders |
-| `colorAccent` | `#7aa2f7` | Titles, progress bars, shortcut keys |
+| `colorText` | `#E0E0E0` | Default text (light gray) |
+| `colorBorder` | `#FF6600` | Panel borders (orange) |
+| `colorAccent` | `#FF8C00` | Titles, progress bars, shortcut keys (dark orange) |
 | `colorSuccess` | `#9ece6a` | Success indicators, Running status |
-| `colorWarning` | `#e0af68` | Paused status |
-| `colorError` | `#f7768e` | Error indicators, Error status |
-| `colorDim` | `#565f89` | Timestamps, labels, empty progress bar |
-| `colorCyan` | `#7dcfff` | Elapsed time, metric values |
-| `colorMagenta` | `#bb9af7` | Algorithm names |
+| `colorWarning` | `#FFB347` | Paused status (light orange) |
+| `colorError` | `#FF4444` | Error indicators, Error status |
+| `colorDim` | `#666666` | Timestamps, labels, empty progress bar (neutral gray) |
+| `colorCyan` | `#FF8C00` | Elapsed time, metric values (orange) |
+| `colorMagenta` | `#4488FF` | Algorithm names (blue) |
 
 ### Key Styles
 
 | Style | Used For |
 |-------|----------|
-| `panelStyle` | All bordered panels (rounded border, dark background) |
+| `panelStyle` | All bordered panels (rounded orange border, dark background) |
 | `headerStyle` | Header and footer bars |
-| `chartBarStyle` / `chartEmptyStyle` | Filled and empty portions of progress bar |
+| `chartBarStyle` / `chartEmptyStyle` | Filled (orange) and empty portions of progress bar |
+| `cpuSparklineStyle` / `memSparklineStyle` | CPU (orange) and MEM (warm orange) sparklines |
 | `statusRunningStyle` | Green "Status: Running" |
-| `statusPausedStyle` | Yellow "Status: Paused" |
-| `statusDoneStyle` | Blue "Status: Done" |
+| `statusPausedStyle` | Light orange "Status: Paused" |
+| `statusDoneStyle` | Orange "Status: Done" |
 | `statusErrorStyle` | Red "Status: Error" |
 
 ---

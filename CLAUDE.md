@@ -11,6 +11,14 @@ go test -v -short ./...                                # Skip slow tests
 go test -v -run TestFastDoubling ./internal/fibonacci/  # Run single test by name
 go test -bench=. -benchmem ./internal/fibonacci/        # Run benchmarks
 go test -fuzz=FuzzFastDoubling ./internal/fibonacci/    # Run fuzz tests
+go test -fuzz=FuzzFermatMulVsBigInt -fuzztime=10m ./internal/bigfft/  # Run fermat oracle fuzz
+```
+
+Formal verification (requires Coq 8.18+ and TLA+ Toolbox):
+```bash
+cd formal/coq && make                                   # Compile Coq proofs
+cd formal/tla && tlc Orchestration.tla                   # Check orchestration model
+cd formal/tla && tlc ConcurrencySemaphores.tla           # Check semaphore model
 ```
 
 Makefile targets (require `make`, not available on all systems):
@@ -128,6 +136,8 @@ Support packages: `internal/calibration`, `internal/config`, `internal/app`, `in
 | `internal/sysmon` | `sysmon.go` | System-wide CPU/memory monitoring via gopsutil |
 | `internal/ui` | `colors.go`, `themes.go` | Color themes, `NO_COLOR` support |
 | `internal/testutil` | `ansi.go` | ANSI escape code stripping for test assertions |
+| `formal/coq` | `FastDoublingCorrectness.v`, `FermatArithmetic.v` | Machine-checked Coq proofs of algorithm identities and Fermat arithmetic |
+| `formal/tla` | `Orchestration.tla`, `ConcurrencySemaphores.tla` | TLA+ specifications for concurrency model verification |
 
 ### Data Flow
 
@@ -151,7 +161,7 @@ Support packages: `internal/calibration`, `internal/config`, `internal/app`, `in
 
 **Concurrency**: Use `sync.Pool` for object recycling. Task semaphore in `common.go` limits goroutines to `runtime.NumCPU()*2`. `parallel.ErrorCollector` for first-error aggregation.
 
-**Testing**: Table-driven with subtests. >75% coverage target. Golden file tests in `internal/fibonacci/testdata/fibonacci_golden.json`. Fuzz tests (`FuzzFastDoubling`). Property-based tests via `gopter`. Example tests in `example_test.go`. E2E tests in `test/e2e/`.
+**Testing**: Table-driven with subtests. >75% coverage target. Golden file tests in `internal/fibonacci/testdata/fibonacci_golden.json`. Fuzz tests (`FuzzFastDoubling`). Property-based tests via `gopter`. Example tests in `example_test.go`. E2E tests in `test/e2e/`. Formal verification: 17 oracle-based fuzz targets (`fermat_fuzz_test.go`, `fft_roundtrip_fuzz_test.go`, `fibonacci_formal_fuzz_test.go`, `strategy_oracle_test.go`), exhaustive state aliasing tests (`state_aliasing_test.go`), concurrency verification tests (`orchestration_deadlock_test.go`, `observer_concurrency_test.go`, `semaphore_verification_test.go`, `errors_concurrency_test.go`).
 
 **Linting**: `.golangci.yml` — 22 linters enabled. Key limits: cyclomatic complexity 15, cognitive complexity 30, function length 100 lines / 50 statements. Relaxed in `_test.go` files.
 

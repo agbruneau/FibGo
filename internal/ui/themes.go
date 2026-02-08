@@ -61,6 +61,21 @@ var (
 		Reset:     "\033[0m",
 	}
 
+	// OrangeTheme is an orange-dominant dark theme matching the TUI palette.
+	// Uses warm orange tones for a btop-inspired aesthetic.
+	OrangeTheme = Theme{
+		Name:      "orange",
+		Primary:   "\033[38;5;208m", // Orange
+		Secondary: "\033[38;5;245m", // Grey
+		Success:   "\033[38;5;82m",  // Bright green
+		Warning:   "\033[38;5;214m", // Light orange
+		Error:     "\033[38;5;196m", // Red
+		Info:      "\033[38;5;69m",  // Blue
+		Bold:      "\033[1m",
+		Underline: "\033[4m",
+		Reset:     "\033[0m",
+	}
+
 	// NoColorTheme disables all color output.
 	// Used when NO_COLOR is set or --no-color flag is provided.
 	NoColorTheme = Theme{
@@ -98,7 +113,7 @@ func SetCurrentTheme(t Theme) {
 }
 
 // SetTheme changes the active theme by name.
-// Valid names are: "dark", "light", "none".
+// Valid names are: "dark", "light", "orange", "none".
 // Unknown names default to dark theme.
 //
 // Parameters:
@@ -112,6 +127,8 @@ func SetTheme(name string) {
 		currentTheme = DarkTheme
 	case "light":
 		currentTheme = LightTheme
+	case "orange":
+		currentTheme = OrangeTheme
 	case "none":
 		currentTheme = NoColorTheme
 	default:

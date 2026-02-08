@@ -178,14 +178,14 @@ Interactive TUI dashboard (btop-style), activated via `--tui` flag or `FIBCALC_T
 |------|---------------|
 | `doc.go` | Package documentation |
 | `messages.go` | Tea message types (`ProgressMsg`, `ResultMsg`, `TickMsg`, `MemStatsMsg`, etc.) |
-| `styles.go` | btop-inspired dark theme palette with lipgloss (rounded borders, color scheme) |
+| `styles.go` | Orange-dominant dark theme palette with lipgloss (rounded orange borders, warm color scheme) |
 | `keymap.go` | Keyboard bindings (`q`, `space`, `r`, arrows, `pgup`/`pgdn`) |
 | `bridge.go` | `TUIProgressReporter` and `TUIResultPresenter` — implements orchestration interfaces |
 | `header.go` | Header sub-model (title, version, elapsed time using `FormatExecutionDuration`) |
 | `logs.go` | Scrollable log panel sub-model (viewport, auto-scroll) |
 | `metrics.go` | Runtime metrics sub-model (memory, heap, GC, goroutines, speed) |
-| `chart.go` | Progress bar and ETA display sub-model |
-| `sparkline.go` | Sparkline visualization for progress chart |
+| `chart.go` | Progress bar, ETA, CPU/MEM sparkline indicators sub-model |
+| `sparkline.go` | Sparkline and braille chart visualization |
 | `footer.go` | Footer sub-model (keyboard shortcuts, status indicator) |
 | `model.go` | Root model, `Init()`/`Update()`/`View()`, `Run()` entry point, layout (60/40 split) |
 
@@ -238,7 +238,7 @@ Terminal UI utilities.
 | File | Responsibility |
 |------|---------------|
 | `colors.go` | ANSI color functions |
-| `themes.go` | Theme system (dark, light, none), `NO_COLOR` support |
+| `themes.go` | Theme system (dark, light, orange, none), `NO_COLOR` support |
 
 ## Key Interfaces
 

@@ -2,18 +2,18 @@ package tui
 
 import "github.com/charmbracelet/lipgloss"
 
-// btop-inspired dark theme palette.
+// Orange-dominant dark theme palette inspired by btop.
 var (
 	colorBg      = lipgloss.Color("#000000")
-	colorText    = lipgloss.Color("#a9b1d6")
-	colorBorder  = lipgloss.Color("#3b4261")
-	colorAccent  = lipgloss.Color("#7aa2f7")
+	colorText    = lipgloss.Color("#E0E0E0")
+	colorBorder  = lipgloss.Color("#FF6600")
+	colorAccent  = lipgloss.Color("#FF8C00")
 	colorSuccess = lipgloss.Color("#9ece6a")
-	colorWarning = lipgloss.Color("#e0af68")
-	colorError   = lipgloss.Color("#f7768e")
-	colorDim     = lipgloss.Color("#565f89")
-	colorCyan    = lipgloss.Color("#7dcfff")
-	colorMagenta = lipgloss.Color("#bb9af7")
+	colorWarning = lipgloss.Color("#FFB347")
+	colorError   = lipgloss.Color("#FF4444")
+	colorDim     = lipgloss.Color("#666666")
+	colorCyan    = lipgloss.Color("#FF8C00")
+	colorMagenta = lipgloss.Color("#4488FF")
 )
 
 // panelStyle is the base style for bordered panels.
@@ -109,11 +109,11 @@ var statusErrorStyle = lipgloss.NewStyle().
 	Foreground(colorError).
 	Bold(true)
 
-// cpuSparklineStyle for CPU sparkline characters (green).
+// cpuSparklineStyle for CPU sparkline characters (orange).
 var cpuSparklineStyle = lipgloss.NewStyle().
-	Foreground(colorSuccess)
+	Foreground(colorAccent)
 
-// memSparklineStyle for memory sparkline characters (purple).
+// memSparklineStyle for memory sparkline characters (warm orange).
 var memSparklineStyle = lipgloss.NewStyle().
-	Foreground(colorMagenta)
+	Foreground(colorWarning)
 
