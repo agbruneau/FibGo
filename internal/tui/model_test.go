@@ -626,9 +626,9 @@ func TestModel_View_ContainsAllComponents(t *testing.T) {
 	if !strings.Contains(view, "FibGo") {
 		t.Error("expected view to contain 'FibGo' from header")
 	}
-	// The view should contain Memory from the metrics panel
-	if !strings.Contains(view, "Memory") {
-		t.Error("expected view to contain 'Memory' from metrics panel")
+	// The view should contain Heap from the metrics panel
+	if !strings.Contains(view, "Heap") {
+		t.Error("expected view to contain 'Heap' from metrics panel")
 	}
 	// The view should contain Progress Chart from the chart panel
 	if !strings.Contains(view, "Progress Chart") {

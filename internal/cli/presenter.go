@@ -104,3 +104,30 @@ func (CLIResultPresenter) FormatDuration(d time.Duration) string {
 func (CLIResultPresenter) HandleError(err error, duration time.Duration, out io.Writer) int {
 	return apperrors.HandleCalculationError(err, duration, out, CLIColorProvider{})
 }
+
+// DisplayMemoryStats shows memory statistics after a calculation.
+func DisplayMemoryStats(heapAlloc, totalAlloc uint64, numGC uint32, pauseTotalNs uint64, out io.Writer) {
+	fmt.Fprintf(out, "\nMemory Stats:\n")
+	fmt.Fprintf(out, "  Peak heap:       %s\n", FormatBytes(heapAlloc))
+	fmt.Fprintf(out, "  Total allocated: %s\n", FormatBytes(totalAlloc))
+	fmt.Fprintf(out, "  GC cycles:       %d\n", numGC)
+	if pauseTotalNs > 0 {
+		fmt.Fprintf(out, "  GC pause total:  %.2fms\n", float64(pauseTotalNs)/1e6)
+	} else {
+		fmt.Fprintf(out, "  GC pause total:  0ms (GC disabled)\n")
+	}
+}
+
+// FormatBytes formats a byte count as a human-readable string.
+func FormatBytes(b uint64) string {
+	switch {
+	case b >= 1<<30:
+		return fmt.Sprintf("%.1f GB", float64(b)/(1<<30))
+	case b >= 1<<20:
+		return fmt.Sprintf("%.1f MB", float64(b)/(1<<20))
+	case b >= 1<<10:
+		return fmt.Sprintf("%.1f KB", float64(b)/(1<<10))
+	default:
+		return fmt.Sprintf("%d B", b)
+	}
+}

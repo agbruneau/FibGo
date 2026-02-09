@@ -347,7 +347,9 @@ func sampleMemStatsCmd() tea.Cmd {
 		runtime.ReadMemStats(&ms)
 		return MemStatsMsg{
 			Alloc:        ms.Alloc,
+			HeapSys:      ms.HeapSys,
 			NumGC:        ms.NumGC,
+			PauseTotalNs: ms.PauseTotalNs,
 			NumGoroutine: runtime.NumGoroutine(),
 		}
 	}

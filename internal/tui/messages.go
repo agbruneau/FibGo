@@ -44,7 +44,9 @@ type TickMsg time.Time
 // MemStatsMsg carries runtime memory statistics.
 type MemStatsMsg struct {
 	Alloc        uint64
+	HeapSys      uint64
 	NumGC        uint32
+	PauseTotalNs uint64
 	NumGoroutine int
 }
 

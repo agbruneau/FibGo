@@ -14,7 +14,9 @@ import (
 // MetricsModel displays runtime memory and performance metrics.
 type MetricsModel struct {
 	alloc        uint64
+	heapSys      uint64
 	numGC        uint32
+	pauseTotalNs uint64
 	numGoroutine int
 	speed        float64 // progress per second
 	lastProgress float64
@@ -40,7 +42,9 @@ func (m *MetricsModel) SetSize(w, h int) {
 // UpdateMemStats updates memory statistics.
 func (m *MetricsModel) UpdateMemStats(msg MemStatsMsg) {
 	m.alloc = msg.Alloc
+	m.heapSys = msg.HeapSys
 	m.numGC = msg.NumGC
+	m.pauseTotalNs = msg.PauseTotalNs
 	m.numGoroutine = msg.NumGoroutine
 }
 
@@ -72,14 +76,14 @@ func (m *MetricsModel) UpdateIndicators(ind *metrics.Indicators) {
 func (m MetricsModel) View() string {
 	var rows strings.Builder
 
-	// Compact top line: Memory: X | GC Runs: Y
-	memStr := metricValueStyle.Render(formatBytes(m.alloc))
-	gcStr := metricValueStyle.Render(fmt.Sprintf("%d", m.numGC))
+	// Compact top line: Heap: X / Y | GC: N (Xms)
+	heapStr := metricValueStyle.Render(formatBytes(m.alloc) + " / " + formatBytes(m.heapSys))
+	gcPauseStr := metricValueStyle.Render(fmt.Sprintf("%d (%.1fms)", m.numGC, float64(m.pauseTotalNs)/1e6))
 	pipe := metricLabelStyle.Render(" | ")
 	topLine := fmt.Sprintf("  %s %s%s%s %s",
-		metricLabelStyle.Render("Memory:"), memStr,
+		metricLabelStyle.Render("Heap:"), heapStr,
 		pipe,
-		metricLabelStyle.Render("GC Runs:"), gcStr)
+		metricLabelStyle.Render("GC:"), gcPauseStr)
 	rows.WriteString(topLine)
 
 	colWidth := (m.width - 6) / 2
