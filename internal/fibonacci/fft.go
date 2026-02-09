@@ -43,6 +43,10 @@ func sqrFFT(x *big.Int) (*big.Int, error) {
 }
 
 func smartMultiply(z, x, y *big.Int, fftThreshold int) (*big.Int, error) {
+	if z == nil {
+		z = new(big.Int)
+	}
+
 	bx := x.BitLen()
 	by := y.BitLen()
 
@@ -52,15 +56,16 @@ func smartMultiply(z, x, y *big.Int, fftThreshold int) (*big.Int, error) {
 	}
 
 	// Tier 2: math/big Multiplication (uses optimized algorithms internally)
-	if z == nil {
-		z = new(big.Int)
-	}
 	return z.Mul(x, y), nil
 }
 
 // smartSquare performs optimized squaring, choosing between math/big.Mul and
 // FFT (internal/bigfft) based on the operand size.
 func smartSquare(z, x *big.Int, fftThreshold int) (*big.Int, error) {
+	if z == nil {
+		z = new(big.Int)
+	}
+
 	bx := x.BitLen()
 
 	// Tier 1: FFT Squaring for very large operands
@@ -69,9 +74,6 @@ func smartSquare(z, x *big.Int, fftThreshold int) (*big.Int, error) {
 	}
 
 	// Tier 2: math/big Squaring (uses optimized algorithms internally)
-	if z == nil {
-		z = new(big.Int)
-	}
 	return z.Mul(x, x), nil
 }
 
