@@ -69,12 +69,13 @@ FibCalc serves as both a practical high-performance tool and a reference impleme
 - **Atomic Pre-Warming**: Optimized memory pool initialization ensures resources are ready before the first request.
 - **Go Generics**: `executeTasks[T, PT]()` uses generics with pointer constraint pattern to eliminate code duplication between multiplication and squaring task execution.
 
-### Formal Verification
+### Formal Verification (Planned)
 
-- **Coq Proofs**: Machine-checked mathematical proofs of Fast Doubling identities and Fermat ring normalization correctness (`formal/coq/`).
-- **TLA+ Specifications**: Formal models of the orchestration state machine and dual semaphore interaction, verified for deadlock freedom and safe termination (`formal/tla/`).
-- **Specification-Driven Fuzzing**: 17 fuzz targets with independent mathematical oracles (big.Int cross-validation, algebraic identity verification, strategy equivalence) across `internal/bigfft/` and `internal/fibonacci/`.
-- **Exhaustive State Verification**: Pointer aliasing invariant tests covering all 2^16 bit patterns for the zero-allocation swap logic, concurrent pool integrity tests, and observer snapshot immutability verification.
+> **Note**: The formal verification suite (`formal/coq/`, `formal/tla/`) is planned but not yet implemented. The specifications below describe the intended design.
+
+- **Coq Proofs** (planned): Machine-checked mathematical proofs of Fast Doubling identities and Fermat ring normalization correctness.
+- **TLA+ Specifications** (planned): Formal models of the orchestration state machine and dual semaphore interaction.
+- **Fuzz Testing**: 4 fuzz targets in `internal/fibonacci/` with cross-algorithm consistency validation and mathematical identity verification (`FuzzFastDoublingConsistency`, `FuzzFFTBasedConsistency`, `FuzzFibonacciIdentities`, `FuzzProgressMonotonicity`).
 
 ### Robust Architecture
 
@@ -350,63 +351,25 @@ FibCalc is optimized for speed. Below is a summary of performance characteristic
 
 ## Formal Verification
 
-FibCalc includes a comprehensive formal verification suite that provides mathematical confidence in the correctness of the most critical code paths.
+> **Note**: The Coq proofs and TLA+ specifications described in the Key Features section are planned but not yet implemented. The `formal/` directory does not yet exist. The fuzz testing and concurrency verification below are active and functional.
 
-### Mathematical Proofs (Coq)
+### Fuzz Testing
 
-Machine-checked proofs in `formal/coq/` verify:
+4 fuzz targets in `internal/fibonacci/fibonacci_fuzz_test.go` use Go's built-in fuzzing framework:
 
-- **Fast Doubling Identities** (`FastDoublingCorrectness.v`): Proves by induction that $F(2k) = F(k)(2F(k+1) - F(k))$ and $F(2k+1) = F(k+1)^2 + F(k)^2$ hold for all $k \geq 0$, along with termination of the MSB-to-LSB bit iteration and the addition step correctness.
-- **Fermat Ring Normalization** (`FermatArithmetic.v`): Proves that `norm()` preserves the residue class modulo $2^{nW}+1$, maintains the representation invariant $z[n] \in \{0,1\}$, and that the carry assertion in `Mul()` (the panic guard at `fermat.go:202`) always holds.
-
-```bash
-cd formal/coq && make   # Compile and verify all Coq proofs
-```
-
-### Concurrency Models (TLA+)
-
-Formal specifications in `formal/tla/` model:
-
-- **Orchestration State Machine** (`Orchestration.tla`): Models the `errgroup`-based concurrent execution, bounded progress channel, and display goroutine synchronization. Verifies deadlock freedom, safe channel closure, and display termination.
-- **Dual Semaphore Interaction** (`ConcurrencySemaphores.tla`): Models the task semaphore (`NumCPU*2`) and FFT semaphore (`NumCPU`) interaction. Verifies no starvation, bounded goroutine count (`NumCPU*3` max), and absence of circular dependencies.
+| Fuzz Test | Strategy | Input Limit |
+|-----------|----------|-------------|
+| `FuzzFastDoublingConsistency` | Cross-validates Fast Doubling vs Matrix | n up to 50,000 |
+| `FuzzFFTBasedConsistency` | Cross-validates FFT vs Fast Doubling | n up to 20,000 |
+| `FuzzFibonacciIdentities` | Verifies mathematical identities (doubling identity, d'Ocagne's identity) | n up to 10,000 |
+| `FuzzProgressMonotonicity` | Ensures progress is monotonically increasing | n 10 to 20,000 |
 
 ```bash
-cd formal/tla && tlc Orchestration.tla && tlc ConcurrencySemaphores.tla
+go test -fuzz=FuzzFastDoublingConsistency -fuzztime=30s ./internal/fibonacci/
+go test -fuzz=FuzzFFTBasedConsistency -fuzztime=1m ./internal/fibonacci/
 ```
 
-### Specification-Driven Fuzzing
-
-17 fuzz targets use independent mathematical oracles to verify correctness:
-
-| Package | Fuzz Targets | Oracles |
-|---------|-------------|---------|
-| `internal/bigfft` | `FuzzFermatNormIdempotent`, `FuzzFermatAddSubInverse`, `FuzzFermatMulCommutativity`, `FuzzFermatMulVsBigInt`, `FuzzFermatSqrVsMul`, `FuzzFermatShiftModular` | Idempotency, algebraic inverses, commutativity, independent `big.Int` oracle, Sqr/Mul equivalence, modular shift oracle |
-| `internal/bigfft` | `FuzzFFTMulVsBigInt`, `FuzzFFTSqrVsBigInt`, `FuzzValueSizeAdequacy` | `big.Int` cross-validation, parameter bound verification |
-| `internal/fibonacci` | `FuzzNonNegative`, `FuzzGeneralizedCassini`, `FuzzSumIdentity`, `FuzzExtendedConsistency` | Non-negativity invariant, $F(n+1)^2 - F(n) \cdot F(n+2) = (-1)^n$, summation identity, cross-algorithm consistency |
-| `internal/fibonacci` | `FuzzAdaptiveVsKaratsuba`, `FuzzAdaptiveSquareVsKaratsuba`, `FuzzSmartMultiplyOracle`, `FuzzSmartSquareOracle` | Strategy equivalence at threshold boundaries |
-
-```bash
-# Run extended fuzzing (10+ minutes recommended per target)
-go test -fuzz=FuzzFermatMulVsBigInt -fuzztime=10m ./internal/bigfft/
-go test -fuzz=FuzzFermatShiftModular -fuzztime=10m ./internal/bigfft/
-go test -fuzz=FuzzAdaptiveVsKaratsuba -fuzztime=10m ./internal/fibonacci/
-```
-
-### State & Concurrency Verification
-
-Go tests provide exhaustive verification of runtime invariants:
-
-| Test | What it verifies |
-|------|-----------------|
-| `TestStatePointerSwapsExhaustive` | All 6 pointers in `CalculationState` remain distinct after every swap, for all 65,536 bit patterns (16-bit exhaustive) |
-| `TestResultStealingIndependence` | Zero-copy result stealing produces correct, pool-independent values |
-| `TestPoolRoundTripConcurrent` | 1,000 concurrent goroutines verify pool state integrity with race detector |
-| `TestOrchestrationNoDeadlock_*` | 5 deadlock scenarios (instant, slow, error, flood, cancellation) with timeout detection |
-| `TestSemaphoreSaturation` | Dual semaphore system at 3x capacity completes without starvation |
-| `TestFreezeSnapshotImmutability` | Observer `Freeze()` snapshot is immune to post-freeze registrations |
-| `TestErrorCollectorHighContention` | 1,000 goroutines x 100 rounds verify first-error-only semantics |
-
-> **Full verification guide**: [formal/README.md](formal/README.md)
+> **Full testing guide**: [Docs/TESTING.md](Docs/TESTING.md)
 
 ---
 
@@ -454,8 +417,8 @@ Environment variables can override CLI flags. Priority: CLI flags > Environment 
 ### Prerequisites
 - Go 1.25+
 - golangci-lint (optional, for linting)
-- Coq 8.18+ (optional, for formal proofs)
-- TLA+ Toolbox or `tlc` (optional, for concurrency models)
+- Coq 8.18+ (optional, planned for formal proofs — not yet implemented)
+- TLA+ Toolbox or `tlc` (optional, planned for concurrency models — not yet implemented)
 
 ### Key Commands
 
@@ -465,7 +428,7 @@ go test -v -short ./...                                # Skip slow tests
 go test -v -run TestFastDoubling ./internal/fibonacci/  # Run a single test
 go test -bench=. -benchmem ./internal/fibonacci/        # Run benchmarks
 go test -fuzz=FuzzFastDoubling ./internal/fibonacci/    # Run fuzz tests
-go test -fuzz=FuzzFermatMulVsBigInt -fuzztime=10m ./internal/bigfft/  # Run fermat fuzz with oracle
+go test -fuzz=FuzzFFTBasedConsistency -fuzztime=1m ./internal/fibonacci/  # Run FFT consistency fuzz
 ```
 
 If `make` is available, Makefile targets are also provided:
@@ -505,25 +468,23 @@ fibcalc/
 │   ├── sysmon/              # System CPU/memory monitoring
 │   ├── ui/                  # Color themes, NO_COLOR support
 │   └── testutil/            # Shared test utilities
-├── formal/                  # Formal verification suite
-│   ├── coq/                 # Machine-checked Coq proofs
-│   │   ├── FastDoublingCorrectness.v
-│   │   └── FermatArithmetic.v
-│   └── tla/                 # TLA+ concurrency specifications
-│       ├── Orchestration.tla
-│       └── ConcurrencySemaphores.tla
 ├── Docs/                    # Documentation
-│   ├── ARCHITECTURE.md
+│   ├── ARCHITECTURE.md      # → Redirect to architecture/README.md
+│   ├── DESIGN_PATTERNS.md   # → Redirect to architecture/patterns/
 │   ├── PERFORMANCE.md
-│   ├── DESIGN_PATTERNS.md
 │   ├── BUILD.md
 │   ├── TESTING.md
 │   ├── CALIBRATION.md
 │   ├── TUI_GUIDE.md
-│   └── algorithms/          # Algorithm deep dives
+│   ├── algorithms/          # Algorithm deep dives
+│   └── architecture/        # Consolidated architecture docs
+│       ├── README.md         # Architecture hub (source of truth)
+│       ├── flows/            # Execution flow documentation
+│       ├── patterns/         # Design pattern catalog
+│       └── validation/       # Architecture validation reports
 ├── test/
 │   └── e2e/                 # End-to-end CLI integration tests
-├── .golangci.yml            # Linter configuration (22 linters)
+├── .golangci.yml            # Linter configuration (24 linters)
 ├── .env.example             # Environment variable reference
 ├── Makefile                 # Build, test, lint, PGO targets
 └── CLAUDE.md                # AI assistant guidance

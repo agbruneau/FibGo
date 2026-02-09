@@ -41,31 +41,39 @@ flowchart LR
     app --> calib
     app --> fib
     app --> errors
-    app --> format
+    app --> ui
 
     orch --> fib
+    orch --> config
     orch --> errors
-    orch --> parallel
 
     calib --> fib
     calib --> bigfft
+    calib --> cli
     calib --> config
     calib --> errors
     calib --> format
-    calib --> metrics
+    calib --> ui
 
     fib --> bigfft
-    fib --> errors
+    fib --> parallel
 
     cli --> format
     cli --> errors
     cli --> metrics
     cli --> ui
+    cli --> orch
+    cli --> fib
+    cli --> config
 
     tui --> format
     tui --> metrics
     tui --> sysmon
     tui --> ui
+    tui --> errors
+    tui --> config
+    tui --> fib
+    tui --> orch
 
     style Entry fill:#e1f5fe
     style Core fill:#f3e5f5

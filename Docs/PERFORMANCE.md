@@ -91,7 +91,7 @@ func smartMultiply(z, x, y *big.Int, fftThreshold int) (*big.Int, error) {
 
 ### 3. Multi-core Parallelism
 
-The three main multiplications in the Fast Doubling algorithm can be parallelized via the `MultiplicationStrategy.ExecuteStep` method. The strategy dispatches multiplication work across goroutines when the operand size exceeds the parallel threshold.
+The three main multiplications in the Fast Doubling algorithm can be parallelized via the `DoublingStepExecutor.ExecuteStep` method. The strategy dispatches multiplication work across goroutines when the operand size exceeds the parallel threshold.
 
 #### Considerations
 

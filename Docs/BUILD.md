@@ -122,7 +122,7 @@ GOOS=darwin GOARCH=arm64 go build -o fibcalc-darwin-arm64 ./cmd/fibcalc
 | `build-windows` | windows | amd64 | Full SIMD support |
 | `build-darwin` | darwin | amd64 + arm64 | SIMD on amd64 only |
 
-Assembly-optimized routines are amd64-only. All other architectures use the `arith_decl.go` fallback automatically.
+Assembly-optimized routines are amd64-only. All other architectures use the `arith_generic.go` fallback automatically.
 
 ## Version Injection
 
@@ -204,7 +204,7 @@ The Makefile provides targets for building, testing, linting, and maintenance. R
 
 ## Linting
 
-The project uses `golangci-lint` with 20+ linters configured in `.golangci.yml`.
+The project uses `golangci-lint` with 24 linters configured in `.golangci.yml`.
 
 ```bash
 # Run linter

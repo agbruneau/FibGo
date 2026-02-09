@@ -6,6 +6,23 @@
 
 ---
 
+## 0. Tableau de suivi des tâches
+
+| ID | Phase | Agent | Tâche | Statut | Notes |
+|----|-------|-------|-------|--------|-------|
+| A1 | 1 | A1 | Supprimer `AGENTS.md`, transformer `Docs/ARCHITECTURE.md` en redirection | ✅ Terminé | AGENTS.md supprimé (make build/clean migrés vers CLAUDE.md), ARCHITECTURE.md redirigé vers architecture/README.md |
+| A2 | 1 | A2 | Fusionner les catalogues de design patterns | ✅ Terminé | 12 patterns fusionnés dans architecture/patterns/design-patterns.md (1023 lignes), DESIGN_PATTERNS.md redirigé |
+| A3 | 1 | A3 | Consolider documentation TUI et FFT | ✅ Terminé | R4: pas d'action (tui-flow.md inexistant), R5: FFT.md épuré, cross-refs ajoutées |
+| B1 | 2 | B1 | Auditer diagrammes C4 et graphe de dépendances vs code | ✅ Terminé | 37+ corrections: container-diagram (5 arêtes), component-diagram (18+ signatures), dependency-graph (14 arêtes) |
+| B2 | 2 | B2 | Auditer interfaces et patterns documentés vs code | ✅ Terminé | 32 interfaces vérifiées, 2 corrections mineures (BumpAllocator sig + marge sécurité), 4 interfaces non documentées identifiées |
+| B3 | 2 | B3 | Auditer flux d'exécution documentés vs appels réels | ✅ Terminé | Data Flow README corrigé, 4 flow docs créés (cli-flow, tui-flow, config-flow, algorithm-flows) avec diagrammes Mermaid |
+| B4 | 2 | B4 | Auditer guides opérationnels vs état réel | ✅ Terminé | 14 corrections sur 6 fichiers (README, BUILD, PERFORMANCE, TESTING, .env.example), CALIBRATION.md 100% exact |
+| C1 | 3 | C1 | Mettre à jour `architecture/README.md` (index, stats, navigation) | ✅ Terminé | Documentation Map ajoutée, stats codebase, 12 patterns référencés, 21 liens vérifiés (416→479 lignes) |
+| C2 | 3 | C2 | Régénérer `validation-report.md` à partir des audits | ✅ Terminé | 38 PASS, 0 FAIL, 0 WARNING, 4 INFO — 53+ corrections documentées, 6 anciens WARNINGs résolus |
+| C3 | 3 | C3 | Aligner `README.md` et `CLAUDE.md` avec la structure épurée | ✅ Terminé | Fuzz targets corrigés (17→4), formal verification marquée planifiée, linters 22→24, go.uber.org/mock retiré, arborescence projet mise à jour |
+
+---
+
 ## 1. Inventaire de la documentation existante
 
 ### 1.1 Racine du projet (5 fichiers — ~1 291 lignes)

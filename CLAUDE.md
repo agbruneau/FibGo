@@ -11,18 +11,11 @@ go test -v -short ./...                                # Skip slow tests
 go test -v -run TestFastDoubling ./internal/fibonacci/  # Run single test by name
 go test -bench=. -benchmem ./internal/fibonacci/        # Run benchmarks
 go test -fuzz=FuzzFastDoubling ./internal/fibonacci/    # Run fuzz tests
-go test -fuzz=FuzzFermatMulVsBigInt -fuzztime=10m ./internal/bigfft/  # Run fermat oracle fuzz
-```
-
-Formal verification (requires Coq 8.18+ and TLA+ Toolbox):
-```bash
-cd formal/coq && make                                   # Compile Coq proofs
-cd formal/tla && tlc Orchestration.tla                   # Check orchestration model
-cd formal/tla && tlc ConcurrencySemaphores.tla           # Check semaphore model
 ```
 
 Makefile targets (require `make`, not available on all systems):
 ```bash
+make build          # Build binary to ./build/fibcalc
 make test           # go test -v -race -cover ./...
 make lint           # golangci-lint run ./...
 make coverage       # Generate coverage.html
@@ -32,6 +25,7 @@ make benchmark      # Run benchmarks
 make pgo-profile    # Generate CPU profile for PGO
 make build-pgo      # Build with Profile-Guided Optimization
 make build-all      # Build for Linux, Windows, macOS
+make clean          # Remove build artifacts
 ```
 
 ## Architecture Overview
@@ -136,8 +130,6 @@ Support packages: `internal/calibration`, `internal/config`, `internal/app`, `in
 | `internal/sysmon` | `sysmon.go` | System-wide CPU/memory monitoring via gopsutil |
 | `internal/ui` | `colors.go`, `themes.go` | Color themes, `NO_COLOR` support |
 | `internal/testutil` | `ansi.go` | ANSI escape code stripping for test assertions |
-| `formal/coq` | `FastDoublingCorrectness.v`, `FermatArithmetic.v` | Machine-checked Coq proofs of algorithm identities and Fermat arithmetic |
-| `formal/tla` | `Orchestration.tla`, `ConcurrencySemaphores.tla` | TLA+ specifications for concurrency model verification |
 
 ### Data Flow
 
@@ -161,9 +153,9 @@ Support packages: `internal/calibration`, `internal/config`, `internal/app`, `in
 
 **Concurrency**: Use `sync.Pool` for object recycling. Task semaphore in `common.go` limits goroutines to `runtime.NumCPU()*2`. `parallel.ErrorCollector` for first-error aggregation.
 
-**Testing**: Table-driven with subtests. >75% coverage target. Golden file tests in `internal/fibonacci/testdata/fibonacci_golden.json`. Fuzz tests (`FuzzFastDoubling`). Property-based tests via `gopter`. Example tests in `example_test.go`. E2E tests in `test/e2e/`. Formal verification: 17 oracle-based fuzz targets (`fermat_fuzz_test.go`, `fft_roundtrip_fuzz_test.go`, `fibonacci_formal_fuzz_test.go`, `strategy_oracle_test.go`), exhaustive state aliasing tests (`state_aliasing_test.go`), concurrency verification tests (`orchestration_deadlock_test.go`, `observer_concurrency_test.go`, `semaphore_verification_test.go`, `errors_concurrency_test.go`).
+**Testing**: Table-driven with subtests. >75% coverage target. Golden file tests in `internal/fibonacci/testdata/fibonacci_golden.json`. 4 fuzz targets in `internal/fibonacci/fibonacci_fuzz_test.go` (`FuzzFastDoublingConsistency`, `FuzzFFTBasedConsistency`, `FuzzFibonacciIdentities`, `FuzzProgressMonotonicity`). Property-based tests via `gopter`. Example tests in `example_test.go`. E2E tests in `test/e2e/`.
 
-**Linting**: `.golangci.yml` — 22 linters enabled. Key limits: cyclomatic complexity 15, cognitive complexity 30, function length 100 lines / 50 statements. Relaxed in `_test.go` files.
+**Linting**: `.golangci.yml` — 24 linters enabled. Key limits: cyclomatic complexity 15, cognitive complexity 30, function length 100 lines / 50 statements. Relaxed in `_test.go` files.
 
 **Commits**: [Conventional Commits](https://www.conventionalcommits.org/) — `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `chore`. Format: `<type>(<scope>): <description>`
 
@@ -221,7 +213,6 @@ CLI flags > Environment variables (`FIBCALC_*` prefix) > Adaptive hardware estim
 | `github.com/briandowns/spinner` | CLI spinner animation |
 | `github.com/shirou/gopsutil/v4` | System metrics (CPU/memory usage for TUI) |
 | `github.com/ncw/gmp` | GMP bindings (optional, build tag `gmp`) |
-| `go.uber.org/mock` | Mock generation for testing |
 | `github.com/leanovate/gopter` | Property-based testing |
 | `github.com/charmbracelet/bubbletea` | TUI framework (Elm architecture) |
 | `github.com/charmbracelet/lipgloss` | TUI styling and layout |

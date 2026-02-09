@@ -204,16 +204,9 @@ go tool trace trace.out
 
 ## Mock Generation
 
-Mocks are generated using `go.uber.org/mock` (mockgen) via `//go:generate` directives.
+Mock generation infrastructure (`go.uber.org/mock`, `mockgen`) is configured in the Makefile (`make generate-mocks`, `make install-mockgen`) but is not currently wired into the codebase — no `//go:generate` directives or `mocks/` directories exist. Mocks can be set up in the future by adding `go:generate` directives to interface source files.
 
-| Interface | Source File | Mock Output |
-|-----------|-------------|-------------|
-| `Calculator` | `internal/fibonacci/calculator.go` | `internal/fibonacci/mocks/mock_calculator.go` |
-| `DoublingStepExecutor` | `internal/fibonacci/strategy.go` | `internal/fibonacci/mocks/mock_strategy.go` |
-| `SequenceGenerator` | `internal/fibonacci/generator.go` | `internal/fibonacci/mocks/mock_generator.go` |
-| `Spinner` | `internal/cli/ui.go` | `internal/cli/mocks/mock_ui.go` |
-
-Regeneration: `go generate ./...` or `make generate-mocks`
+Regeneration (once configured): `go generate ./...` or `make generate-mocks`
 
 ### Spy-Based Testing
 
@@ -335,8 +328,7 @@ Several tests specifically target concurrent behavior:
 - **Race detector**: All CI runs use `-race` to detect data races
 - **Context cancellation**: `TestContextCancellation` verifies algorithms respond to `context.WithTimeout` within 50ms for N=100M
 - **Progress monotonicity**: `TestProgressReporter` validates that progress updates across goroutine boundaries never decrease
-- **FFT race tests**: `fft_race_test.go` exercises FFT multiplication under concurrent load
-- **Parallel FFT tests**: `fft_parallel_test.go` validates thread safety of the FFT subsystem
+- **Parallel FFT tests**: `fft_parallel_test.go` validates thread safety of the FFT subsystem under concurrent load
 
 ## TUI Testing
 

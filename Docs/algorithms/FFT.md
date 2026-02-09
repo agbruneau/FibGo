@@ -67,70 +67,16 @@ sequenceDiagram
 
 ## Implementation in FibCalc
 
-### `internal/bigfft` Public API
+The FFT multiplication is implemented in the `internal/bigfft` package using a **Fermat FFT** operating in the ring Z/(2^k + 1), where roots of unity are powers of 2 and multiplications become bit shifts.
 
-```go
-// Multiply two big.Int values using FFT
-func Mul(x, y *big.Int) (res *big.Int, err error)
-
-// Multiply with destination reuse
-func MulTo(z, x, y *big.Int) (res *big.Int, err error)
-
-// Optimized squaring (saves ~33% FFT computation)
-func Sqr(x *big.Int) (res *big.Int, err error)
-
-// Squaring with destination reuse
-func SqrTo(z, x *big.Int) (res *big.Int, err error)
-
-```
+Pour l'implémentation détaillée (API publique, arithmétique de Fermat, gestion mémoire, cache de transformées), voir [BIGFFT.md](BIGFFT.md).
 
 ### 2-Tier Multiplication Selection
 
-The `smartMultiply` function in `internal/fibonacci/fft.go` selects the optimal algorithm:
+The `smartMultiply` function in `internal/fibonacci/fft.go` selects the optimal algorithm based on operand bit-length:
 
-```go
-func smartMultiply(z, x, y *big.Int, fftThreshold int) (*big.Int, error) {
-    bx := x.BitLen()
-    by := y.BitLen()
-
-    // Tier 1: FFT — both operands > FFTThreshold
-    if fftThreshold > 0 && bx > fftThreshold && by > fftThreshold {
-        return bigfft.MulTo(z, x, y)
-    }
-
-    // Tier 2: Standard math/big (uses Karatsuba internally for large operands)
-    return z.Mul(x, y), nil
-}
-```
-
-### Code Structure
-
-```
-internal/bigfft/
-+-- fft.go              # Public API: Mul, MulTo, Sqr, SqrTo
-+-- fft_core.go         # Core FFT algorithm implementation
-+-- fft_recursion.go    # Recursive FFT decomposition
-+-- fft_poly.go         # Polynomial operations for FFT
-+-- fft_cache.go        # FFT transform caching
-+-- fermat.go           # Modular arithmetic (Fermat number ring)
-+-- pool.go             # sync.Pool-based object pools with size classes
-+-- allocator.go        # Memory allocator abstraction
-+-- bump.go             # Bump allocator for batch allocations
-+-- memory_est.go       # Memory estimation for pre-allocation
-+-- scan.go             # Conversion between big.Int and FFT representation
-+-- arith_amd64.go      # amd64 vector arithmetic wrappers
-+-- arith_generic.go    # Non-amd64 vector arithmetic wrappers
-+-- arith_decl.go       # go:linkname declarations to math/big internals
-+-- cpu_amd64.go        # Runtime CPU feature detection
-```
-
-### Fermat FFT
-
-The implementation uses a **Fermat FFT** operating in the ring Z/(2^k + 1):
-
-- Roots of unity are powers of 2
-- Multiplications become bit shifts
-- More efficient than complex number FFT for integers
+- **Tier 1: FFT** — both operands exceed `FFTThreshold` → routes to `bigfft.MulTo`
+- **Tier 2: Standard math/big** — uses Karatsuba internally for large operands
 
 ## Activation Threshold
 
@@ -260,6 +206,13 @@ go test -bench=BenchmarkFFT -benchmem ./internal/fibonacci/
 # Benchmark bigfft package directly
 go test -bench=. -benchmem ./internal/bigfft/
 ```
+
+## Cross-References
+
+- [BIGFFT.md](BIGFFT.md) -- Implementation internals: public API, Fermat arithmetic, memory management, transform caching
+- [FAST_DOUBLING.md](FAST_DOUBLING.md) -- Primary consumer of the FFT subsystem
+- [MATRIX.md](MATRIX.md) -- Secondary consumer via Strassen matrix multiplication
+- [COMPARISON.md](COMPARISON.md) -- Algorithm comparison and benchmarks
 
 ## References
 

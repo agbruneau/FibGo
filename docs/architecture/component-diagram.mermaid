@@ -3,104 +3,108 @@ classDiagram
 
     class Calculator {
         <<interface>>
-        +Calculate(ctx, n, opts) *big.Int, error
+        +Calculate(ctx, progressChan, calcIndex, n, opts) *big.Int, error
         +Name() string
     }
 
     class coreCalculator {
         <<interface>>
-        +CalculateCore(ctx, n, opts, subject) *big.Int, error
+        +CalculateCore(ctx, reporter, n, opts) *big.Int, error
         +Name() string
     }
 
     class FibCalculator {
         -core coreCalculator
-        +Calculate(ctx, n, opts) *big.Int, error
-        +CalculateWithObservers(ctx, n, opts, subject) *big.Int, error
+        +Calculate(ctx, progressChan, calcIndex, n, opts) *big.Int, error
+        +CalculateWithObservers(ctx, subject, calcIndex, n, opts) *big.Int, error
         +Name() string
     }
 
     class CalculatorFactory {
         <<interface>>
         +Create(name) Calculator, error
-        +Available() []string
+        +Get(name) Calculator, error
+        +List() []string
+        +Register(name, creator) error
+        +GetAll() map
     }
 
     class DefaultFactory {
+        -creators map
         -calculators map
         -mu sync.RWMutex
-        +Register(name, creator)
+        +Register(name, creator) error
         +Create(name) Calculator, error
-        +Available() []string
+        +Get(name) Calculator, error
+        +List() []string
+        +GetAll() map
     }
 
     class Multiplier {
         <<interface>>
-        +Multiply(a, b, alloc) *big.Int
-        +Square(a, alloc) *big.Int
+        +Multiply(z, x, y, opts) *big.Int, error
+        +Square(z, x, opts) *big.Int, error
         +Name() string
     }
 
     class DoublingStepExecutor {
         <<interface>>
-        +Multiply(a, b, alloc) *big.Int
-        +Square(a, alloc) *big.Int
-        +ExecuteStep(state, isOne, alloc)
+        +Multiply(z, x, y, opts) *big.Int, error
+        +Square(z, x, opts) *big.Int, error
+        +ExecuteStep(ctx, state, opts, inParallel) error
         +Name() string
     }
 
     class AdaptiveStrategy {
         -fftThreshold int
-        +Multiply(a, b, alloc) *big.Int
-        +Square(a, alloc) *big.Int
-        +ExecuteStep(state, isOne, alloc)
+        +Multiply(z, x, y, opts) *big.Int, error
+        +Square(z, x, opts) *big.Int, error
+        +ExecuteStep(ctx, state, opts, inParallel) error
     }
 
     class FFTOnlyStrategy {
-        +Multiply(a, b, alloc) *big.Int
-        +Square(a, alloc) *big.Int
-        +ExecuteStep(state, isOne, alloc)
+        +Multiply(z, x, y, opts) *big.Int, error
+        +Square(z, x, opts) *big.Int, error
+        +ExecuteStep(ctx, state, opts, inParallel) error
     }
 
     class KaratsubaStrategy {
-        +Multiply(a, b, alloc) *big.Int
-        +Square(a, alloc) *big.Int
-        +ExecuteStep(state, isOne, alloc)
+        +Multiply(z, x, y, opts) *big.Int, error
+        +Square(z, x, opts) *big.Int, error
+        +ExecuteStep(ctx, state, opts, inParallel) error
     }
 
     class DoublingFramework {
         -strategy DoublingStepExecutor
-        -opts Options
-        +ExecuteDoublingLoop(ctx, n, subject) *big.Int, error
+        +ExecuteDoublingLoop(ctx, reporter, n, opts, state, useParallel) *big.Int, error
     }
 
     class MatrixFramework {
         -multiplier Multiplier
-        -opts Options
-        +ExecuteMatrixLoop(ctx, n, subject) *big.Int, error
+        +ExecuteMatrixLoop(ctx, reporter, n, opts, state) *big.Int, error
     }
 
     class ProgressObserver {
         <<interface>>
-        +OnProgress(step, total, bitLen)
-        +OnComplete(result, duration)
+        +Update(calcIndex, progress)
     }
 
     class ProgressSubject {
         -observers []ProgressObserver
-        -frozen []ProgressObserver
+        -mu sync.RWMutex
         +Register(observer)
-        +Freeze()
-        +NotifyProgress(step, total, bitLen)
-        +NotifyComplete(result, duration)
+        +Notify(calcIndex, progress)
+        +Freeze(calcIndex) ProgressCallback
     }
 
     class ChannelObserver {
-        -ch chan ProgressUpdate
+        -channel chan ProgressUpdate
     }
 
     class LoggingObserver {
         -logger zerolog.Logger
+        -threshold float64
+        -lastLog map
     }
 
     class NoOpObserver {
@@ -108,56 +112,70 @@ classDiagram
 
     class ProgressReporter {
         <<interface>>
-        +ReportProgress(name, step, total, bitLen)
-        +ReportStart(name)
-        +ReportComplete(name, duration)
+        +DisplayProgress(wg, progressChan, numCalculators, out)
     }
 
     class ResultPresenter {
         <<interface>>
-        +PresentResult(result, n, duration, name)
-        +PresentComparison(results)
-        +PresentError(err)
+        +PresentComparisonTable(results, out)
+        +PresentResult(result, n, verbose, details, showValue, out)
+        +FormatDuration(d) string
+        +HandleError(err, duration, out) int
     }
 
     class TempAllocator {
         <<interface>>
-        +Get(n) *big.Int
-        +Put(x *big.Int)
+        +AllocFermatTemp(n) fermat, func()
+        +AllocFermatSlice(K, n) []fermat, []big.Word, func()
     }
 
     class BumpAllocator {
-        -arena []big.Int
-        -pos int
-        +Alloc(n) *big.Int
-        +Reset()
+        -buffer []big.Word
+        -offset int
+        +Alloc(n) []big.Word
+        +AllocFermat(n) fermat
+        +AllocFermatSlice(K, n) []fermat, []big.Word
+    }
+
+    class BumpAllocatorAdapter {
+        -ba *BumpAllocator
+        +AllocFermatTemp(n) fermat, func()
+        +AllocFermatSlice(K, n) []fermat, []big.Word, func()
     }
 
     class PoolAllocator {
-        +Get(n) *big.Int
-        +Put(x *big.Int)
+        +AllocFermatTemp(n) fermat, func()
+        +AllocFermatSlice(K, n) []fermat, []big.Word, func()
     }
 
     class TransformCache {
         -entries map
         -config TransformCacheConfig
-        +Get(key) *Transform, bool
-        +Put(key, transform)
+        +Get(data, k, n) PolValues, bool
+        +Put(data, pv)
+        +Stats() CacheStats
+        +Clear()
     }
 
     class DynamicThresholdManager {
         -metrics []IterationMetric
         -ringPos int
-        +RecordIteration(bitLen, dur, usedFFT, usedParallel)
-        +ShouldUseFFT(bitLen) bool
-        +ShouldParallelize(bitLen) bool
+        +RecordIteration(bitLen, duration, usedFFT, usedParallel)
+        +ShouldAdjust() newFFT, newParallel, adjusted
+        +GetThresholds() fft, parallel
+        +GetFFTThreshold() int
+        +GetParallelThreshold() int
     }
 
     class Options {
         +ParallelThreshold int
         +FFTThreshold int
         +StrassenThreshold int
-        +DynamicThresholds bool
+        +FFTCacheMinBitLen int
+        +FFTCacheMaxEntries int
+        +FFTCacheEnabled *bool
+        +EnableDynamicThresholds bool
+        +DynamicAdjustmentInterval int
     }
 
     Calculator <|.. FibCalculator
@@ -173,8 +191,9 @@ classDiagram
     ProgressObserver <|.. ChannelObserver
     ProgressObserver <|.. LoggingObserver
     ProgressObserver <|.. NoOpObserver
-    TempAllocator <|.. BumpAllocator
+    TempAllocator <|.. BumpAllocatorAdapter
     TempAllocator <|.. PoolAllocator
+    BumpAllocatorAdapter --> BumpAllocator : wraps
 
     DoublingFramework --> DoublingStepExecutor : uses
     DoublingFramework --> Options : configured by
