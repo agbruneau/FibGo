@@ -97,14 +97,12 @@ func (fd *OptimizedFastDoubling) CalculateCore(ctx context.Context, reporter Pro
 	// Pre-size big.Int temporary buffers based on expected result size.
 	// F(n) has approximately n * log2(φ) ≈ n * 0.694 bits.
 	// Pre-sizing avoids repeated reallocation during the doubling loop.
-	// Only pre-size temporaries (T1-T4), not FK/FK1 which are already initialized.
 	if n > 10000 {
 		estimatedBits := int(float64(n) * 0.694)
 		estimatedWords := (estimatedBits + 63) / 64
 		preSizeBigInt(s.T1, estimatedWords)
 		preSizeBigInt(s.T2, estimatedWords)
 		preSizeBigInt(s.T3, estimatedWords)
-		preSizeBigInt(s.T4, estimatedWords)
 	}
 
 	// Normalize options to ensure consistent default threshold handling
@@ -207,8 +205,10 @@ func shouldParallelizeMultiplicationCached(opts Options, fkBitLen, fk1BitLen int
 
 // CalculationState aggregates temporary variables for the "Fast Doubling"
 // algorithm, allowing efficient management via an object pool.
+// Uses 5 big.Int: FK (F(k)), FK1 (F(k+1)), and T1-T3 for
+// intermediate multiplication results.
 type CalculationState struct {
-	FK, FK1, T1, T2, T3, T4 *big.Int
+	FK, FK1, T1, T2, T3 *big.Int
 }
 
 // Reset prepares the state for a new calculation.
@@ -217,7 +217,7 @@ type CalculationState struct {
 func (s *CalculationState) Reset() {
 	s.FK.SetInt64(0)
 	s.FK1.SetInt64(1)
-	// T1..T4 are temporaries used as scratch space, so we don't need to clear them.
+	// T1..T3 are temporaries used as scratch space, so we don't need to clear them.
 }
 
 var statePool = sync.Pool{
@@ -228,7 +228,6 @@ var statePool = sync.Pool{
 			T1:  new(big.Int),
 			T2:  new(big.Int),
 			T3:  new(big.Int),
-			T4:  new(big.Int),
 		}
 	},
 }
@@ -267,7 +266,7 @@ func ReleaseState(s *CalculationState) {
 	// If so, we discard the entire state to let GC reclaim the large memory.
 	if checkLimit(s.FK) || checkLimit(s.FK1) ||
 		checkLimit(s.T1) || checkLimit(s.T2) ||
-		checkLimit(s.T3) || checkLimit(s.T4) {
+		checkLimit(s.T3) {
 		return
 	}
 

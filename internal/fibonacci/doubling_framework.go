@@ -69,7 +69,7 @@ func executeDoublingStepMultiplications(ctx context.Context, strategy Multiplier
 		var ec parallel.ErrorCollector
 		wg.Add(3)
 
-		// 1. T3 = FK * T4
+		// 1. T3 = FK * FK1
 		go func() {
 			defer wg.Done()
 			if err := ctx.Err(); err != nil {
@@ -77,13 +77,13 @@ func executeDoublingStepMultiplications(ctx context.Context, strategy Multiplier
 				return
 			}
 			var err error
-			// Note: We access s.T3, s.FK, s.T4 safely because each goroutine
+			// Note: We access s.T3, s.FK, s.FK1 safely because each goroutine
 			// operates on disjoint destination sets or reads shared sources
-			// (FK, T4, FK1 are read-only here).
+			// (FK, FK1 are read-only here).
 			// T3 is destination for this goroutine.
-			s.T3, err = strategy.Multiply(s.T3, s.FK, s.T4, opts)
+			s.T3, err = strategy.Multiply(s.T3, s.FK, s.FK1, opts)
 			if err != nil {
-				ec.SetError(fmt.Errorf("parallel multiply FK * T4 failed: %w", err))
+				ec.SetError(fmt.Errorf("parallel multiply FK * FK1 failed: %w", err))
 			}
 		}()
 
@@ -123,9 +123,9 @@ func executeDoublingStepMultiplications(ctx context.Context, strategy Multiplier
 
 	// Sequential execution with context checks between multiplications
 	var err error
-	s.T3, err = strategy.Multiply(s.T3, s.FK, s.T4, opts)
+	s.T3, err = strategy.Multiply(s.T3, s.FK, s.FK1, opts)
 	if err != nil {
-		return fmt.Errorf("multiply FK * T4 failed: %w", err)
+		return fmt.Errorf("multiply FK * FK1 failed: %w", err)
 	}
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("canceled after multiply: %w", err)
@@ -190,21 +190,6 @@ func (f *DoublingFramework) ExecuteDoublingLoop(ctx context.Context, reporter Pr
 		}
 
 		// Doubling Step
-		// T4 = 2*FK1 - FK
-
-		// Optimization: Check if T1 has larger capacity than T4.
-		// If so, swap them to reuse the larger buffer for the T4 calculation (2*FK1 - FK),
-		// which typically requires a buffer of size k (matching T1's typical capacity from previous step's T2),
-		// whereas T4 often holds a smaller capacity (k/2).
-		// Note: We compare capacities of the underlying word slices.
-		if cap(s.T1.Bits()) > cap(s.T4.Bits()) {
-			s.T1, s.T4 = s.T4, s.T1
-		}
-
-		// Optimization: Use T4 because it holds F(k)^2 (large) or F(k) (medium) from previous step,
-		// avoiding reallocation. T2 (old FK) is typically smaller.
-		s.T4.Lsh(s.FK1, 1).Sub(s.T4, s.FK)
-
 		// Cache bit lengths to avoid repeated calls (BitLen() traverses internal representation)
 		fkBitLen := s.FK.BitLen()
 		fk1BitLen := s.FK1.BitLen()
@@ -217,9 +202,9 @@ func (f *DoublingFramework) ExecuteDoublingLoop(ctx context.Context, reporter Pr
 		usedFFT := bitLen > currentOpts.FFTThreshold
 		usedParallel := false
 
-		// Execute the three multiplications for the doubling step
-		// Parallelize when at least one of the main operands is large
-		// Pass cached bit lengths to avoid redundant BitLen() calls
+		// Execute the three multiplications for the doubling step:
+		// T3 = FK × FK1, T2 = FK², T1 = FK1²
+		// All three have independent destinations and read-only sources.
 		shouldParallel := useParallel && shouldParallelizeMultiplicationCached(currentOpts, fkBitLen, fk1BitLen)
 		if shouldParallel {
 			usedParallel = true
@@ -228,11 +213,13 @@ func (f *DoublingFramework) ExecuteDoublingLoop(ctx context.Context, reporter Pr
 			return nil, fmt.Errorf("doubling step failed at bit %d/%d: %w", i, numBits-1, err)
 		}
 
-		// F(2k+1) = F(k+1)² + F(k)².
-		// Optimization: Use T1 as destination because it already holds F(k+1)²
-		// which has the same bit length order as the result, avoiding reallocation.
-		// T4 (holding 2*FK1 - FK) is significantly smaller.
+		// Post-multiply: compute F(2k) and F(2k+1) from the three products.
+		// F(2k)   = 2·FK·FK1 - FK² = 2·T3 - T2
+		// F(2k+1) = FK1² + FK²     = T1 + T2
+		s.T3.Lsh(s.T3, 1)
+		s.T3.Sub(s.T3, s.T2)
 		s.T1.Add(s.T1, s.T2)
+
 		// Swap the pointers for the next iteration.
 		// FK becomes F(2k) (from T3), FK1 becomes F(2k+1) (from T1).
 		// T2 and T3 become the old FK and FK1, now temporaries.
@@ -243,15 +230,14 @@ func (f *DoublingFramework) ExecuteDoublingLoop(ctx context.Context, reporter Pr
 		// F(k) <- F(k+1)
 		// F(k+1) <- F(k) + F(k+1)
 		if (n>>uint(i))&1 == 1 {
-			// s.T4 temporarily stores the new F(k+1).
-			// Optimization: Use T4 instead of T1 because T4 holds F(k)² (large)
-			// whereas T1 holds "old T2" (small). This reduces reallocation probability.
-			s.T4.Add(s.FK, s.FK1)
+			// s.T1 temporarily stores the new F(k+1).
+			// T1 is free after the rotation (holds old T2).
+			s.T1.Add(s.FK, s.FK1)
 			// Swap pointers to avoid large allocations:
 			// s.FK becomes the old s.FK1
-			// s.FK1 becomes the new sum (s.T4)
-			// s.T4 becomes the old s.FK, now a temporary
-			s.FK, s.FK1, s.T4 = s.FK1, s.T4, s.FK
+			// s.FK1 becomes the new sum (s.T1)
+			// s.T1 becomes the old s.FK, now a temporary
+			s.FK, s.FK1, s.T1 = s.FK1, s.T1, s.FK
 		}
 
 		// Record metrics and check for threshold adjustments

@@ -310,7 +310,6 @@ func TestKaratsubaStrategy_ExecuteStep(t *testing.T) {
 			T1:  big.NewInt(0),
 			T2:  big.NewInt(0),
 			T3:  big.NewInt(0),
-			T4:  big.NewInt(0),
 		}
 
 		opts := Options{
@@ -335,7 +334,6 @@ func TestKaratsubaStrategy_ExecuteStep(t *testing.T) {
 			T1:  big.NewInt(0),
 			T2:  big.NewInt(0),
 			T3:  big.NewInt(0),
-			T4:  big.NewInt(0),
 		}
 
 		opts := Options{

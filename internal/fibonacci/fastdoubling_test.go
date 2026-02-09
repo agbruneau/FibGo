@@ -1,6 +1,8 @@
 package fibonacci
 
 import (
+	"context"
+	"fmt"
 	"math/big"
 	"testing"
 )
@@ -96,4 +98,75 @@ func TestShouldParallelizeMultiplication(t *testing.T) {
 			t.Error("Should parallelize when bit length equals threshold")
 		}
 	})
+}
+
+// TestFastDoubling_ReducedState_Correctness verifies results are correct
+// with the reduced 5-temporary state across key values.
+func TestFastDoubling_ReducedState_Correctness(t *testing.T) {
+	t.Parallel()
+
+	calc := NewCalculator(&OptimizedFastDoubling{})
+	ctx := context.Background()
+
+	cases := []struct {
+		n    uint64
+		want string
+	}{
+		{0, "0"},
+		{1, "1"},
+		{2, "1"},
+		{10, "55"},
+		{50, "12586269025"},
+		{93, "12200160415121876738"},
+		{100, "354224848179261915075"},
+		{1000, ""},  // verified by golden test
+		{10000, ""}, // verified by golden test
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(fmt.Sprintf("N=%d", tc.n), func(t *testing.T) {
+			t.Parallel()
+			result, err := calc.Calculate(ctx, nil, 0, tc.n, Options{})
+			if err != nil {
+				t.Fatalf("Calculate(%d) error: %v", tc.n, err)
+			}
+			if tc.want != "" && result.String() != tc.want {
+				t.Errorf("Calculate(%d) = %s, want %s", tc.n, result.String(), tc.want)
+			}
+		})
+	}
+}
+
+// TestFFTBased_ReducedState_Correctness verifies FFT-based calculator
+// produces correct results with the reduced 5-temporary state.
+func TestFFTBased_ReducedState_Correctness(t *testing.T) {
+	t.Parallel()
+
+	calc := NewCalculator(&FFTBasedCalculator{})
+	ctx := context.Background()
+
+	cases := []struct {
+		n    uint64
+		want string
+	}{
+		{0, "0"},
+		{1, "1"},
+		{10, "55"},
+		{100, "354224848179261915075"},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(fmt.Sprintf("N=%d", tc.n), func(t *testing.T) {
+			t.Parallel()
+			result, err := calc.Calculate(ctx, nil, 0, tc.n, Options{})
+			if err != nil {
+				t.Fatalf("Calculate(%d) error: %v", tc.n, err)
+			}
+			if tc.want != "" && result.String() != tc.want {
+				t.Errorf("Calculate(%d) = %s, want %s", tc.n, result.String(), tc.want)
+			}
+		})
+	}
 }

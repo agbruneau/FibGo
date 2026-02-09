@@ -24,12 +24,7 @@ func TestExecuteDoublingStepFFT_NoDataRace(t *testing.T) {
 		T1:  new(big.Int),
 		T2:  new(big.Int),
 		T3:  new(big.Int),
-		T4:  new(big.Int),
 	}
-
-	// Setup T2 = 2*F(k+1) - F(k)
-	state.T2.Lsh(state.FK1, 1)
-	state.T2.Sub(state.T2, state.FK)
 
 	opts := Options{
 		ParallelThreshold: 4096,
@@ -40,8 +35,8 @@ func TestExecuteDoublingStepFFT_NoDataRace(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		// Reset state for each iteration
 		state.T1 = new(big.Int)
+		state.T2 = new(big.Int)
 		state.T3 = new(big.Int)
-		state.T4 = new(big.Int)
 
 		err := executeDoublingStepFFT(context.Background(), state, opts, true)
 		if err != nil {
@@ -76,11 +71,7 @@ func TestExecuteDoublingStepFFT_ConcurrentCalls(t *testing.T) {
 				T1:  new(big.Int),
 				T2:  new(big.Int),
 				T3:  new(big.Int),
-				T4:  new(big.Int),
 			}
-
-			state.T2.Lsh(state.FK1, 1)
-			state.T2.Sub(state.T2, state.FK)
 
 			// Run parallel FFT
 			_ = executeDoublingStepFFT(context.Background(), state, opts, true)

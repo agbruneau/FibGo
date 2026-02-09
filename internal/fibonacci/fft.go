@@ -106,12 +106,6 @@ func executeDoublingStepFFT(ctx context.Context, s *CalculationState, opts Optio
 		return err
 	}
 
-	pT4 := bigfft.PolyFromInt(s.T4, k, m)
-	t4Poly, err := pT4.Transform(n)
-	if err != nil {
-		return err
-	}
-
 	if inParallel {
 		// Parallel execution of pointwise multiplications and inverse transforms.
 		//
@@ -132,7 +126,8 @@ func executeDoublingStepFFT(ctx context.Context, s *CalculationState, opts Optio
 				resChan <- result{nil, fmt.Errorf("canceled before FFT operation: %w", err)}
 				return
 			}
-			v, err := fkPoly.Mul(&t4Poly)
+			// Changed: use fk1Poly instead of t4Poly (FK×FK1 instead of FK×T4)
+			v, err := fkPoly.Mul(&fk1Poly)
 			if err != nil {
 				resChan <- result{nil, err}
 				return
@@ -194,7 +189,8 @@ func executeDoublingStepFFT(ctx context.Context, s *CalculationState, opts Optio
 	}
 
 	// Sequential with context checks between operations
-	v1, err := fkPoly.Mul(&t4Poly)
+	// Changed: use fk1Poly instead of t4Poly
+	v1, err := fkPoly.Mul(&fk1Poly)
 	if err != nil {
 		return err
 	}

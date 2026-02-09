@@ -19,7 +19,6 @@ func TestExecuteDoublingStepFFT(t *testing.T) {
 			T1:  new(big.Int),
 			T2:  new(big.Int),
 			T3:  new(big.Int),
-			T4:  new(big.Int),
 		}
 
 		opts := Options{
@@ -42,7 +41,6 @@ func TestExecuteDoublingStepFFT(t *testing.T) {
 			T1:  new(big.Int),
 			T2:  new(big.Int),
 			T3:  new(big.Int),
-			T4:  new(big.Int),
 		}
 
 		opts := Options{
@@ -65,7 +63,6 @@ func TestExecuteDoublingStepFFT(t *testing.T) {
 			T1:  new(big.Int),
 			T2:  new(big.Int),
 			T3:  new(big.Int),
-			T4:  new(big.Int),
 		}
 
 		opts := Options{
