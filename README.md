@@ -58,6 +58,10 @@ FibCalc serves as both a practical high-performance tool and a reference impleme
 - **Zero-Allocation Strategy**: Extensive use of `sync.Pool` to recycle `big.Int` objects and custom calculation states, reducing Garbage Collector pressure by over 95%.
 - **Bump Allocator**: O(1) temporary allocation for FFT operations via pointer bump, providing zero fragmentation and excellent cache locality (`internal/bigfft/bump.go`).
 - **Zero-Copy Result Return**: Eliminates expensive O(n) result copies by stealing pointers from pooled calculation state, trading a full copy for a single 24-byte `big.Int` header allocation.
+- **Calculation Arena**: Contiguous bump-pointer allocator for all `big.Int` state, reducing GC pressure and memory fragmentation (`internal/fibonacci/arena.go`).
+- **GC Controller**: Disables garbage collection during large calculations (N ≥ 1M) with soft memory limit safety net, reducing ~2× GC memory overhead (`internal/fibonacci/gc_control.go`).
+- **Memory Budget Estimation**: Pre-calculation memory estimation with `--memory-limit` validation to prevent OOM on constrained hardware.
+- **Modular Fast Doubling**: O(K) memory mode for computing the last K digits of F(N) via `--last-digits`, enabling arbitrarily large N.
 - **FFT Transform Caching**: Thread-safe LRU cache for forward FFT transforms avoids recomputation of repeated values, providing 15-30% speedup in iterative algorithms.
 - **Transform Reuse**: Optimized squaring uses a single forward transform (vs two in multiplication), reducing FFT work per doubling step.
 - **Dynamic Threshold Adjustment**: FFT and parallel execution thresholds are adjusted at runtime based on observed per-iteration performance metrics, with hysteresis to prevent oscillation. Strassen thresholds are also runtime-configurable via `SetDefaultStrassenThreshold()`.
@@ -111,6 +115,8 @@ F(2k) &= F(k) \times (2F(k+1) - F(k)) \\
 F(2k+1) &= F(k+1)^2 + F(k)^2
 \end{aligned}
 $$
+
+> **Implementation note**: The codebase uses the equivalent reformulation `F(2k) = 2·F(k)·F(k+1) - F(k)²` which eliminates a temporary variable. Both are algebraically identical (expand `F(k)·(2F(k+1) - F(k))` to verify).
 
 This reduces the complexity to $O(\log n)$ operations. Each step roughly doubles the index, hence "Fast Doubling". See [Docs/algorithms/FAST_DOUBLING.md](Docs/algorithms/FAST_DOUBLING.md) for details.
 
@@ -230,6 +236,9 @@ fibcalc [flags]
 | `-tui` | | `false` | Launch the interactive TUI dashboard instead of the standard CLI. |
 | `-completion` | | | Generate shell completion script (bash, zsh, fish, powershell). |
 | `--version` | `-V` | | Display version information. |
+| `--last-digits` | | `0` | Compute only the last K decimal digits (uses O(K) memory). |
+| `--memory-limit` | | | Maximum memory budget (e.g., 8G, 512M). Warns if estimate exceeds limit. |
+| `--gc-control` | | `auto` | GC control during calculation (auto, aggressive, disabled). |
 
 > **Note**: Threshold defaults of `0` trigger automatic hardware-adaptive estimation based on CPU core count and architecture. Static defaults used by the algorithm internals: parallelism = 4,096 bits, FFT = 500,000 bits, Strassen = 3,072 bits (config level); the internal Strassen default is 256 bits, adjustable at runtime via `SetDefaultStrassenThreshold()`.
 
@@ -317,6 +326,18 @@ fibcalc -completion fish > ~/.config/fish/completions/fibcalc.fish
 fibcalc -completion powershell >> $PROFILE
 ```
 
+**6. Last Digits Mode**
+Compute the last 100 digits of F(10 billion) using O(K) memory:
+```bash
+fibcalc -n 10000000000 --last-digits 100
+```
+
+**7. Memory Budget Validation**
+Check if your machine can handle the calculation before starting:
+```bash
+fibcalc -n 1000000000 --memory-limit 8G
+```
+
 ---
 
 ## Performance Benchmarks
@@ -356,7 +377,7 @@ go test -bench=. -benchmem ./internal/fibonacci/        # Benchmarks
 
 ### Fuzz Testing
 
-4 fuzz targets in `internal/fibonacci/fibonacci_fuzz_test.go` use Go's built-in fuzzing framework:
+5 fuzz targets in `internal/fibonacci/fibonacci_fuzz_test.go` use Go's built-in fuzzing framework:
 
 | Fuzz Test | Strategy | Input Limit |
 |-----------|----------|-------------|
@@ -364,6 +385,7 @@ go test -bench=. -benchmem ./internal/fibonacci/        # Benchmarks
 | `FuzzFFTBasedConsistency` | Cross-validates FFT vs Fast Doubling | n up to 20,000 |
 | `FuzzFibonacciIdentities` | Verifies mathematical identities (doubling identity, d'Ocagne's identity) | n up to 10,000 |
 | `FuzzProgressMonotonicity` | Ensures progress is monotonically increasing | n 10 to 20,000 |
+| `FuzzFastDoublingMod` | Cross-validates modular Fast Doubling output range | n up to 100,000, mod up to 1B |
 
 ```bash
 go test -fuzz=FuzzFastDoublingConsistency -fuzztime=30s ./internal/fibonacci/
@@ -394,6 +416,10 @@ Calculating huge Fibonacci numbers requires significant RAM. $F(1,000,000,000)$ 
 For very large $N$, the calculation might exceed the default 5-minute timeout.
 **Solution**: Increase the timeout with `-timeout 30m`.
 
+### 3. Memory limit exceeded
+For very large N, the estimated memory may exceed available RAM.
+**Solution**: Use `--memory-limit 8G` to validate before starting, or `--last-digits 1000` to compute only the last K digits in O(K) memory.
+
 ---
 
 ## Configuration
@@ -418,6 +444,9 @@ Environment variables can override CLI flags. Priority: CLI flags > Environment 
 | `FIBCALC_AUTO_CALIBRATE` | Enable automatic calibration | `false` |
 | `FIBCALC_CALIBRATION_PROFILE` | Path to calibration profile file | |
 | `NO_COLOR` | Disable colored output ([no-color.org](https://no-color.org/)) | |
+| `FIBCALC_LAST_DIGITS` | Compute last K digits only | `0` |
+| `FIBCALC_MEMORY_LIMIT` | Maximum memory budget | |
+| `FIBCALC_GC_CONTROL` | GC control mode | `auto` |
 
 ---
 

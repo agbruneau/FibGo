@@ -135,7 +135,7 @@ metricsH = fixed 7 (capped at half body height), chartH = remaining body height.
 |-----------|------|----------------|
 | `HeaderModel` | `header.go` | Title, version, elapsed time with pipe separator (freezes on done via `SetDone()`, resets via `Reset()`) |
 | `LogsModel` | `logs.go` | Scrollable viewport, auto-scroll, color-coded entries, max 10,000 entries |
-| `MetricsModel` | `metrics.go` | Compact top line (Memory \| GC Runs), speed, goroutines, post-calc indicators (EMA smoothing, alpha=0.3) |
+| `MetricsModel` | `metrics.go` | Compact view: Heap usage (Heap: X / Y), GC stats (GC: N, Xms total pause), speed, goroutines, post-calc indicators (EMA smoothing, alpha=0.3) |
 | `ChartModel` | `chart.go` | Progress bar, ETA, CPU/MEM sparkline indicators |
 | `FooterModel` | `footer.go` | Keyboard shortcuts display, status indicator (Running/Paused/Done/Error) |
 

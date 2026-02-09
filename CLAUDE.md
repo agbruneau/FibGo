@@ -64,7 +64,7 @@ Support packages: `internal/calibration`, `internal/config`, `internal/app`, `in
 
 **MatrixFramework** (`internal/fibonacci/matrix_framework.go`): Encapsulates the Matrix Exponentiation loop (binary exponentiation, symmetric matrix squaring, Strassen switching).
 
-**Options** (`internal/fibonacci/options.go`): Configuration struct for calculations: `ParallelThreshold`, `FFTThreshold`, `StrassenThreshold`, FFT cache settings, and dynamic threshold options. Normalized via `normalizeOptions()` to fill zero values with defaults from `constants.go`.
+**Options** (`internal/fibonacci/options.go`): Configuration struct for calculations: `ParallelThreshold`, `FFTThreshold`, `StrassenThreshold`, `GCMode`, FFT cache settings, and dynamic threshold options. Normalized via `normalizeOptions()` to fill zero values with defaults from `constants.go`.
 
 **DynamicThresholdManager** (`internal/fibonacci/dynamic_threshold.go`): Runtime threshold adjustment based on per-iteration timing metrics. Uses a ring buffer of `IterationMetric` records, hysteresis to prevent oscillation, and separate analysis for FFT and parallel thresholds.
 
@@ -92,6 +92,10 @@ Support packages: `internal/calibration`, `internal/config`, `internal/app`, `in
 | `internal/fibonacci` | `matrix_ops.go`, `matrix_types.go` | Matrix operations and types (`matrix`, `matrixState`) |
 | `internal/fibonacci` | `calculator_gmp.go` | GMP calculator (build tag `gmp`) |
 | `internal/fibonacci` | `testing.go` | Test helpers (exported for test packages) |
+| `internal/fibonacci` | `arena.go` | `CalculationArena` bump allocator for calculation state |
+| `internal/fibonacci` | `gc_control.go` | `GCController` for GC management during computation |
+| `internal/fibonacci` | `memory_budget.go` | Memory estimation and budget validation |
+| `internal/fibonacci` | `modular.go` | `FastDoublingMod` for modular arithmetic (`--last-digits`) |
 | `internal/bigfft` | `fft.go`, `fft_core.go`, `fft_recursion.go` | FFT multiplication core |
 | `internal/bigfft` | `fft_poly.go` | Polynomial operations for FFT |
 | `internal/bigfft` | `fft_cache.go` | Thread-safe LRU cache for FFT transforms |
@@ -127,6 +131,7 @@ Support packages: `internal/calibration`, `internal/config`, `internal/app`, `in
 | `internal/parallel` | `errors.go` | `ErrorCollector` for concurrent error aggregation |
 | `internal/format` | `duration.go`, `numbers.go`, `progress_eta.go` | Duration/number formatting, ETA display (shared by CLI and TUI) |
 | `internal/metrics` | `indicators.go` | Performance indicators (bits/s, digits/s, steps/s) |
+| `internal/metrics` | `memory.go` | `MemoryCollector`, `MemorySnapshot` — runtime memory statistics |
 | `internal/sysmon` | `sysmon.go` | System-wide CPU/memory monitoring via gopsutil |
 | `internal/ui` | `colors.go`, `themes.go` | Color themes, `NO_COLOR` support |
 | `internal/testutil` | `ansi.go` | ANSI escape code stripping for test assertions |
@@ -153,7 +158,7 @@ Support packages: `internal/calibration`, `internal/config`, `internal/app`, `in
 
 **Concurrency**: Use `sync.Pool` for object recycling. Task semaphore in `common.go` limits goroutines to `runtime.NumCPU()*2`. `parallel.ErrorCollector` for first-error aggregation.
 
-**Testing**: Table-driven with subtests. >75% coverage target. Golden file tests in `internal/fibonacci/testdata/fibonacci_golden.json`. 4 fuzz targets in `internal/fibonacci/fibonacci_fuzz_test.go` (`FuzzFastDoublingConsistency`, `FuzzFFTBasedConsistency`, `FuzzFibonacciIdentities`, `FuzzProgressMonotonicity`). Property-based tests via `gopter`. Example tests in `example_test.go`. E2E tests in `test/e2e/`.
+**Testing**: Table-driven with subtests. >75% coverage target. Golden file tests in `internal/fibonacci/testdata/fibonacci_golden.json`. 5 fuzz targets in `internal/fibonacci/fibonacci_fuzz_test.go` (`FuzzFastDoublingConsistency`, `FuzzFFTBasedConsistency`, `FuzzFibonacciIdentities`, `FuzzProgressMonotonicity`, `FuzzFastDoublingMod`). Property-based tests via `gopter`. Example tests in `example_test.go`. E2E tests in `test/e2e/`.
 
 **Linting**: `.golangci.yml` — 24 linters enabled. Key limits: cyclomatic complexity 15, cognitive complexity 30, function length 100 lines / 50 statements. Relaxed in `_test.go` files.
 
@@ -175,6 +180,8 @@ Support packages: `internal/calibration`, `internal/config`, `internal/app`, `in
 - **Zero-Copy Result Return**: Algorithms "steal" the result pointer from pooled state, replacing it with a fresh `big.Int`, avoiding O(n) copy
 - **Interface-Based Decoupling**: Orchestration depends on `ProgressReporter`/`ResultPresenter` interfaces, not CLI directly
 - **Generics**: `executeTasks[T, PT]()` in `common.go` uses Go generics with pointer constraint pattern to eliminate duplication between multiplication and squaring tasks
+- **Calculation Arena**: Contiguous bump-pointer pre-allocation for state `big.Int` backing arrays in `internal/fibonacci/arena.go`
+- **GC Controller**: Disables GC during large calculations with soft memory limit safety net in `internal/fibonacci/gc_control.go`
 
 ## Build Tags & Platform-Specific Code
 

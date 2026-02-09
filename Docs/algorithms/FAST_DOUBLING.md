@@ -46,6 +46,8 @@ F(2k)   = F(k) * [2*F(k+1) - F(k)]
 F(2k+1) = F(k+1)^2 + F(k)^2
 ```
 
+> **Implementation note**: The codebase uses the equivalent reformulation `F(2k) = 2·F(k)·F(k+1) - F(k)²` which eliminates a temporary variable. Both are algebraically identical (expand `F(k)·(2F(k+1) - F(k))` to verify).
+
 ### Formal Proof by Induction
 
 We prove the Fast Doubling identities using mathematical induction on the matrix power Q^n.
@@ -168,11 +170,11 @@ The `OptimizedFastDoubling` calculator uses an `AdaptiveStrategy` that selects b
 
 ### 2. Zero-Allocation with sync.Pool
 
-Calculation states are recycled via a `sync.Pool`. The `CalculationState` type is public and holds six `*big.Int` temporaries:
+Calculation states are recycled via a `sync.Pool`. The `CalculationState` type is public and holds five `*big.Int` temporaries:
 
 ```go
 type CalculationState struct {
-    FK, FK1, T1, T2, T3, T4 *big.Int
+    FK, FK1, T1, T2, T3 *big.Int
 }
 
 // Acquire a state from the pool (resets FK=0, FK1=1)
@@ -181,6 +183,18 @@ defer ReleaseState(state)
 ```
 
 Objects exceeding `MaxPooledBitLen` (100M bits) are left for GC rather than returned to the pool.
+
+### 5. Calculation Arena
+
+For N > 1,000, a `CalculationArena` pre-allocates a single contiguous block for all `big.Int` backing arrays. This reduces GC pressure and improves cache locality:
+
+```go
+arena := NewCalculationArena(n)
+arena.PreSizeFromArena(s.FK, estimatedWords)
+// ... pre-size all 5 state fields
+```
+
+If the arena is exhausted, allocation falls back to the standard heap.
 
 ### 3. Parallel Multiplication via Strategy
 

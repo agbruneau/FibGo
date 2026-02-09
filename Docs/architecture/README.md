@@ -6,7 +6,7 @@ The Fibonacci Calculator is designed according to **Clean Architecture** princip
 
 **Go Module**: `github.com/agbru/fibcalc` (Go 1.25.0)
 
-**Codebase stats**: 17 Go packages | 98 source files | 85 test files | 38 documentation files (~8,000 lines)
+**Codebase stats**: 17 Go packages | 102 source files | 85 test files | 38 documentation files (~8,000 lines)
 
 ---
 
@@ -17,7 +17,7 @@ The Fibonacci Calculator is designed according to **Clean Architecture** princip
 | Document | Description |
 |----------|-------------|
 | **[This file](README.md)** | Master index — package structure, interfaces, ADRs, data flow |
-| [patterns/design-patterns.md](patterns/design-patterns.md) | 12 design patterns catalog (1,023 lines) |
+| [patterns/design-patterns.md](patterns/design-patterns.md) | 14 design patterns catalog (1,023 lines) |
 
 ### C4 Diagrams (in `docs/architecture/`)
 
@@ -173,6 +173,10 @@ Business core of the application. Contains algorithm implementations, the factor
 | `generator.go` | `SequenceGenerator` interface for Fibonacci sequence generation |
 | `generator_iterative.go` | Iterative generator implementation |
 | `testing.go` | Test helpers and utilities |
+| `arena.go` | `CalculationArena` — contiguous bump allocator for state big.Int |
+| `gc_control.go` | `GCController` — GC control during calculation (auto/aggressive/disabled) |
+| `memory_budget.go` | `EstimateMemoryUsage`, `ParseMemoryLimit` — pre-calculation memory validation |
+| `modular.go` | `FastDoublingMod` — modular fast doubling for `--last-digits` mode |
 | `calculator_gmp.go` | GMP calculator, auto-registers via `init()` (build tag: `gmp`) |
 
 ### `internal/bigfft`
@@ -293,6 +297,15 @@ Terminal UI utilities.
 |------|---------------|
 | `colors.go` | ANSI color functions |
 | `themes.go` | Theme system (dark, light, orange, none), `NO_COLOR` support |
+
+### `internal/metrics`
+
+Performance measurement utilities.
+
+| File | Responsibility |
+|------|---------------|
+| `indicators.go` | Performance indicators (bits/s, digits/s, steps/s) |
+| `memory.go` | `MemoryCollector`, `MemorySnapshot` — runtime memory statistics |
 
 ## Key Interfaces
 
@@ -432,6 +445,31 @@ type ResultPresenter interface {
 - TUI dashboard (`internal/tui`) was added as a second implementation, validating this decoupling
 - Slightly more complex initialization in the app layer
 
+### ADR-005: Calculation Arena for Contiguous Allocation
+
+**Context**: For very large N, per-buffer GC tracking adds significant memory overhead.
+
+**Decision**: Pre-allocate a single contiguous block via `CalculationArena` for all 5 state `big.Int` backing arrays, falling back to heap when exhausted.
+
+**Consequences**:
+
+- Reduced GC pressure for large calculations
+- O(1) bulk release via `Reset()`
+- Coexists with existing `sync.Pool` (pool recycles state objects, arena pre-sizes their backing arrays)
+
+### ADR-006: GC Control During Large Calculations
+
+**Context**: Go's GC adds ~2× memory overhead for heap scanning during large calculations.
+
+**Decision**: Disable GC during computation for N ≥ 1M (auto mode), with `debug.SetMemoryLimit` as OOM safety net.
+
+**Consequences**:
+
+- Eliminates GC pauses during computation
+- Reduces peak memory by ~50% (no GC overhead)
+- Small OOM risk mitigated by soft memory limit
+- Configurable via `--gc-control` flag
+
 ## Data Flow
 
 ```
@@ -443,8 +481,11 @@ type ResultPresenter interface {
 6. context.WithTimeout() + signal.NotifyContext() creates lifecycle context
 7. orchestration.ExecuteCalculations() runs calculators concurrently via errgroup
    - Each Calculator.Calculate() creates ProgressSubject + ChannelObserver
+   - GCController.Begin() disables GC for large N
    - FibCalculator.CalculateWithObservers(): small-N fast path, FFT cache config, pool warming
+   - CalculateCore creates CalculationArena and pre-sizes state from arena
    - Core algorithm (DoublingFramework or MatrixFramework) executes the computation loop
+   - GCController.End() restores GC and runs collection
    - ProgressSubject.Freeze() creates lock-free snapshot → ChannelObserver → progressChan
    - ProgressReporter (CLIProgressReporter or TUIProgressReporter) displays progress
 8. orchestration.AnalyzeComparisonResults() sorts by duration, validates consistency
@@ -455,9 +496,9 @@ For detailed flow diagrams, see [flows/](flows/).
 
 ## Design Patterns
 
-This codebase employs 12 documented design patterns. See the full catalog: **[patterns/design-patterns.md](patterns/design-patterns.md)**.
+This codebase employs 14 documented design patterns. See the full catalog: **[patterns/design-patterns.md](patterns/design-patterns.md)**.
 
-Key patterns: Decorator (FibCalculator), Factory+Registry (DefaultFactory), Strategy+ISP (Multiplier/DoublingStepExecutor), Framework (DoublingFramework/MatrixFramework), Observer (ProgressSubject), Object Pooling, Bump Allocator, FFT Transform Cache, Dynamic Threshold Adjustment, Zero-Copy Result Return, Interface-Based Decoupling, Generics with Pointer Constraints.
+Key patterns: Decorator (FibCalculator), Factory+Registry (DefaultFactory), Strategy+ISP (Multiplier/DoublingStepExecutor), Framework (DoublingFramework/MatrixFramework), Observer (ProgressSubject), Object Pooling, Bump Allocator, FFT Transform Cache, Dynamic Threshold Adjustment, Zero-Copy Result Return, Interface-Based Decoupling, Generics with Pointer Constraints, Calculation Arena, GC Controller.
 
 ## Performance Considerations
 

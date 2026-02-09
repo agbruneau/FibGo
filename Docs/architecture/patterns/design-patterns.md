@@ -1,6 +1,6 @@
 # Design Patterns
 
-This document catalogs the twelve design patterns used in the FibGo codebase,
+This document catalogs the fourteen design patterns used in the FibGo codebase,
 their motivations, key types, source locations, and how they interact during
 a calculation.
 
@@ -22,8 +22,10 @@ For architectural context and ADRs, see [Architecture](../README.md).
 10. [Dynamic Threshold Adjustment](#10-dynamic-threshold-adjustment)
 11. [Zero-Copy Result Return](#11-zero-copy-result-return)
 12. [Generics with Pointer Constraint](#12-generics-with-pointer-constraint)
-13. [Pattern Interactions](#13-pattern-interactions)
-14. [Quick Reference](#14-quick-reference)
+13. [Calculation Arena](#13-calculation-arena)
+14. [GC Controller](#14-gc-controller)
+15. [Pattern Interactions](#15-pattern-interactions)
+16. [Quick Reference](#16-quick-reference)
 
 ---
 
@@ -930,7 +932,55 @@ Both implement `task` via pointer receivers, satisfying the `PT` constraint.
 
 ---
 
-## 13. Pattern Interactions
+## 13. Calculation Arena
+
+**Location**: `internal/fibonacci/arena.go`
+
+The Calculation Arena is a bump-pointer allocator that pre-allocates a single contiguous block for all `big.Int` backing arrays in a Fibonacci calculation. This complements the existing bump allocator (Pattern 8) which covers FFT temporaries — the arena covers the calculation state itself.
+
+### Structure
+
+```go
+type CalculationArena struct {
+    buf    []big.Word
+    offset int
+}
+```
+
+| Property | Value |
+|----------|-------|
+| Allocation cost | O(1) pointer bump |
+| Sizing | 10 × estimated words per F(n) |
+| Fallback | Heap allocation when exhausted |
+| Release | O(1) via Reset() |
+
+### Integration
+
+Created at the start of `CalculateCore()`, used to pre-size all 5 `CalculationState` fields. Coexists with `sync.Pool` (arena for initial sizing, pool for recycling state objects).
+
+---
+
+## 14. GC Controller
+
+**Location**: `internal/fibonacci/gc_control.go`
+
+The GC Controller disables Go's garbage collector during intensive calculations to eliminate GC pauses and reduce the ~2× memory overhead from heap scanning.
+
+### Modes
+
+| Mode | Condition | Behavior |
+|------|-----------|----------|
+| `auto` | N ≥ 1,000,000 | Disable GC + set soft memory limit |
+| `aggressive` | Always | Disable GC regardless of N |
+| `disabled` | Never | Standard GC behavior |
+
+### Safety Net
+
+`debug.SetMemoryLimit(3 × Sys)` prevents uncontrolled memory growth. Restored via `defer gc.End()` even on error.
+
+---
+
+## 15. Pattern Interactions
 
 During a single `Calculate()` call, all patterns cooperate in a layered call chain:
 
@@ -941,6 +991,9 @@ Calculate()                                   [Decorator]
   |
   +-- CalculateWithObservers()                  [Decorator]
        |
+       +-- GCController.Begin()                 [GC Controller]
+       +-- defer GCController.End()             [GC Controller]
+       |
        +-- calculateSmall(n) if n <= 93         [Decorator: fast path]
        |
        +-- configureFFTCache(opts)              [FFT Transform Cache]
@@ -948,6 +1001,9 @@ Calculate()                                   [Decorator]
        +-- bigfft.EnsurePoolsWarmed(n)          [Object Pooling]
        |
        +-- core.CalculateCore()                 [Decorator -> coreCalculator]
+            |
+            +-- NewCalculationArena(n)          [Calculation Arena]
+            +-- arena.PreSizeFromArena(...)      [Calculation Arena]
             |
             +-- DoublingFramework.ExecuteDoublingLoop()  [Framework]
             |    |
@@ -1005,7 +1061,7 @@ CLIProgressReporter.DisplayProgress()   -- Interface adapter consumes channel
 
 ---
 
-## 14. Quick Reference
+## 16. Quick Reference
 
 | # | Pattern | Location | Key Types | Purpose |
 |---|---------|----------|-----------|---------|
@@ -1021,3 +1077,5 @@ CLIProgressReporter.DisplayProgress()   -- Interface adapter consumes channel
 | 10 | Dynamic Threshold | `internal/fibonacci/dynamic_threshold.go` | `DynamicThresholdManager`, `IterationMetric` | Runtime FFT/parallel threshold adjustment with hysteresis |
 | 11 | Zero-Copy Result | `internal/fibonacci/doubling_framework.go:273`, `matrix_framework.go:86` | pointer swap technique | Avoid O(n) result copy from pooled state |
 | 12 | Generics | `internal/fibonacci/common.go:119` | `executeTasks[T, PT]()`, `task`, `multiplicationTask`, `squaringTask` | Eliminate task execution duplication via pointer constraint |
+| 13 | Calculation Arena | `internal/fibonacci/arena.go` | `CalculationArena`, `PreSizeFromArena` | Contiguous pre-allocation for state big.Int |
+| 14 | GC Controller | `internal/fibonacci/gc_control.go` | `GCController`, `GCMode`, `GCStats` | Disable GC during large calculations |

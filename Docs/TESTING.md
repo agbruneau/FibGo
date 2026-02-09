@@ -108,7 +108,7 @@ The CLI package has separate golden tests (`goldens_test.go`) that validate exac
 
 ## Fuzz Testing
 
-Four fuzz tests use Go's built-in fuzzing framework (`testing.F`) to explore the input space beyond manual test cases.
+Five fuzz tests use Go's built-in fuzzing framework (`testing.F`) to explore the input space beyond manual test cases.
 
 | Fuzz Test | Strategy | Input Limit |
 |-----------|----------|-------------|
@@ -116,6 +116,7 @@ Four fuzz tests use Go's built-in fuzzing framework (`testing.F`) to explore the
 | `FuzzFFTBasedConsistency` | Cross-validates FFT vs Fast Doubling | n up to 20,000 |
 | `FuzzFibonacciIdentities` | Verifies mathematical identities | n up to 10,000 |
 | `FuzzProgressMonotonicity` | Ensures progress is monotonically increasing | n 10 to 20,000 |
+| `FuzzFastDoublingMod` | Validates modular Fast Doubling output range | n up to 100,000, mod up to 1B |
 
 All fuzz tests live in `internal/fibonacci/fibonacci_fuzz_test.go`.
 
@@ -277,7 +278,7 @@ go test -v ./test/e2e/
 
 | Package | Key Test Files | Testing Approach |
 |---------|---------------|-----------------|
-| `internal/fibonacci` | `fibonacci_test.go`, `fibonacci_golden_test.go`, `fibonacci_fuzz_test.go`, `fibonacci_property_test.go`, `fibonacci_strassen_test.go` | Unit, golden, fuzz, property-based, Strassen correctness, benchmarks |
+| `internal/fibonacci` | `fibonacci_test.go`, `fibonacci_golden_test.go`, `fibonacci_fuzz_test.go`, `fibonacci_property_test.go`, `fibonacci_strassen_test.go`, `arena_test.go`, `gc_control_test.go`, `memory_budget_test.go`, `modular_test.go` | Unit, golden, fuzz, property-based, Strassen correctness, arena allocation, GC control, modular arithmetic, benchmarks |
 | `internal/bigfft` | `fft_precision_test.go`, `fft_parallel_test.go`, `pool_test.go`, `fermat_test.go` | Unit, precision, parallel correctness, pool recycling, Fermat arithmetic |
 | `internal/cli` | `output_test.go`, `ui_test.go`, `goldens_test.go`, `progress_eta_test.go` | Unit, golden output, ETA accuracy |
 | `internal/tui` | `model_test.go`, `bridge_test.go`, `header_test.go`, `chart_test.go`, `metrics_test.go`, `sparkline_test.go`, `footer_test.go`, `logs_test.go`, `keymap_test.go`, `cli_flags_test.go` | Unit, sub-model testing, message handling |
@@ -285,6 +286,7 @@ go test -v ./test/e2e/
 | `internal/calibration` | `calibration_test.go`, `calibration_advanced_test.go`, `adaptive_test.go`, `microbench_test.go`, `profile_test.go`, `io_test.go` | Unit, advanced calibration, micro-benchmark validation, profile I/O |
 | `internal/config` | `config_test.go`, `config_exhaustive_test.go`, `env_test.go` | Unit, exhaustive flag combinations, env vars |
 | `internal/errors` | `errors_test.go`, `handler_test.go` | Unit, exit code mapping |
+| `internal/metrics` | `memory_test.go` | Unit (memory snapshot collection) |
 | `internal/app` | `app_test.go`, `version_test.go` | Unit, lifecycle |
 | `test/e2e` | `cli_e2e_test.go` | End-to-end binary testing |
 | `cmd/fibcalc` | `main_test.go` | Entry point smoke test |

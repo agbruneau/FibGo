@@ -11,6 +11,7 @@ This document compares the three Fibonacci calculation algorithms implemented in
 | Fast Doubling | `"fast"` | "Fast Doubling (O(log n), Parallel, Zero-Alloc)" |
 | Matrix Exponentiation | `"matrix"` | "Matrix Exponentiation (O(log n), Parallel, Zero-Alloc)" |
 | FFT-Based | `"fft"` | "FFT-Based Doubling (O(log n), FFT Mul)" |
+| Modular Fast Doubling | `--last-digits` mode | "Modular Fast Doubling (O(log n), O(K) memory)" |
 
 An optional GMP-based calculator (`"gmp"`) is available when built with `-tags=gmp`.
 
@@ -36,6 +37,8 @@ Where M(n) is the cost of multiplying numbers of n bits.
 | Matrix Exp. (Strassen) | 7 | 18 | 18 | 43 |
 
 > **Note**: While Strassen reduces multiplications (the most expensive operation), it significantly increases additions and subtractions. This explains why it is only beneficial for extremely large numbers where M(n) >> A(n).
+
+> **Note**: The three multiplications in the current implementation are `FK×FK1`, `FK²`, and `FK1²` (using the reformulated `F(2k) = 2·FK·FK1 - FK²` identity).
 
 ### Asymptotic Constants Analysis
 
@@ -64,7 +67,7 @@ The constant k represents the "multiplicative density" of the algorithm.
 
 | Algorithm | Temporary variables | Pool objects |
 |-----------|---------------------|--------------|
-| Fast Doubling | 6 big.Int | CalculationState |
+| Fast Doubling | 5 big.Int | CalculationState |
 | Matrix Exp. | 3 matrices + ~22 big.Int | matrixState |
 
 ## Benchmarks
@@ -183,6 +186,13 @@ result, _ := calc.Calculate(ctx, progressChan, 0, 100_000_000, fibonacci.Options
     FFTThreshold: 500_000,
 })
 ```
+
+### Modular Fast Doubling (`--last-digits`)
+
+**Recommended for**: Computing the last K digits of F(N) for arbitrarily large N without storing the full result.
+
+- **Complexity**: O(log N) time, O(K) memory where K is the number of digits
+- **Use case**: N > 1 billion where full computation exceeds available RAM
 
 ## Running a Complete Comparison
 

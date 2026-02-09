@@ -52,9 +52,11 @@ Using `sync.Pool` to recycle calculation states:
 var statePool = sync.Pool{
     New: func() interface{} {
         return &CalculationState{
-            F_k:  new(big.Int),
-            F_k1: new(big.Int),
-            // ...
+            FK:  new(big.Int),
+            FK1: new(big.Int),
+            T1:  new(big.Int),
+            T2:  new(big.Int),
+            T3:  new(big.Int),
         }
     },
 }
@@ -64,6 +66,8 @@ var statePool = sync.Pool{
 - 95%+ reduction in allocations
 - 20-30% performance improvement
 - Reduced GC pause times
+
+**Calculation Arena**: For N > 1,000, a contiguous `CalculationArena` pre-allocates all 5 `big.Int` backing arrays from a single block, reducing GC tracking overhead and memory fragmentation. The arena falls back to heap allocation when exhausted.
 
 ### 2. 2-Tier Adaptive Multiplication
 
@@ -113,6 +117,39 @@ Enabled via `StrassenThreshold` (default: 3,072 bits via config; internal defaul
 ### 5. Symmetric Matrix Squaring
 
 Specific optimization for squaring symmetric matrices (where b = c), reducing multiplications from 8 to 4.
+
+### 6. GC Controller
+
+For large calculations (N ≥ 1M), the `GCController` disables Go's garbage collector during computation, eliminating GC pauses and reducing the ~2× memory overhead from GC scanning. A soft memory limit (3× current Sys) acts as an OOM safety net.
+
+| Mode | Activation | Behavior |
+|------|-----------|----------|
+| `auto` (default) | N ≥ 1,000,000 | Disable GC during calculation |
+| `aggressive` | Always | Disable GC regardless of N |
+| `disabled` | Never | Standard GC behavior |
+
+Configure via `--gc-control` or `FIBCALC_GC_CONTROL`.
+
+### 7. Memory Budget Estimation
+
+Pre-calculate estimated memory usage before starting with `--memory-limit`:
+
+| N | Estimated Peak Memory |
+|---|---|
+| 10M | ~120 MB |
+| 100M | ~1.2 GB |
+| 1B | ~12 GB |
+| 5B | ~58 GB |
+
+If the estimate exceeds the limit, the tool exits with an error and suggests `--last-digits K` as an alternative.
+
+### 8. Partial Computation (Last Digits)
+
+The `--last-digits K` mode computes F(N) mod 10^K using modular arithmetic in O(log N) time and O(K) memory, enabling computation for arbitrarily large N:
+
+```bash
+fibcalc -n 10000000000 --last-digits 100
+```
 
 ## Tuning Guide
 
@@ -260,6 +297,7 @@ go build -ldflags="-s -w" -gcflags="-B" ./cmd/fibcalc
 
 ## Known Limitations
 
-1. **Memory**: F(1 billion) requires ~25 GB of RAM for the result alone
+1. **Memory**: F(1 billion) requires ~12 GB of RAM. Use `--memory-limit` to validate before starting.
 2. **Time**: Calculations for N > 500M can take hours
 3. **FFT Contention**: The FFT algorithm saturates cores, limiting external parallelism
+4. **Workaround**: Use `--last-digits K` for O(K) memory usage with arbitrarily large N.
