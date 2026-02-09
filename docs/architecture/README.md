@@ -1,221 +1,478 @@
-# FibCalc Architecture Documentation
+# Fibonacci Calculator Architecture
 
-> Comprehensive architecture documentation for the FibCalc high-performance Fibonacci calculator.
-> Generated via automated reverse engineering analysis on 2026-02-08.
+## Overview
 
-## System Overview
+The Fibonacci Calculator is designed according to **Clean Architecture** principles, with strict separation of responsibilities and low coupling between modules. This architecture enables maximum testability, easy scalability, and simplified maintenance.
 
-**FibCalc** is a high-performance Fibonacci number calculator implemented in Go 1.25+. It supports CLI and interactive TUI modes, with four algorithm implementations (Fast Doubling, Matrix Exponentiation, FFT-based, GMP), adaptive hardware calibration, and extensive concurrency optimization.
+**Go Module**: `github.com/agbru/fibcalc` (Go 1.25.0)
 
-| Metric | Value |
-|--------|-------|
-| Module | `github.com/agbru/fibcalc` |
-| Source files | 98 |
-| Test files | 86 |
-| Lines of Go | ~31,494 |
-| Internal packages | 16 |
-| Interfaces | 13 |
-| Design patterns | 13 |
+**Codebase stats**: 17 Go packages | 98 source files | 85 test files | 38 documentation files (~8,000 lines)
 
-## Architecture at a Glance
+---
 
-```
-User
-  │
-  ▼
-cmd/fibcalc/main.go          ◄── Entry Point
-  │
-  ▼
-internal/app                   ◄── Lifecycle & Mode Dispatch
-  │
-  ├──► internal/config         ◄── Configuration (flags, env, calibration)
-  │
-  ├──► internal/orchestration  ◄── Parallel Execution (errgroup)
-  │       │
-  │       ▼
-  │    internal/fibonacci      ◄── Algorithm Implementations
-  │       │
-  │       ▼
-  │    internal/bigfft         ◄── FFT Multiplication Engine
-  │
-  ├──► internal/cli            ◄── CLI Presentation (spinner, progress)
-  │
-  ├──► internal/tui            ◄── TUI Dashboard (Bubble Tea)
-  │
-  └──► internal/calibration    ◄── Hardware-Adaptive Tuning
-```
+## Documentation Map
 
-## Documentation Index
+### Architecture
 
-### C4 Architecture Diagrams
+| Document | Description |
+|----------|-------------|
+| **[This file](README.md)** | Master index — package structure, interfaces, ADRs, data flow |
+| [patterns/design-patterns.md](patterns/design-patterns.md) | 12 design patterns catalog (1,023 lines) |
 
-| Diagram | Description | Format |
-|---------|-------------|--------|
-| [System Context](system-context.mermaid) | C4 Level 1 — System boundaries and external actors | Mermaid |
-| [Container Diagram](container-diagram.mermaid) | C4 Level 2 — Major packages and their relationships | Mermaid |
-| [Component Diagram](component-diagram.mermaid) | C4 Level 3 — Interfaces, structs, and dependencies | Mermaid |
-| [Dependency Graph](dependency-graph.mermaid) | Package dependency DAG with layer grouping | Mermaid |
+### C4 Diagrams (in `docs/architecture/`)
+
+| Diagram | Description |
+|---------|-------------|
+| [system-context.mermaid](../../docs/architecture/system-context.mermaid) | Level 1 — system context |
+| [container-diagram.mermaid](../../docs/architecture/container-diagram.mermaid) | Level 2 — container view |
+| [component-diagram.mermaid](../../docs/architecture/component-diagram.mermaid) | Level 3 — component view |
+| [dependency-graph.mermaid](../../docs/architecture/dependency-graph.mermaid) | Package dependency graph |
 
 ### Execution Flows
 
-| Flow | Documentation | Diagram |
-|------|--------------|---------|
-| CLI Execution | [flows/cli-flow.md](flows/cli-flow.md) | [flows/cli-flow.mermaid](flows/cli-flow.mermaid) |
-| TUI Execution | [flows/tui-flow.md](flows/tui-flow.md) | [flows/tui-flow.mermaid](flows/tui-flow.mermaid) |
-| Algorithm Computation | [flows/algorithm-flows.md](flows/algorithm-flows.md) | [flows/fastdoubling.mermaid](flows/fastdoubling.mermaid), [flows/matrix.mermaid](flows/matrix.mermaid), [flows/fft-pipeline.mermaid](flows/fft-pipeline.mermaid) |
-| Configuration & Calibration | [flows/config-flow.md](flows/config-flow.md) | [flows/config-flow.mermaid](flows/config-flow.mermaid) |
+| Document | Description |
+|----------|-------------|
+| [flows/cli-flow.md](flows/cli-flow.md) | CLI mode execution flow |
+| [flows/tui-flow.md](flows/tui-flow.md) | TUI mode execution flow |
+| [flows/config-flow.md](flows/config-flow.md) | Configuration resolution flow |
+| [flows/algorithm-flows.md](flows/algorithm-flows.md) | Algorithm execution flows (Fast Doubling, Matrix, FFT) |
 
-### Design Patterns & Interfaces
+### Operational Guides (in `Docs/`)
 
 | Document | Description |
 |----------|-------------|
-| [patterns/design-patterns.md](patterns/design-patterns.md) | Catalog of all 13 design patterns with file:line references |
-| [patterns/interface-hierarchy.mermaid](patterns/interface-hierarchy.mermaid) | Interface hierarchy and implementation relationships |
+| [../BUILD.md](../BUILD.md) | Build, install, and cross-compilation |
+| [../TESTING.md](../TESTING.md) | Testing strategy, coverage, fuzz testing |
+| [../PERFORMANCE.md](../PERFORMANCE.md) | Benchmarks, profiling, PGO |
+| [../CALIBRATION.md](../CALIBRATION.md) | Hardware-adaptive calibration |
+| [../TUI_GUIDE.md](../TUI_GUIDE.md) | TUI dashboard user guide |
 
-### Validation
+### Algorithm Deep-Dives (in `Docs/algorithms/`)
 
 | Document | Description |
 |----------|-------------|
-| [validation/validation-report.md](validation/validation-report.md) | Architecture validation: 22 PASS, 0 FAIL, 6 WARNING |
+| [../algorithms/FAST_DOUBLING.md](../algorithms/FAST_DOUBLING.md) | Fast Doubling algorithm |
+| [../algorithms/MATRIX.md](../algorithms/MATRIX.md) | Matrix Exponentiation algorithm |
+| [../algorithms/FFT.md](../algorithms/FFT.md) | FFT multiplication overview |
+| [../algorithms/BIGFFT.md](../algorithms/BIGFFT.md) | BigFFT implementation details |
+| [../algorithms/GMP.md](../algorithms/GMP.md) | GMP optional backend |
+| [../algorithms/COMPARISON.md](../algorithms/COMPARISON.md) | Algorithm comparison |
+| [../algorithms/PROGRESS_BAR_ALGORITHM.md](../algorithms/PROGRESS_BAR_ALGORITHM.md) | Progress bar algorithm |
 
-## Package Architecture
+---
 
-### Layer Model
-
-The codebase follows a strict four-layer architecture with no circular dependencies:
-
-| Layer | Packages | Responsibility |
-|-------|----------|----------------|
-| **Entry** | `cmd/fibcalc` | Binary entry point |
-| **Application** | `internal/app`, `internal/config` | Lifecycle, configuration, dispatch |
-| **Orchestration** | `internal/orchestration` | Parallel execution, result aggregation |
-| **Business** | `internal/fibonacci`, `internal/bigfft`, `internal/calibration` | Algorithms, FFT engine, tuning |
-| **Presentation** | `internal/cli`, `internal/tui` | CLI output, TUI dashboard |
-| **Support** | `internal/errors`, `internal/format`, `internal/metrics`, `internal/parallel`, `internal/sysmon`, `internal/ui`, `internal/testutil` | Shared utilities (leaf nodes) |
-
-### Package Dependencies
-
-- **Hub package**: `internal/fibonacci` — imported by 5 other packages
-- **Composition root**: `internal/app` — 8 internal dependencies
-- **Widest fan-out**: `internal/calibration` — 7 internal dependencies
-- **Leaf packages** (no internal deps): `bigfft`, `errors`, `format`, `metrics`, `parallel`, `sysmon`, `testutil`, `ui`
-
-## Key Algorithms
-
-| Algorithm | Time Complexity | Best For | File |
-|-----------|----------------|----------|------|
-| Fast Doubling | O(log n) multiplications | General purpose, n < 100M | `internal/fibonacci/fastdoubling.go` |
-| Matrix Exponentiation | O(log n) multiplications | Verification, comparison | `internal/fibonacci/matrix.go` |
-| FFT-based | O(log n) FFT multiplications | Very large n (> 500K bits) | `internal/fibonacci/fft_based.go` |
-| GMP (optional) | O(log n) GMP multiplications | Extremely large n (> 100M) | `internal/fibonacci/calculator_gmp.go` |
-
-All algorithms share a common fast path: for n <= 93, an iterative uint64 computation is used, bypassing all frameworks and pools.
-
-## Key Thresholds
-
-| Threshold | Default | Purpose |
-|-----------|---------|---------|
-| `ParallelThreshold` | 4,096 bits | Enable concurrent goroutines |
-| `FFTThreshold` | 500,000 bits | Switch from Karatsuba to FFT multiplication |
-| `StrassenThreshold` | 3,072 bits | Switch from classic to Strassen matrix multiply |
-| `ParallelFFTThreshold` | 5,000,000 bits | Enable parallel FFT operations |
-| `MaxPooledBitLen` | 100,000,000 bits | Cap for sync.Pool object retention |
-| `MaxFibUint64` | 93 | Iterative fast path cutoff |
-
-Thresholds are resolved via: CLI flags > env vars > calibration profile > adaptive estimation > static defaults.
-
-## Configuration Priority
+## Architecture Diagram
 
 ```
-CLI Flags (--parallel-threshold=8192)
-    │
-    ▼ (override)
-Environment Variables (FIBCALC_PARALLEL_THRESHOLD=8192)
-    │
-    ▼ (override)
-Cached Calibration Profile (~/.fibcalc_calibration.json)
-    │
-    ▼ (override)
-Adaptive Hardware Estimation (CPU cores, architecture)
-    │
-    ▼ (fallback)
-Static Defaults (constants.go)
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           ENTRY POINT                                   │
+│                                                                         │
+│                    ┌────────────────────────┐                           │
+│                    │  cmd/fibcalc            │                          │
+│                    │  cmd/generate-golden    │                          │
+│                    └───────────┬─────────────┘                          │
+└────────────────────────────────┼─────────────────────────────────────────┘
+                                 │
+┌────────────────────────────────┼─────────────────────────────────────────┐
+│                   ORCHESTRATION LAYER                                    │
+│                                ▼                                         │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                    internal/orchestration                         │   │
+│  │  • ExecuteCalculations() — parallel algorithm execution           │   │
+│  │  • AnalyzeComparisonResults() — analysis and comparison           │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                             │                                            │
+│  ┌──────────────┐  ┌───────────────┐  ┌──────────────┐                  │
+│  │    config     │  │  calibration  │  │     app      │                  │
+│  │   Parsing     │  │    Tuning     │  │  Lifecycle   │                  │
+│  └──────────────┘  └───────────────┘  └──────────────┘                  │
+└────────────────────────────────┼─────────────────────────────────────────┘
+                                 │
+┌────────────────────────────────┼─────────────────────────────────────────┐
+│                      BUSINESS LAYER                                      │
+│                                ▼                                         │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                    internal/fibonacci                             │   │
+│  │  ┌──────────────────┐  ┌──────────────────┐  ┌────────────────┐ │   │
+│  │  │  Fast Doubling   │  │     Matrix       │  │    FFT-Based   │ │   │
+│  │  │  O(log n)        │  │  Exponentiation  │  │    Doubling    │ │   │
+│  │  │  Parallel        │  │  O(log n)        │  │    O(log n)    │ │   │
+│  │  │  Zero-Alloc      │  │  Strassen        │  │    FFT Mul     │ │   │
+│  │  └──────────────────┘  └──────────────────┘  └────────────────┘ │   │
+│  │                            │                                     │   │
+│  │                            ▼                                     │   │
+│  │  ┌──────────────────────────────────────────────────────────────┐│   │
+│  │  │                    internal/bigfft                           ││   │
+│  │  │  • FFT multiplication for very large numbers                ││   │
+│  │  │  • Object pooling, bump allocation, SIMD dispatch           ││   │
+│  │  └──────────────────────────────────────────────────────────────┘│   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+└────────────────────────────────┼─────────────────────────────────────────┘
+                                 │
+┌────────────────────────────────┼─────────────────────────────────────────┐
+│                   PRESENTATION LAYER                                     │
+│                                ▼                                         │
+│  ┌──────────────────────────────────┐  ┌──────────────────────────────┐ │
+│  │         internal/cli             │  │       internal/ui            │ │
+│  │  • Spinner and progress bar      │  │  • ANSI color functions     │ │
+│  │  • Result formatting             │  │  • Theme system             │ │
+│  │  • ETA estimation                │  │  • NO_COLOR support         │ │
+│  │  • Shell completion              │  │                              │ │
+│  └──────────────────────────────────┘  └──────────────────────────────┘ │
+│  ┌──────────────────────────────────┐                                   │
+│  │         internal/tui             │  Activated via --tui flag         │
+│  │  • btop-style dashboard          │                                   │
+│  │  • Real-time logs, metrics       │                                   │
+│  │  • Progress bar with ETA         │                                   │
+│  │  • Keyboard navigation           │                                   │
+│  └──────────────────────────────────┘                                   │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Concurrency Model
+## Package Structure
 
-- **errgroup**: Orchestrator runs multiple calculators concurrently
-- **Task semaphore**: Limits goroutines to `NumCPU * 2` (channel-based)
-- **FFT semaphore**: Limits concurrent FFT operations to `NumCPU`
-- **ProgressSubject.Freeze()**: Lock-free observer snapshots for hot loops
-- **Object pools**: `sync.Pool` with tiered size classes reduces GC pressure
-- **Bump allocator**: O(1) allocation for FFT temporaries
+### `cmd/fibcalc`
 
-## Build Tags & Platform
+The main CLI entry point. A minimal wrapper that calls `app.New()` and `app.Run()`, providing:
 
-- **Standard**: `go build ./cmd/fibcalc`
-- **GMP**: `go build -tags=gmp ./cmd/fibcalc` (requires libgmp)
-- **PGO**: `make build-pgo` (profile at `cmd/fibcalc/default.pgo`)
-- **amd64 optimizations**: Assembly via `go:linkname` to `math/big`, AVX2/AVX-512 detection
-- **Generic fallback**: Pure Go implementations for non-amd64 platforms
+- Version flag handling (`--version`)
+- Command-line argument parsing via `internal/config`
+- Application lifecycle (timeout + signal handling)
 
-## External Dependencies
+### `cmd/generate-golden`
 
-| Dependency | Purpose |
-|-----------|---------|
-| `golang.org/x/sync` | errgroup for concurrent execution |
-| `golang.org/x/sys` | Signal handling, platform detection |
-| `github.com/rs/zerolog` | Structured logging |
-| `github.com/briandowns/spinner` | CLI spinner animation |
-| `github.com/shirou/gopsutil/v4` | System CPU/memory metrics (TUI) |
-| `github.com/charmbracelet/bubbletea` | TUI framework (Elm architecture) |
-| `github.com/charmbracelet/lipgloss` | TUI styling |
-| `github.com/charmbracelet/bubbles` | TUI components |
-| `github.com/ncw/gmp` | GMP bindings (optional) |
-| `go.uber.org/mock` | Mock generation for testing |
-| `github.com/leanovate/gopter` | Property-based testing |
+Utility for generating Fibonacci golden test data used by the test suite.
 
-## Architectural Decisions & Trade-offs
+- **`main.go`**: Entry point for golden file generation
 
-### Decision 1: Decorator over Inheritance
-**Context**: Need to add cross-cutting concerns to algorithm implementations.
-**Decision**: `FibCalculator` decorator wraps `coreCalculator` interface.
-**Trade-off**: Slightly more indirection, but algorithms remain pure computation without progress/pool concerns.
+### `internal/fibonacci`
 
-### Decision 2: Dual Semaphore Strategy
-**Context**: Need to limit both total goroutines and FFT-specific parallelism.
-**Decision**: Two separate channel-based semaphores with different capacities.
-**Trade-off**: More complex than a single limiter, but prevents FFT memory exhaustion while allowing non-FFT work to proceed.
+Business core of the application. Contains algorithm implementations, the factory/registry system, multiplication strategies, and the observer pattern for progress reporting.
 
-### Decision 3: Bump Allocator for FFT
-**Context**: FFT operations need many temporary allocations in a predictable pattern.
-**Decision**: Custom bump allocator alongside sync.Pool-based allocator.
-**Trade-off**: Arena memory is not released until `Reset()`, but allocation is O(1) with zero fragmentation.
+| File | Responsibility |
+|------|---------------|
+| `calculator.go` | `Calculator` and `coreCalculator` interfaces, `FibCalculator` decorator |
+| `registry.go` | `CalculatorFactory` interface, `DefaultFactory` with lazy creation and caching |
+| `strategy.go` | `Multiplier` (narrow) and `DoublingStepExecutor` (wide) interfaces, `MultiplicationStrategy` (deprecated alias); `AdaptiveStrategy`, `FFTOnlyStrategy`, `KaratsubaStrategy` |
+| `observer.go` | `ProgressObserver` interface, `ProgressSubject` (observable) |
+| `observers.go` | Observer implementations: `ChannelObserver`, `LoggingObserver`, `NoOpObserver` |
+| `options.go` | `Options` struct: `ParallelThreshold`, `FFTThreshold`, `StrassenThreshold`, FFT cache settings (`FFTCacheMinBitLen`, `FFTCacheMaxEntries`, `FFTCacheEnabled`), dynamic threshold settings (`EnableDynamicThresholds`, `DynamicAdjustmentInterval`); `normalizeOptions()` fills zero values with defaults |
+| `constants.go` | Performance tuning constants: `DefaultParallelThreshold` (4096), `DefaultFFTThreshold` (500,000), `DefaultStrassenThreshold` (3072), `ParallelFFTThreshold` (5,000,000), `CalibrationN` (10,000,000), `ProgressReportThreshold` (0.01) |
+| `threshold_types.go` | Threshold type definitions |
+| `dynamic_threshold.go` | Runtime threshold adjustment logic |
+| `fastdoubling.go` | `OptimizedFastDoubling` algorithm implementation, `CalculationState` type and pool |
+| `doubling_framework.go` | `DoublingFramework` — shared iteration framework for doubling-based algorithms |
+| `matrix.go` | `MatrixExponentiation` algorithm implementation |
+| `matrix_framework.go` | `MatrixFramework` — shared framework for matrix-based algorithms |
+| `matrix_ops.go` | Matrix multiplication and squaring operations, Strassen dispatch (`multiplyMatrices`, `multiplyMatrixStrassen`), runtime threshold control (`Set/GetDefaultStrassenThreshold`) |
+| `matrix_types.go` | `matrix` type (2x2), `matrixState` pool type |
+| `fft_based.go` | `FFTBasedCalculator` — forces FFT for all multiplications |
+| `fft.go` | `smartMultiply` / `smartSquare` — 2-tier multiplication selection (FFT or standard math/big) |
+| `progress.go` | `ProgressCallback` type, progress utilities (`CalcTotalWork`, `ReportStepProgress`) |
+| `common.go` | Task semaphore, `MaxPooledBitLen`, `executeTasks` generics, `executeMixedTasks` |
+| `generator.go` | `SequenceGenerator` interface for Fibonacci sequence generation |
+| `generator_iterative.go` | Iterative generator implementation |
+| `testing.go` | Test helpers and utilities |
+| `calculator_gmp.go` | GMP calculator, auto-registers via `init()` (build tag: `gmp`) |
 
-### Decision 4: Observer Freeze for Hot Loops
-**Context**: Progress reporting in tight computation loops must not introduce lock contention.
-**Decision**: `ProgressSubject.Freeze()` copies the observer slice for lock-free iteration.
-**Trade-off**: Snapshot may miss late-registered observers, but eliminates mutex in the hot path.
+### `internal/bigfft`
 
-### Decision 5: Global Factory Singleton
-**Context**: GMP calculator uses `init()` for auto-registration.
-**Decision**: Package-level `GlobalFactory()` singleton.
-**Trade-off**: Global mutable state complicates parallel testing, but enables seamless optional component registration.
+FFT multiplication for `big.Int`, with object pooling, memory management, and platform-specific SIMD dispatch.
 
-## Recommendations for Improvement
+| File | Responsibility |
+|------|---------------|
+| `fft.go` | Public API: `Mul`, `MulTo`, `Sqr`, `SqrTo` |
+| `fft_core.go` | Core FFT algorithm implementation |
+| `fft_recursion.go` | Recursive FFT decomposition with runtime-configurable parallelism (`FFTParallelismConfig`, `Set/GetFFTParallelismConfig`) |
+| `fft_poly.go` | Polynomial operations for FFT |
+| `fft_cache.go` | FFT transform caching |
+| `fermat.go` | Fermat ring arithmetic: `fermat` type (Z/(2^k+1)), `Shift`, `ShiftHalf`, `Add`, `Sub`, `Mul`, `Sqr`, `norm`; `smallMulThreshold` for schoolbook/big.Int cutover |
+| `pool.go` | `sync.Pool`-based object pools with size classes |
+| `pool_warming.go` | Pool pre-warming for adaptive buffer pre-allocation |
+| `allocator.go` | Memory allocator abstraction |
+| `bump.go` | Bump allocator for batch allocations |
+| `memory_est.go` | Memory estimation for pre-allocation |
+| `scan.go` | Bit scanning utilities |
+| `arith_amd64.go` | amd64 vector arithmetic wrappers |
+| `arith_generic.go` | Non-amd64 vector arithmetic wrappers |
+| `arith_decl.go` | `go:linkname` declarations to `math/big` internals |
+| `cpu_amd64.go` | Runtime CPU feature detection |
 
-1. **Remove dead code**: `RenderBrailleChart`, deprecated `MultiplicationStrategy` alias
-2. **Fix documentation drift**: Update CLAUDE.md to remove references to non-existent `formal/` directory and overstated fuzz target counts
-3. **Add compile-time interface checks**: `var _ Interface = (*Impl)(nil)` for all observer implementations
-4. **Reduce global state**: Consider dependency injection for factory, semaphores, and pools to improve test isolation
-5. **Consider removing unused API surface**: `MustGet`, `Has`, `ProgressReporterFunc` if not planned for future use
+### `internal/orchestration`
 
-## Cross-Reference with CLAUDE.md
+Concurrent execution management with Clean Architecture decoupling.
 
-This architecture documentation is consistent with the existing `CLAUDE.md` project instructions, with the following discrepancies noted in the [validation report](validation/validation-report.md):
+| File | Responsibility |
+|------|---------------|
+| `orchestrator.go` | `ExecuteCalculations()`, `AnalyzeComparisonResults()` — parallel execution via `errgroup` |
+| `interfaces.go` | `ProgressReporter`, `ResultPresenter` interfaces, `NullProgressReporter` |
+| `calculator_selection.go` | `GetCalculatorsToRun()` — calculator selection logic from config |
 
-- `formal/` directory references in CLAUDE.md do not correspond to files in the repository
-- Fuzz target count in CLAUDE.md (17) exceeds actual `Fuzz*` functions found (4)
-- Several test file references in CLAUDE.md point to files that don't exist
+### `internal/cli`
 
-All other architectural claims in CLAUDE.md were verified as accurate.
+Command-line user interface and presentation layer.
+
+| File | Responsibility |
+|------|---------------|
+| `output.go` | `Display*` / `Format*` / `Write*` functions for output |
+| `presenter.go` | `CLIProgressReporter` and `CLIResultPresenter` implementations |
+| `ui.go` | Spinner management and terminal interaction |
+| `ui_display.go` | Display functions for progress reporting and result presentation |
+| `ui_format.go` | Number formatting and duration/ETA formatting utilities |
+| `progress_eta.go` | ETA estimation algorithm |
+| `calculate.go` | Calculation orchestration entry point for CLI |
+| `completion.go` | Shell completion script generation (bash, zsh, fish, powershell) |
+| `provider.go` | Dependency provider for CLI components |
+
+### `internal/tui`
+
+Interactive TUI dashboard (btop-style), activated via `--tui` flag or `FIBCALC_TUI=true`. Built on the Elm architecture (Model-Update-View) with Bubble Tea.
+
+| File | Responsibility |
+|------|---------------|
+| `doc.go` | Package documentation |
+| `messages.go` | Tea message types (`ProgressMsg`, `ResultMsg`, `TickMsg`, `MemStatsMsg`, etc.) |
+| `styles.go` | Orange-dominant dark theme palette with lipgloss (rounded orange borders, warm color scheme) |
+| `keymap.go` | Keyboard bindings (`q`, `space`, `r`, arrows, `pgup`/`pgdn`) |
+| `bridge.go` | `TUIProgressReporter` and `TUIResultPresenter` — implements orchestration interfaces |
+| `header.go` | Header sub-model (title, version, elapsed time using `FormatExecutionDuration`) |
+| `logs.go` | Scrollable log panel sub-model (viewport, auto-scroll) |
+| `metrics.go` | Runtime metrics sub-model (memory, heap, GC, goroutines, speed) |
+| `chart.go` | Progress bar, ETA, CPU/MEM sparkline indicators sub-model |
+| `sparkline.go` | Sparkline and braille chart visualization |
+| `footer.go` | Footer sub-model (keyboard shortcuts, status indicator) |
+| `model.go` | Root model, `Init()`/`Update()`/`View()`, `Run()` entry point, layout (60/40 split) |
+
+### `internal/calibration`
+
+Automatic calibration system for hardware-specific threshold tuning.
+
+| File | Responsibility |
+|------|---------------|
+| `calibration.go` | Core calibration logic |
+| `adaptive.go` | Adaptive threshold generation based on CPU |
+| `microbench.go` | Micro-benchmarking routines |
+| `io.go` | Calibration profile I/O |
+| `profile.go` | Calibration profile data structures |
+| `runner.go` | Calibration test runner |
+
+### `internal/config`
+
+Configuration management.
+
+| File | Responsibility |
+|------|---------------|
+| `config.go` | `ParseConfig()`, `AppConfig` struct, flag parsing |
+| `env.go` | Environment variable support (`FIBCALC_*` prefix) |
+| `usage.go` | Help text and usage formatting |
+
+### `internal/errors`
+
+Centralized error handling.
+
+| File | Responsibility |
+|------|---------------|
+| `errors.go` | Custom error types: `ConfigError`, `CalculationError` |
+| `handler.go` | Error handler with standardized exit codes (0=success, 1=generic, 2=timeout, 3=mismatch, 4=config, 130=canceled) |
+
+### `internal/app`
+
+Application lifecycle management.
+
+| File | Responsibility |
+|------|---------------|
+| `app.go` | Application initialization and lifecycle (`SetupContext`, signal handling) |
+| `version.go` | Version information |
+| `doc.go` | Package documentation |
+
+### `internal/ui`
+
+Terminal UI utilities.
+
+| File | Responsibility |
+|------|---------------|
+| `colors.go` | ANSI color functions |
+| `themes.go` | Theme system (dark, light, orange, none), `NO_COLOR` support |
+
+## Key Interfaces
+
+### Calculator (public)
+
+```go
+type Calculator interface {
+    Calculate(ctx context.Context, progressChan chan<- ProgressUpdate,
+        calcIndex int, n uint64, opts Options) (*big.Int, error)
+    Name() string
+}
+```
+
+### coreCalculator (internal)
+
+```go
+type coreCalculator interface {
+    CalculateCore(ctx context.Context, reporter ProgressCallback,
+        n uint64, opts Options) (*big.Int, error)
+    Name() string
+}
+```
+
+### CalculatorFactory
+
+```go
+type CalculatorFactory interface {
+    Create(name string) (Calculator, error)
+    Get(name string) (Calculator, error)
+    List() []string
+    Register(name string, creator func() coreCalculator) error
+    GetAll() map[string]Calculator
+}
+```
+
+### Multiplier (narrow)
+
+```go
+type Multiplier interface {
+    Multiply(z, x, y *big.Int, opts Options) (*big.Int, error)
+    Square(z, x *big.Int, opts Options) (*big.Int, error)
+    Name() string
+}
+```
+
+### DoublingStepExecutor (wide)
+
+```go
+type DoublingStepExecutor interface {
+    Multiplier
+    ExecuteStep(ctx context.Context, s *CalculationState, opts Options, inParallel bool) error
+}
+
+// MultiplicationStrategy is a deprecated type alias for DoublingStepExecutor.
+type MultiplicationStrategy = DoublingStepExecutor
+```
+
+### ProgressObserver
+
+```go
+type ProgressObserver interface {
+    Update(calcIndex int, progress float64)
+}
+```
+
+### ProgressReporter (orchestration)
+
+```go
+type ProgressReporter interface {
+    DisplayProgress(wg *sync.WaitGroup, progressChan <-chan fibonacci.ProgressUpdate,
+        numCalculators int, out io.Writer)
+}
+```
+
+### ResultPresenter (orchestration)
+
+```go
+type ResultPresenter interface {
+    PresentComparisonTable(results []CalculationResult, out io.Writer)
+    PresentResult(result CalculationResult, n uint64, verbose, details, concise bool, out io.Writer)
+    FormatDuration(d time.Duration) string
+    HandleError(err error, duration time.Duration, out io.Writer) int
+}
+```
+
+## Architecture Decision Records (ADR)
+
+### ADR-001: Using `sync.Pool` for Calculation States
+
+**Context**: Fibonacci calculations for large N require numerous temporary `big.Int` objects.
+
+**Decision**: Use `sync.Pool` to recycle calculation states (`CalculationState`, matrix states).
+
+**Consequences**:
+
+- Drastic reduction in memory allocations
+- Decreased GC pressure
+- 20-30% performance improvement
+- Increased code complexity
+
+### ADR-002: Dynamic Multiplication Algorithm Selection
+
+**Context**: FFT multiplication is more efficient than standard `math/big` for very large numbers, but has significant overhead for small numbers.
+
+**Decision**: Implement a 2-tier `smartMultiply` function that selects the algorithm based on operand size: FFT (> 500K bits) or standard `math/big` (below). `math/big` internally uses Karatsuba for large operands.
+
+**Consequences**:
+
+- Optimal performance across the entire value range
+- Configurable via `FFTThreshold` in `Options`
+- Requires calibration for each architecture
+
+### ADR-003: Adaptive Parallelism
+
+**Context**: Parallelism has a synchronization cost that can exceed gains for small calculations.
+
+**Decision**: Enable parallelism only above a configurable threshold (`ParallelThreshold`, default: 4096 bits).
+
+**Consequences**:
+
+- Optimal performance according to calculation size
+- Avoids CPU saturation for small N
+- Parallelism disabled when FFT is used (FFT already saturates CPU), re-enabled above 5M bits (`ParallelFFTThreshold`)
+
+### ADR-004: Interface-Based Decoupling (Orchestration → CLI)
+
+**Context**: The orchestration package was directly importing CLI packages, violating Clean Architecture principles where business logic should not depend on presentation.
+
+**Decision**: Define `ProgressReporter` and `ResultPresenter` interfaces in the orchestration package, with implementations in the CLI package.
+
+**Consequences**:
+
+- Clean Architecture compliance: orchestration no longer imports CLI
+- Improved testability: interfaces can be mocked for unit tests
+- Flexibility: alternative presenters (JSON, TUI, GUI) can be easily added
+- `NullProgressReporter` enables quiet mode without conditionals
+- TUI dashboard (`internal/tui`) was added as a second implementation, validating this decoupling
+- Slightly more complex initialization in the app layer
+
+## Data Flow
+
+```
+1. app.New(args) → config.ParseConfig() parses CLI flags + env vars → AppConfig
+2. app.New() → calibration.LoadCachedCalibration() or applyAdaptiveThresholds()
+3. app.Run() dispatches to: completion | calibration | auto-calibration | TUI | CLI
+4. ui.InitTheme() initializes terminal color support (respects NO_COLOR)
+5. orchestration.GetCalculatorsToRun() selects calculators from fibonacci.GlobalFactory()
+6. context.WithTimeout() + signal.NotifyContext() creates lifecycle context
+7. orchestration.ExecuteCalculations() runs calculators concurrently via errgroup
+   - Each Calculator.Calculate() creates ProgressSubject + ChannelObserver
+   - FibCalculator.CalculateWithObservers(): small-N fast path, FFT cache config, pool warming
+   - Core algorithm (DoublingFramework or MatrixFramework) executes the computation loop
+   - ProgressSubject.Freeze() creates lock-free snapshot → ChannelObserver → progressChan
+   - ProgressReporter (CLIProgressReporter or TUIProgressReporter) displays progress
+8. orchestration.AnalyzeComparisonResults() sorts by duration, validates consistency
+9. ResultPresenter (CLIResultPresenter or TUIResultPresenter) formats and displays output
+```
+
+For detailed flow diagrams, see [flows/](flows/).
+
+## Design Patterns
+
+This codebase employs 12 documented design patterns. See the full catalog: **[patterns/design-patterns.md](patterns/design-patterns.md)**.
+
+Key patterns: Decorator (FibCalculator), Factory+Registry (DefaultFactory), Strategy+ISP (Multiplier/DoublingStepExecutor), Framework (DoublingFramework/MatrixFramework), Observer (ProgressSubject), Object Pooling, Bump Allocator, FFT Transform Cache, Dynamic Threshold Adjustment, Zero-Copy Result Return, Interface-Based Decoupling, Generics with Pointer Constraints.
+
+## Performance Considerations
+
+1. **Zero-Allocation**: Object pools avoid allocations in critical loops
+2. **Smart Parallelism**: Enabled only when beneficial
+3. **2-Tier Multiplication**: FFT or standard math/big selected by operand size
+4. **Strassen**: Enabled for matrices with large elements
+5. **Symmetric Squaring**: Specific optimization reducing multiplications
+
+For benchmarks and profiling details, see [../PERFORMANCE.md](../PERFORMANCE.md).
+
+## Extensibility
+
+To add a new algorithm:
+
+1. Implement the `coreCalculator` interface (`CalculateCore`, `Name`) in `internal/fibonacci/`
+2. Register in `NewDefaultFactory()` in `registry.go`
+3. Add corresponding tests (table-driven + golden file validation)

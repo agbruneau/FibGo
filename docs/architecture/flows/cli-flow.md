@@ -1,111 +1,158 @@
 # CLI Execution Flow
 
-| Attribute | Value |
-|-----------|-------|
-| **Status** | Verified |
-| **Type** | Execution Flow |
-| **Complexity** | Medium |
-| **Diagram** | [cli-flow.mermaid](cli-flow.mermaid) |
+This document traces the complete execution path for the standard CLI calculation mode.
 
-## Overview
+## Entry Point
 
-The CLI execution flow is the default presentation mode for FibCalc. It handles configuration parsing, calculator selection, parallel execution, progress reporting (spinner + progress bar + ETA), and result presentation to stdout.
+```
+cmd/fibcalc/main.go:main()
+  → run(os.Args, os.Stdout, os.Stderr)
+    → app.HasVersionFlag(args[1:])       // early exit if --version
+    → app.New(args, stderr)              // build Application
+    → application.Run(ctx, stdout)       // dispatch and execute
+```
 
-## Flow Boundaries
+## Application Construction: `app.New()`
 
-| Boundary | From | To |
-|----------|------|----|
-| Entry | `cmd/fibcalc/main.go` | `internal/app` |
-| Config | `internal/config` | `internal/app` |
-| Orchestration | `internal/app` | `internal/orchestration` |
-| Calculation | `internal/orchestration` | `internal/fibonacci` |
-| Presentation | `internal/orchestration` | `internal/cli` |
+**File**: `internal/app/app.go:47`
 
-## Quick Reference
+```
+app.New(args, errWriter)
+  1. fibonacci.GlobalFactory()                            // singleton with "fast", "matrix", "fft"
+  2. factory.List()                                       // available algorithm names for validation
+  3. config.ParseConfig(programName, cmdArgs, errWriter, availableAlgos)
+     a. flag.NewFlagSet() — define all CLI flags
+     b. fs.Parse(args) — parse command-line arguments
+     c. applyEnvOverrides(&config, fs)                   // FIBCALC_* env vars for unset flags
+     d. config.Validate(availableAlgos)                  // semantic validation
+  4. calibration.LoadCachedCalibration(cfg, profilePath)  // try cached profile
+     OR applyAdaptiveThresholds(cfg)                     // fallback: estimate from hardware
+       a. EstimateOptimalParallelThreshold()             // CPU core count heuristic
+       b. EstimateOptimalFFTThreshold()                  // 32-bit vs 64-bit heuristic
+       c. EstimateOptimalStrassenThreshold()             // CPU core count heuristic
+  5. return &Application{Config, Factory, ErrWriter}
+```
 
-| Component | File | Line |
-|-----------|------|------|
-| Entry point | `cmd/fibcalc/main.go` | 18 |
-| App constructor | `internal/app/app.go` | 47 |
-| App runner | `internal/app/app.go` | 125 |
-| Config parser | `internal/config/config.go` | 129 |
-| Calculator selection | `internal/orchestration/calculator_selection.go` | 18 |
-| Parallel execution | `internal/orchestration/orchestrator.go` | 56 |
-| Result analysis | `internal/orchestration/orchestrator.go` | 115 |
-| Progress reporter | `internal/cli/presenter.go` | 18 |
+## Application Dispatch: `app.Run()`
 
-## Detailed Steps
+**File**: `internal/app/app.go:125`
 
-### 1. Entry Point (`cmd/fibcalc/main.go:18`)
+```
+app.Run(ctx, out)
+  1. if Config.Completion != "" → runCompletion(out)      // shell completion scripts
+  2. zerolog.SetGlobalLevel(InfoLevel)
+  3. ui.InitTheme(false)                                  // terminal color support (NO_COLOR)
+  4. if Config.Calibrate → runCalibration(ctx, out)       // full calibration mode
+  5. runAutoCalibrationIfEnabled(ctx, out)                 // quick calibration if --auto-calibrate
+  6. if Config.TUI → runTUI(ctx, out)                     // TUI dashboard mode
+  7. runCalculate(ctx, out)                                // standard CLI mode
+```
 
-`main()` creates an `Application` via `app.New()` and calls `app.Run()`. The exit code from `Run()` is passed to `os.Exit()`.
+## CLI Calculation: `runCalculate()`
 
-### 2. Configuration (`internal/app/app.go:47`)
+**File**: `internal/app/app.go:191`
 
-`app.New()` calls `config.ParseConfig()` which:
-- Parses CLI flags via `flag.Parse()`
-- Applies environment variable overrides (`FIBCALC_*` prefix)
-- Validates the configuration
-- Returns an `AppConfig` struct
+```
+runCalculate(ctx, out)
+  1. context.WithTimeout(ctx, Config.Timeout)             // deadline
+  2. signal.NotifyContext(ctx, SIGINT, SIGTERM)            // graceful shutdown
+  3. orchestration.GetCalculatorsToRun(Config, Factory)
+     - Config.Algo == "all": factory.List() → factory.Get() for each
+     - specific algo: factory.Get(Config.Algo)
+  4. cli.PrintExecutionConfig(Config, out)                 // unless quiet
+  5. cli.PrintExecutionMode(calculators, out)              // unless quiet
+  6. Choose ProgressReporter:
+     - quiet: NullProgressReporter (drains channel silently)
+     - normal: CLIProgressReporter (spinner + progress bar)
+  7. orchestration.ExecuteCalculations(ctx, calculators, cfg, reporter, out)
+     [see Orchestration Flow below]
+  8. analyzeResultsWithOutput(results, outputCfg, out)
+     a. findBestResult(results)                           // fastest successful result
+     b. quiet mode: cli.DisplayQuietResult() + save file
+     c. normal mode:
+        - orchestration.AnalyzeComparisonResults(results, cfg, CLIResultPresenter{}, out)
+          i.  sort results by duration (success first)
+          ii. PresentComparisonTable() — formatted table
+          iii. validate result consistency across algorithms
+          iv. PresentResult() — final result display
+        - saveResultIfNeeded() — write to file if --output
+```
 
-### 3. Mode Dispatch (`internal/app/app.go:125`)
+## Orchestration Flow
 
-`app.Run()` dispatches based on configuration (priority order):
-1. **Completion mode** — generates shell completion scripts
-2. **Calibration mode** — runs full benchmark calibration
-3. **Auto-calibrate mode** — runs quick micro-benchmarks
-4. **TUI mode** — launches interactive terminal UI
-5. **CLI mode** — default path (described below)
+**File**: `internal/orchestration/orchestrator.go:56`
 
-### 4. Calibration Resolution
+```
+ExecuteCalculations(ctx, calculators, cfg, progressReporter, out)
+  1. results = make([]CalculationResult, len(calculators))
+  2. progressChan = make(chan ProgressUpdate, len(calculators) * 50)
+  3. go progressReporter.DisplayProgress(&wg, progressChan, len(calculators), out)
+  4. Build fibonacci.Options from cfg (Threshold, FFTThreshold, StrassenThreshold)
+  5. Single calculator: direct call (no errgroup overhead)
+     Multiple calculators: errgroup.WithContext(ctx)
+     For each calculator:
+       startTime → calculator.Calculate(ctx, progressChan, idx, cfg.N, opts) → CalculationResult
+  6. close(progressChan)
+  7. wg.Wait()                                            // wait for progress display to finish
+  8. return results
+```
 
-Before calculation:
-- Attempts to load a cached calibration profile from `~/.fibcalc_calibration.json`
-- If no valid profile exists, runs adaptive hardware estimation (`calibration.EstimateOptimal*Threshold()`)
-- Builds `fibonacci.Options` with resolved thresholds
+## Calculator Flow
 
-### 5. Calculator Selection (`internal/orchestration/calculator_selection.go:18`)
+**File**: `internal/fibonacci/calculator.go:110`
 
-`GetCalculatorsToRun()` selects calculators from `fibonacci.GlobalFactory()` based on the `--algorithm` flag. If `--compare` is set, all registered algorithms run.
+```
+FibCalculator.Calculate(ctx, progressChan, calcIndex, n, opts)
+  1. NewProgressSubject()
+  2. Register(NewChannelObserver(progressChan))
+  3. CalculateWithObservers(ctx, subject, calcIndex, n, opts)
+     a. subject.Freeze(calcIndex)                        // lock-free observer snapshot
+     b. n <= 93: calculateSmall(n) — iterative addition
+     c. configureFFTCache(opts)                          // set cache parameters
+     d. bigfft.EnsurePoolsWarmed(n)                     // pre-warm memory pools
+     e. core.CalculateCore(ctx, reporter, n, opts)      // delegate to algorithm
+     f. reporter(1.0)                                    // signal completion
+```
 
-### 6. Parallel Execution (`internal/orchestration/orchestrator.go:56`)
+## Mermaid Sequence Diagram
 
-`ExecuteCalculations()`:
-- **Single calculator fast path**: Calls `Calculate()` directly (no errgroup overhead)
-- **Multiple calculators**: Uses `golang.org/x/sync/errgroup` to run calculators concurrently
-- Each calculator creates a `ProgressSubject`, registers a `ChannelObserver`, and delegates to `CalculateWithObservers()`
+```mermaid
+sequenceDiagram
+    participant M as main()
+    participant A as app.New()
+    participant C as config.ParseConfig()
+    participant Cal as calibration
+    participant R as app.Run()
+    participant O as orchestration
+    participant Calc as Calculator
+    participant F as Framework
+    participant P as ProgressReporter
 
-### 7. Progress Reporting (`internal/cli/presenter.go:18`)
+    M->>A: New(args, stderr)
+    A->>C: ParseConfig(programName, args, errWriter, algos)
+    C-->>A: AppConfig
+    A->>Cal: LoadCachedCalibration() or applyAdaptiveThresholds()
+    Cal-->>A: updated config
+    A-->>M: Application
 
-`CLIProgressReporter` consumes progress updates from the `ChannelObserver` channel:
-- Displays a spinner animation (briandowns/spinner)
-- Shows a progress bar with percentage
-- Calculates and displays ETA
-- Refreshes at 200ms intervals
+    M->>R: Run(ctx, stdout)
+    R->>R: ui.InitTheme(false)
+    R->>R: runCalculate(ctx, out)
 
-### 8. Result Presentation
+    R->>O: GetCalculatorsToRun(cfg, factory)
+    O-->>R: []Calculator
 
-- **Single result**: `CLIResultPresenter.PresentResult()` formats output
-- **Multiple results**: `AnalyzeComparisonResults()` (`internal/orchestration/orchestrator.go:115`) compares results, sorts by speed, then presents comparison table
+    R->>O: ExecuteCalculations(ctx, calcs, cfg, reporter, out)
+    O->>P: go DisplayProgress(wg, progressChan, n, out)
+    O->>Calc: Calculate(ctx, progressChan, idx, n, opts)
+    Calc->>Calc: CalculateWithObservers()
+    Calc->>F: CalculateCore(ctx, reporter, n, opts)
+    F->>F: ExecuteDoublingLoop / ExecuteMatrixLoop
+    F-->>Calc: *big.Int result
+    Calc-->>O: result, err
+    O->>O: close(progressChan)
+    O-->>R: []CalculationResult
 
-### 9. Output Formatting (`internal/cli/output.go`)
-
-Naming convention:
-- `Display*`: Write formatted output to `io.Writer`
-- `Format*`: Return formatted string, no I/O
-- `Write*`: Write data to filesystem
-- `Print*`: Write to stdout (convenience wrappers)
-
-## Failure Scenarios
-
-| Error | Exit Code | Handler |
-|-------|-----------|---------|
-| Invalid configuration | 4 (`ExitErrorConfig`) | `internal/errors/handler.go` |
-| Calculation timeout | 2 (`ExitErrorTimeout`) | Context cancellation propagation |
-| Result mismatch (compare mode) | 3 (`ExitErrorMismatch`) | `orchestration.AnalyzeComparisonResults` |
-| User cancellation (Ctrl+C) | 130 (`ExitErrorCanceled`) | Signal handler in `app.go` |
-| Generic/unexpected error | 1 (`ExitErrorGeneric`) | `internal/errors/handler.go` |
-
-## Signal Handling
-
-`app.Run()` sets up a signal handler for `SIGINT`/`SIGTERM` that cancels the context, propagating cancellation to all running goroutines through the `errgroup`.
+    R->>O: AnalyzeComparisonResults()
+    O-->>R: exit code
+```

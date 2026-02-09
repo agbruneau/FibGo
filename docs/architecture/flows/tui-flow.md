@@ -1,134 +1,192 @@
 # TUI Execution Flow
 
-| Attribute | Value |
-|-----------|-------|
-| **Status** | Verified |
-| **Type** | Execution Flow |
-| **Complexity** | High |
-| **Diagram** | [tui-flow.mermaid](tui-flow.mermaid) |
+This document traces the execution path for the interactive TUI dashboard mode,
+activated via `--tui` flag or `FIBCALC_TUI=true`.
 
-## Overview
+## Entry Point
 
-The TUI (Terminal User Interface) mode provides an interactive dashboard using the Bubble Tea framework (Elm architecture). It features real-time progress visualization, system metrics monitoring, and scrollable calculation logs.
-
-## Flow Boundaries
-
-| Boundary | From | To |
-|----------|------|----|
-| Entry | `internal/app/app.go` | `internal/tui` |
-| Bridge | `internal/tui/bridge.go` | `internal/orchestration` |
-| Metrics | `internal/sysmon` | `internal/tui/metrics.go` |
-| Styling | `internal/ui` | `internal/tui/styles.go` |
-
-## Quick Reference
-
-| Component | File | Line |
-|-----------|------|------|
-| Model struct | `internal/tui/model.go` | 22 |
-| TUI progress reporter | `internal/tui/bridge.go` | 32 |
-| TUI result presenter | `internal/tui/bridge.go` | 64 |
-| Header panel | `internal/tui/header.go` | — |
-| Footer panel | `internal/tui/footer.go` | — |
-| Logs panel | `internal/tui/logs.go` | — |
-| Metrics panel | `internal/tui/metrics.go` | — |
-| Chart panel | `internal/tui/chart.go` | — |
-| Styles | `internal/tui/styles.go` | — |
-| Key bindings | `internal/tui/keymap.go` | — |
-| Messages | `internal/tui/messages.go` | — |
-
-## Detailed Steps
-
-### 1. TUI Initialization
-
-When `--tui` flag is set, `app.Run()` creates a Bubble Tea program:
-- Creates `TUIProgressReporter` and `TUIResultPresenter` bridge adapters
-- Initializes the `Model` struct with config, bridges, and initial state
-- Launches `tea.NewProgram(model)` with alt-screen mode
-
-### 2. Model.Init (`internal/tui/model.go`)
-
-The `Init()` method returns three initial commands:
-- `tickCmd` — 500ms periodic tick for metric updates
-- `startCalculationCmd` — triggers background calculation goroutine
-- `watchContextCmd` — monitors context cancellation
-
-### 3. Bridge Pattern (`internal/tui/bridge.go`)
-
-The bridge layer adapts orchestration interfaces to Bubble Tea messages:
-
-**`TUIProgressReporter`** (line 32):
-- Implements `orchestration.ProgressReporter`
-- Uses `programRef` pattern — stores `*tea.Program` pointer that survives Bubble Tea's value-copy semantics
-- Calls `program.Send()` to inject `ProgressMsg` into the Bubble Tea event loop
-
-**`TUIResultPresenter`** (line 64):
-- Implements `orchestration.ResultPresenter`
-- Sends `FinalResultMsg`, `ComparisonResultsMsg`, or `ErrorMsg` via `program.Send()`
-
-### 4. Message Types (`internal/tui/messages.go`)
-
-| Message | Source | Purpose |
-|---------|--------|---------|
-| `ProgressMsg` | Bridge | Progress update from calculator |
-| `ComparisonResultsMsg` | Bridge | Multi-algorithm comparison results |
-| `FinalResultMsg` | Bridge | Single algorithm result |
-| `ErrorMsg` | Bridge | Calculation error |
-| `CalculationCompleteMsg` | Background goroutine | Signals all calculations done |
-| `TickMsg` | tickCmd (500ms) | Periodic refresh trigger |
-| `MemStatsMsg` | Tick handler | Runtime memory statistics |
-| `SysStatsMsg` | Tick handler | System CPU/memory from gopsutil |
-| `IndicatorsMsg` | Tick handler | Performance indicators |
-| `ContextCancelledMsg` | watchContextCmd | Context cancellation notification |
-
-### 5. Model.Update (Elm Architecture)
-
-The `Update()` method processes messages immutably:
-- **Generation guard**: Each calculation has a generation counter. Messages from stale generations (after restart) are rejected.
-- State transitions are pure — the model is updated and new commands are returned.
-- Side effects happen only through Bubble Tea commands.
-
-### 6. Model.View (Panel Layout)
-
-The `View()` method renders five panels:
+The TUI shares the same `app.New()` path as CLI mode. Dispatch happens in `app.Run()`:
 
 ```
-┌──────────────────────────────────────┐
-│ Header: Title + Elapsed Time    (1r) │
-├────────────────────┬─────────────────┤
-│                    │ Metrics    (7r) │
-│ Logs        (60%)  ├─────────────────┤
-│                    │ Chart   (rest)  │
-├────────────────────┴─────────────────┤
-│ Footer: Key Bindings + Status   (1r) │
-└──────────────────────────────────────┘
+app.Run(ctx, out)
+  → if Config.TUI → runTUI(ctx, out)
 ```
 
-- **Header** (`header.go`): Title, algorithm name, elapsed time
-- **Footer** (`footer.go`): Key bindings help, status indicators
-- **Logs** (`logs.go`): 60% of width, scrollable calculation log
-- **Metrics** (`metrics.go`): 7 rows, right side — memory usage, GC stats, goroutine count
-- **Chart** (`chart.go`): Remaining right side — progress sparkline visualization
+## TUI Launch: `runTUI()`
 
-### 7. Key Bindings (`internal/tui/keymap.go`)
+**File**: `internal/app/app.go:180`
 
-| Key | Action |
-|-----|--------|
-| `q` / `Ctrl+C` | Quit application |
-| `Space` | Pause/Resume calculation |
-| `r` | Restart calculation (increments generation) |
-| `Up`/`Down` | Scroll log panel |
+```
+runTUI(ctx, out)
+  1. context.WithTimeout(ctx, Config.Timeout)
+  2. signal.NotifyContext(ctx, SIGINT, SIGTERM)
+  3. orchestration.GetCalculatorsToRun(Config, Factory)
+  4. tui.Run(ctx, calculatorsToRun, Config, Version)
+```
 
-## Failure Scenarios
+## TUI Initialization: `tui.Run()`
 
-| Error | Handling |
-|-------|----------|
-| Calculation error | `ErrorMsg` displayed in logs panel, footer shows error state |
-| Context timeout | `ContextCancelledMsg` triggers graceful shutdown |
-| User quit (q/Ctrl+C) | `tea.Quit` command, cleanup in model teardown |
-| Bridge send after quit | `programRef` nil check prevents panics |
+**File**: `internal/tui/model.go:303`
 
-## Architectural Notes
+```
+tui.Run(ctx, calculators, cfg, version)
+  1. NewModel(ctx, calculators, cfg, version)
+     - Create sub-models: HeaderModel, LogsModel, MetricsModel, ChartModel, FooterModel
+     - Create context with cancel for calculation lifecycle
+     - Create programRef{} (shared pointer that survives Bubble Tea model copies)
+  2. tea.NewProgram(model, tea.WithAltScreen())
+  3. model.ref.program = p                                // inject program reference
+  4. p.Run()                                              // start Bubble Tea event loop
+  5. Return exit code from final model
+```
 
-- The `programRef` pattern is critical: Bubble Tea copies the model by value, so a direct `*tea.Program` field would be stale after updates. The bridge stores the pointer in a shared reference object.
-- The generation guard prevents message races when the user restarts a calculation — stale messages from the previous run are silently dropped.
-- Lipgloss styles are defined in `styles.go` with `NO_COLOR` support via `internal/ui/colors.go`.
+## Bubble Tea Lifecycle (Elm Architecture)
+
+### Init()
+
+**File**: `internal/tui/model.go:77`
+
+```
+Model.Init() → tea.Batch(
+  tickCmd()                                               // 500ms periodic tick
+  startCalculationCmd(ref, ctx, calculators, cfg, gen)   // launch calculation goroutine
+  watchContextCmd(ctx, gen)                               // watch for context cancellation
+)
+```
+
+### startCalculationCmd()
+
+**File**: `internal/tui/model.go:324`
+
+This is the key bridge between TUI and the orchestration layer. It runs
+in a background goroutine and sends results as Bubble Tea messages:
+
+```
+startCalculationCmd(ref, ctx, calculators, cfg, gen)
+  1. TUIProgressReporter{ref} + TUIResultPresenter{ref}
+  2. orchestration.ExecuteCalculations(ctx, calculators, cfg, progressReporter, io.Discard)
+     - Progress flows: progressChan → TUIProgressReporter.DisplayProgress()
+       → ref.Send(ProgressMsg{}) → Bubble Tea event loop → Model.Update()
+  3. orchestration.AnalyzeComparisonResults(results, cfg, presenter, io.Discard)
+     - Results flow: presenter.PresentComparisonTable() → ref.Send(ComparisonResultsMsg{})
+     - Final result: presenter.PresentResult() → ref.Send(FinalResultMsg{})
+  4. return CalculationCompleteMsg{ExitCode, Generation}
+```
+
+### Update() Message Handling
+
+**File**: `internal/tui/model.go:86`
+
+| Message Type | Source | Handler |
+|-------------|--------|---------|
+| `tea.KeyMsg` | User input | `handleKey()` — quit, pause, reset, scroll |
+| `tea.WindowSizeMsg` | Terminal resize | `layoutPanels()` — recalculate 60/40 split |
+| `ProgressMsg` | `TUIProgressReporter` | Update logs, chart, metrics, indicators |
+| `ProgressDoneMsg` | `TUIProgressReporter` | No-op (progress complete) |
+| `ComparisonResultsMsg` | `TUIResultPresenter` | Add results to logs panel |
+| `FinalResultMsg` | `TUIResultPresenter` | Add final result, compute indicators async |
+| `IndicatorsMsg` | `computeIndicatorsCmd` | Update metrics with bits/s, digits/s |
+| `ErrorMsg` | `TUIResultPresenter` | Display error, mark done |
+| `TickMsg` | `tickCmd()` | Sample memory + system stats (every 500ms) |
+| `MemStatsMsg` | `sampleMemStatsCmd` | Update runtime memory metrics |
+| `SysStatsMsg` | `sampleSysStatsCmd` | Update CPU/MEM sparklines |
+| `CalculationCompleteMsg` | `startCalculationCmd` | Mark done, set exit code |
+| `ContextCancelledMsg` | `watchContextCmd` | Mark done, quit |
+
+### View() Layout
+
+**File**: `internal/tui/model.go:231`
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ Header (title, version, elapsed time)            1 line │
+├──────────────────────────┬──────────────────────────────┤
+│                          │ Metrics (memory, GC, speed)  │
+│ Logs (scrollable)        │ ~7 lines                     │
+│ 60% width                ├──────────────────────────────┤
+│                          │ Chart (progress, ETA,        │
+│                          │ CPU/MEM sparklines)          │
+│                          │ 40% width                    │
+├──────────────────────────┴──────────────────────────────┤
+│ Footer (keyboard shortcuts, status)              1 line │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Reset Flow (R key)
+
+```
+handleKey(Reset)
+  1. cancel() current context
+  2. generation++
+  3. Create new context with cancel
+  4. Reset all sub-models (header, logs, chart, metrics, footer)
+  5. tea.Batch(tickCmd, startCalculationCmd, watchContextCmd)
+```
+
+## TUI Bridge: Progress and Result Adapters
+
+**File**: `internal/tui/bridge.go`
+
+The TUI bridge adapts orchestration interfaces to Bubble Tea messages:
+
+```
+TUIProgressReporter.DisplayProgress(wg, progressChan, numCalcs, _)
+  - Creates format.ProgressWithETA state tracker
+  - For each update from progressChan:
+    - Compute average progress and ETA
+    - ref.Send(ProgressMsg{...})                          // thread-safe via tea.Program.Send()
+  - ref.Send(ProgressDoneMsg{})
+
+TUIResultPresenter.PresentComparisonTable(results, _)
+  → ref.Send(ComparisonResultsMsg{Results})
+
+TUIResultPresenter.PresentResult(result, n, verbose, details, showValue, _)
+  → ref.Send(FinalResultMsg{...})
+
+TUIResultPresenter.HandleError(err, duration, _)
+  → ref.Send(ErrorMsg{Err, Duration})
+```
+
+## Mermaid Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant App as app.runTUI()
+    participant TUI as tui.Run()
+    participant BT as Bubble Tea
+    participant M as Model
+    participant Calc as startCalculationCmd
+    participant O as orchestration
+    participant PR as TUIProgressReporter
+    participant RP as TUIResultPresenter
+
+    App->>TUI: Run(ctx, calculators, cfg, version)
+    TUI->>M: NewModel(ctx, calculators, cfg, version)
+    TUI->>BT: tea.NewProgram(model, WithAltScreen)
+    TUI->>BT: p.Run()
+
+    BT->>M: Init()
+    M-->>BT: Batch(tick, startCalc, watchCtx)
+
+    BT->>Calc: startCalculationCmd (goroutine)
+    Calc->>O: ExecuteCalculations(ctx, calcs, cfg, PR, Discard)
+    O->>PR: DisplayProgress(wg, progressChan, n, _)
+
+    loop Progress Updates
+        PR->>BT: ref.Send(ProgressMsg)
+        BT->>M: Update(ProgressMsg)
+        M->>M: Update logs, chart, metrics
+    end
+
+    O-->>Calc: results
+    Calc->>O: AnalyzeComparisonResults(results, cfg, RP, Discard)
+    O->>RP: PresentComparisonTable(results)
+    RP->>BT: ref.Send(ComparisonResultsMsg)
+    O->>RP: PresentResult(result)
+    RP->>BT: ref.Send(FinalResultMsg)
+    O-->>Calc: exitCode
+    Calc-->>BT: CalculationCompleteMsg
+
+    BT->>M: Update(CalculationCompleteMsg)
+    M->>M: done=true, set exit code
+```
