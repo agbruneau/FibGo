@@ -181,8 +181,8 @@ graph TD
 | `internal/app` | Application lifecycle, command dispatching (completion/calibration/TUI/CLI modes), version info with ldflags injection. |
 | `internal/errors` | Custom error types (`ConfigError`, `CalculationError`) with standardized exit codes (0-4, 130). |
 | `internal/parallel` | `ErrorCollector` for thread-safe first-error aggregation across goroutines. |
-| `internal/format` | Duration and number formatting utilities shared by CLI and TUI. |
-| `internal/metrics` | Performance indicators: bits/s, digits/s, doubling steps/s. |
+| `internal/format` | Duration/number formatting and ETA display utilities shared by CLI and TUI. |
+| `internal/metrics` | Performance indicators (bits/s, digits/s, steps/s) and runtime memory statistics (`MemoryCollector`, `MemorySnapshot`). |
 | `internal/sysmon` | System-wide CPU and memory monitoring via gopsutil (used by TUI metrics panel). |
 | `internal/ui` | Color themes, terminal formatting, `NO_COLOR` support. |
 | `internal/testutil` | Shared test utilities (ANSI escape code stripping). |
@@ -443,10 +443,8 @@ Environment variables can override CLI flags. Priority: CLI flags > Environment 
 | `FIBCALC_CALIBRATE` | Enable calibration mode | `false` |
 | `FIBCALC_AUTO_CALIBRATE` | Enable automatic calibration | `false` |
 | `FIBCALC_CALIBRATION_PROFILE` | Path to calibration profile file | |
-| `NO_COLOR` | Disable colored output ([no-color.org](https://no-color.org/)) | |
-| `FIBCALC_LAST_DIGITS` | Compute last K digits only | `0` |
 | `FIBCALC_MEMORY_LIMIT` | Maximum memory budget | |
-| `FIBCALC_GC_CONTROL` | GC control mode | `auto` |
+| `NO_COLOR` | Disable colored output ([no-color.org](https://no-color.org/)) | |
 
 ---
 
@@ -472,27 +470,35 @@ go test -fuzz=FuzzFastDoubling ./internal/fibonacci/    # Run fuzz tests
 If `make` is available:
 
 ```bash
-make build          # Build binary to ./build/fibcalc (uses PGO if profile exists)
-make test           # go test -v -race -cover ./...
-make test-short     # go test -v -short ./...
-make lint           # golangci-lint run ./...
-make format         # Format Go code (go fmt + gofmt -s)
-make check          # format + lint + test
-make coverage       # Generate coverage report (coverage.html)
-make benchmark      # Run performance benchmarks
-make security       # gosec ./...
-make clean          # Remove build artifacts
-make build-all      # Build for Linux, Windows, macOS
-make pgo-profile    # Generate CPU profile for PGO
-make build-pgo      # Build with Profile-Guided Optimization
-make pgo-rebuild    # Full PGO workflow (profile + build)
-make run            # Build and run with default settings
-make run-fast       # Quick run with small n value
-make run-calibrate  # Run calibration mode
-make install        # Install binary to $GOPATH/bin
-make install-tools  # Install golangci-lint and gosec
-make tidy           # Tidy go.mod and go.sum
-make help           # Display all available targets
+make build            # Build binary to ./build/fibcalc (uses PGO if profile exists)
+make test             # go test -v -race -cover ./...
+make test-short       # go test -v -short ./...
+make lint             # golangci-lint run ./...
+make format           # Format Go code (go fmt + gofmt -s)
+make check            # format + lint + test
+make coverage         # Generate coverage report (coverage.html)
+make benchmark        # Run performance benchmarks
+make security         # gosec ./...
+make clean            # Remove build artifacts
+make build-all        # Build for Linux, Windows, macOS
+make pgo-profile      # Generate CPU profile for PGO
+make pgo-check        # Verify PGO profile exists and is valid
+make build-pgo        # Build with Profile-Guided Optimization
+make build-pgo-all    # Build for all platforms with PGO
+make pgo-rebuild      # Full PGO workflow (profile + build)
+make pgo-clean        # Clean PGO profile and related artifacts
+make version          # Build and display version information
+make run              # Build and run with default settings
+make run-fast         # Quick run with small n value
+make run-calibrate    # Run calibration mode
+make install          # Install binary to $GOPATH/bin
+make install-tools    # Install golangci-lint and gosec
+make install-mockgen  # Install mockgen tool for mock generation
+make generate-mocks   # Generate mock implementations (go generate)
+make tidy             # Tidy go.mod and go.sum
+make deps             # Download dependencies
+make upgrade          # Upgrade dependencies
+make help             # Display all available targets
 ```
 
 ### Project Structure
@@ -535,7 +541,10 @@ fibcalc/
 ├── .golangci.yml            # Linter configuration (24 linters)
 ├── .env.example             # Environment variable reference
 ├── Makefile                 # Build, test, lint, PGO targets
-└── CLAUDE.md                # AI assistant guidance
+├── CHANGELOG.md             # Version history (Keep a Changelog)
+├── CONTRIBUTING.md          # Contribution guidelines
+├── CLAUDE.md                # AI assistant guidance
+└── LICENSE                  # Apache License 2.0
 ```
 
 ---
