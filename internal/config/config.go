@@ -71,6 +71,9 @@ type AppConfig struct {
 	ShowValue bool
 	// TUI, if true, launches the interactive TUI dashboard instead of CLI mode.
 	TUI bool
+	// LastDigits, if > 0, computes only the last K decimal digits of F(N).
+	// Uses O(K) memory via modular arithmetic.
+	LastDigits int
 }
 
 // Validate checks the semantic consistency of the configuration parameters.
@@ -154,6 +157,7 @@ func ParseConfig(programName string, args []string, errorWriter io.Writer, avail
 	fs.BoolVar(&config.ShowValue, "calculate", false, "Display the calculated value (disabled by default).")
 	fs.BoolVar(&config.ShowValue, "c", false, "Display the calculated value (shorthand).")
 	fs.BoolVar(&config.TUI, "tui", false, "Launch interactive TUI dashboard.")
+	fs.IntVar(&config.LastDigits, "last-digits", 0, "Compute only the last K decimal digits (uses O(K) memory).")
 	setCustomUsage(fs)
 
 	if err := fs.Parse(args); err != nil {

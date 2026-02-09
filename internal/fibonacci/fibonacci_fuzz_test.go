@@ -208,6 +208,31 @@ func FuzzFibonacciIdentities(f *testing.F) {
 	})
 }
 
+// FuzzFastDoublingMod verifies modular Fibonacci computation for random inputs.
+func FuzzFastDoublingMod(f *testing.F) {
+	f.Add(uint64(0), int64(1000))
+	f.Add(uint64(1), int64(1000))
+	f.Add(uint64(100), int64(10000))
+	f.Add(uint64(93), int64(1000000))
+
+	f.Fuzz(func(t *testing.T, n uint64, modVal int64) {
+		if modVal <= 0 || modVal > 1_000_000_000 {
+			t.Skip()
+		}
+		if n > 100_000 {
+			t.Skip()
+		}
+		m := big.NewInt(modVal)
+		result, err := FastDoublingMod(n, m)
+		if err != nil {
+			t.Fatalf("error: %v", err)
+		}
+		if result.Sign() < 0 || result.Cmp(m) >= 0 {
+			t.Errorf("result %s out of range [0, %s)", result, m)
+		}
+	})
+}
+
 // FuzzProgressMonotonicity verifies that progress updates are always monotonically increasing.
 func FuzzProgressMonotonicity(f *testing.F) {
 	f.Add(uint64(100))

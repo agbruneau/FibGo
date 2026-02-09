@@ -6,9 +6,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math/big"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/agbru/fibcalc/internal/calibration"
 	"github.com/agbru/fibcalc/internal/cli"
@@ -189,6 +191,11 @@ func (a *Application) runTUI(ctx context.Context, _ io.Writer) int {
 
 // runCalculate orchestrates the execution of the CLI calculation command.
 func (a *Application) runCalculate(ctx context.Context, out io.Writer) int {
+	// Partial computation mode: last K digits only
+	if a.Config.LastDigits > 0 {
+		return a.runLastDigits(ctx, out)
+	}
+
 	// Setup lifecycle (timeout + signals)
 	ctx, cancelTimeout := context.WithTimeout(ctx, a.Config.Timeout)
 	defer cancelTimeout()
@@ -226,6 +233,47 @@ func (a *Application) runCalculate(ctx context.Context, out io.Writer) int {
 	}
 
 	return a.analyzeResultsWithOutput(results, outputCfg, out)
+}
+
+// runLastDigits computes only the last K decimal digits of F(N) using modular
+// arithmetic, requiring O(K) memory regardless of N.
+func (a *Application) runLastDigits(ctx context.Context, out io.Writer) int {
+	ctx, cancelTimeout := context.WithTimeout(ctx, a.Config.Timeout)
+	defer cancelTimeout()
+	ctx, stopSignals := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stopSignals()
+
+	k := a.Config.LastDigits
+	n := a.Config.N
+
+	// Compute modulus = 10^k
+	mod := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(k)), nil)
+
+	if !a.Config.Quiet {
+		fmt.Fprintf(out, "Computing last %d digits of F(%d)...\n", k, n)
+	}
+
+	start := time.Now()
+	result, err := fibonacci.FastDoublingMod(n, mod)
+	elapsed := time.Since(start)
+
+	if err != nil {
+		fmt.Fprintf(a.ErrWriter, "Error: %v\n", err)
+		return apperrors.ExitErrorGeneric
+	}
+
+	// Format with leading zeros to exactly k digits
+	format := fmt.Sprintf("%%0%ds", k)
+	digits := fmt.Sprintf(format, result.String())
+
+	if a.Config.Quiet {
+		fmt.Fprintln(out, digits)
+	} else {
+		fmt.Fprintf(out, "Last %d digits of F(%d): %s\n", k, n, digits)
+		fmt.Fprintf(out, "Computed in %s\n", elapsed.Round(time.Millisecond))
+	}
+
+	return apperrors.ExitSuccess
 }
 
 func (a *Application) analyzeResultsWithOutput(results []orchestration.CalculationResult, outputCfg cli.OutputConfig, out io.Writer) int {
