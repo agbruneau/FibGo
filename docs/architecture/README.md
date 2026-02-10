@@ -23,10 +23,10 @@ The Fibonacci Calculator is designed according to **Clean Architecture** princip
 
 | Diagram | Description |
 |---------|-------------|
-| [system-context.mermaid](../../docs/architecture/system-context.mermaid) | Level 1 — system context |
-| [container-diagram.mermaid](../../docs/architecture/container-diagram.mermaid) | Level 2 — container view |
-| [component-diagram.mermaid](../../docs/architecture/component-diagram.mermaid) | Level 3 — component view |
-| [dependency-graph.mermaid](../../docs/architecture/dependency-graph.mermaid) | Package dependency graph |
+| [system-context.mermaid](system-context.mermaid) | Level 1 — system context |
+| [container-diagram.mermaid](container-diagram.mermaid) | Level 2 — container view |
+| [component-diagram.mermaid](component-diagram.mermaid) | Level 3 — component view |
+| [dependency-graph.mermaid](dependency-graph.mermaid) | Package dependency graph |
 
 ### Execution Flows
 
@@ -37,7 +37,7 @@ The Fibonacci Calculator is designed according to **Clean Architecture** princip
 | [flows/config-flow.md](flows/config-flow.md) | Configuration resolution flow |
 | [flows/algorithm-flows.md](flows/algorithm-flows.md) | Algorithm execution flows (Fast Doubling, Matrix, FFT) |
 
-### Operational Guides (in `Docs/`)
+### Operational Guides (in `docs/`)
 
 | Document | Description |
 |----------|-------------|
@@ -47,7 +47,7 @@ The Fibonacci Calculator is designed according to **Clean Architecture** princip
 | [../CALIBRATION.md](../CALIBRATION.md) | Hardware-adaptive calibration |
 | [../TUI_GUIDE.md](../TUI_GUIDE.md) | TUI dashboard user guide |
 
-### Algorithm Deep-Dives (in `Docs/algorithms/`)
+### Algorithm Deep-Dives (in `docs/algorithms/`)
 
 | Document | Description |
 |----------|-------------|

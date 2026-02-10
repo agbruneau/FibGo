@@ -71,8 +71,8 @@ Previous report (pre-audit) had 6 WARNINGs. All have been resolved.
 
 **Auditor**: Phase B2
 **Files verified**:
-- `Docs/architecture/README.md` (Key Interfaces section)
-- `Docs/architecture/patterns/design-patterns.md`
+- `docs/architecture/README.md` (Key Interfaces section)
+- `docs/architecture/patterns/design-patterns.md`
 - `CLAUDE.md` (Key Interfaces and Key Patterns sections)
 
 ### Results
@@ -125,9 +125,9 @@ Previous report (pre-audit) had 6 WARNINGs. All have been resolved.
 
 **Auditor**: Phase B3
 **Files verified**:
-- `Docs/architecture/README.md` (Data Flow section)
+- `docs/architecture/README.md` (Data Flow section)
 - `README.md` (Architecture / Data Flow section)
-- New flow documentation created in `Docs/architecture/flows/`
+- New flow documentation created in `docs/architecture/flows/`
 
 ### Results
 
@@ -163,12 +163,12 @@ Previous report (pre-audit) had 6 WARNINGs. All have been resolved.
 **Auditor**: Phase B4
 **Files verified**:
 - `CLAUDE.md`
-- `Docs/BUILD.md`
-- `Docs/TESTING.md`
-- `Docs/PERFORMANCE.md`
-- `Docs/algorithms/FFT.md`
+- `docs/BUILD.md`
+- `docs/TESTING.md`
+- `docs/PERFORMANCE.md`
+- `docs/algorithms/FFT.md`
 - `.env.example`
-- `Docs/calibration/CALIBRATION.md`
+- `docs/calibration/CALIBRATION.md`
 
 ### Results
 
@@ -211,10 +211,10 @@ Previous report (pre-audit) had 6 WARNINGs. All have been resolved.
 2. Threshold descriptions clarified (0 = auto with hardware-adaptive estimation)
 3. Comment formatting standardized
 
-**Docs/BUILD.md** (1 fix):
+**docs/BUILD.md** (1 fix):
 1. GMP registration function name corrected
 
-**Docs/algorithms/FFT.md** (1 fix):
+**docs/algorithms/FFT.md** (1 fix):
 1. Minor technical description alignment
 
 ---

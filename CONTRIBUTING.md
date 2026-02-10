@@ -331,8 +331,8 @@ Documentation files:
 | File                       | Purpose                         |
 | -------------------------- | ------------------------------- |
 | `README.md`                | Main project documentation      |
-| `Docs/architecture/README.md` | Architecture hub (source of truth) |
-| `Docs/PERFORMANCE.md`        | Performance tuning                 |
+| `docs/architecture/README.md` | Architecture hub (source of truth) |
+| `docs/PERFORMANCE.md`        | Performance tuning                 |
 
 ## Reporting Issues
 

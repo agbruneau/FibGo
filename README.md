@@ -77,7 +77,7 @@ FibCalc serves as both a practical high-performance tool and a reference impleme
 - **Interface-Based Decoupling**: The orchestration layer uses `ProgressReporter` and `ResultPresenter` interfaces to avoid depending on CLI, enabling testability and alternative presentations.
 - **Strategy + Interface Segregation (ISP)**: Narrow `Multiplier` interface for basic operations, wider `DoublingStepExecutor` for optimized doubling steps. Three concrete strategies: `AdaptiveStrategy`, `FFTOnlyStrategy`, `KaratsubaStrategy`. The legacy `MultiplicationStrategy` type alias is deprecated.
 - **Framework Pattern**: `DoublingFramework` and `MatrixFramework` encapsulate algorithm loops, accepting pluggable strategies.
-- **Modern CLI**: Features progress spinners, ETA calculation, formatted output, and colour themes.
+- **Modern CLI**: Features progress spinners, ETA calculation, formatted output, and color themes.
 - **Interactive TUI Dashboard**: Optional btop-inspired terminal dashboard (`--tui`) with real-time progress logs, system memory metrics, progress bar with ETA, sparkline charts, and keyboard navigation — powered by [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ---
@@ -118,7 +118,7 @@ $$
 
 > **Implementation note**: The codebase uses the equivalent reformulation `F(2k) = 2·F(k)·F(k+1) - F(k)²` which eliminates a temporary variable. Both are algebraically identical (expand `F(k)·(2F(k+1) - F(k))` to verify).
 
-This reduces the complexity to $O(\log n)$ operations. Each step roughly doubles the index, hence "Fast Doubling". See [Docs/algorithms/FAST_DOUBLING.md](Docs/algorithms/FAST_DOUBLING.md) for details.
+This reduces the complexity to $O(\log n)$ operations. Each step roughly doubles the index, hence "Fast Doubling". See [docs/algorithms/FAST_DOUBLING.md](docs/algorithms/FAST_DOUBLING.md) for details.
 
 ### 2. Matrix Exponentiation & Strassen's Algorithm
 
@@ -128,7 +128,7 @@ $$
 \begin{pmatrix} F_{n+1} & F_n \\ F_n & F_{n-1} \end{pmatrix} = \begin{pmatrix} 1 & 1 \\ 1 & 0 \end{pmatrix}^n
 $$
 
-For large matrices, FibCalc employs **Strassen's Algorithm**, which reduces the number of multiplications in a $2 \times 2$ matrix product from 8 to 7. While this introduces more additions, it is beneficial when multiplication is significantly more expensive than addition (i.e., for very large `big.Int` values). Additionally, **symmetric matrix squaring** reduces the squaring operation from 8 to 4 multiplications by exploiting the symmetry of the Fibonacci Q-matrix. See [Docs/algorithms/MATRIX.md](Docs/algorithms/MATRIX.md) for details.
+For large matrices, FibCalc employs **Strassen's Algorithm**, which reduces the number of multiplications in a $2 \times 2$ matrix product from 8 to 7. While this introduces more additions, it is beneficial when multiplication is significantly more expensive than addition (i.e., for very large `big.Int` values). Additionally, **symmetric matrix squaring** reduces the squaring operation from 8 to 4 multiplications by exploiting the symmetry of the Fibonacci Q-matrix. See [docs/algorithms/MATRIX.md](docs/algorithms/MATRIX.md) for details.
 
 ### 3. FFT-Based Multiplication
 
@@ -138,9 +138,9 @@ $$
 A \times B = \text{IDFT}(\text{DFT}(A) \cdot \text{DFT}(B))
 $$
 
-This allows calculating numbers with billions of digits feasible. See [Docs/algorithms/FFT.md](Docs/algorithms/FFT.md) for details.
+This allows calculating numbers with billions of digits feasible. See [docs/algorithms/FFT.md](docs/algorithms/FFT.md) for details.
 
-> **Algorithm deep dives**: [Comparison](Docs/algorithms/COMPARISON.md) | [BigFFT Internals](Docs/algorithms/BIGFFT.md) | [GMP](Docs/algorithms/GMP.md) | [Progress Bar](Docs/algorithms/PROGRESS_BAR_ALGORITHM.md)
+> **Algorithm deep dives**: [Comparison](docs/algorithms/COMPARISON.md) | [BigFFT Internals](docs/algorithms/BIGFFT.md) | [GMP](docs/algorithms/GMP.md) | [Progress Bar](docs/algorithms/PROGRESS_BAR_ALGORITHM.md)
 
 ---
 
@@ -187,7 +187,7 @@ graph TD
 | `internal/ui` | Color themes, terminal formatting, `NO_COLOR` support. |
 | `internal/testutil` | Shared test utilities (ANSI escape code stripping). |
 
-> **Full architecture documentation**: [Docs/architecture/README.md](Docs/architecture/README.md) | [Design Patterns](Docs/architecture/patterns/design-patterns.md)
+> **Full architecture documentation**: [docs/architecture/README.md](docs/architecture/README.md) | [Design Patterns](docs/architecture/patterns/design-patterns.md)
 
 ---
 
@@ -358,7 +358,7 @@ FibCalc is optimized for speed. Below is a summary of performance characteristic
 - **Use `matrix`** for educational purposes or verification.
 - **Use `fft`** primarily for benchmarking the multiplication engine itself, or for $N > 100,000,000$ where it becomes very competitive.
 
-> **Full performance guide**: [Docs/PERFORMANCE.md](Docs/PERFORMANCE.md)
+> **Full performance guide**: [docs/PERFORMANCE.md](docs/PERFORMANCE.md)
 
 ---
 
@@ -400,7 +400,7 @@ Golden reference values in `internal/fibonacci/testdata/fibonacci_golden.json` a
 
 End-to-end CLI integration tests in `test/e2e/` validate the full application lifecycle.
 
-> **Full testing guide**: [Docs/TESTING.md](Docs/TESTING.md)
+> **Full testing guide**: [docs/TESTING.md](docs/TESTING.md)
 
 ---
 
@@ -524,7 +524,7 @@ fibcalc/
 │   ├── sysmon/              # System CPU/memory monitoring
 │   ├── ui/                  # Color themes, NO_COLOR support
 │   └── testutil/            # Shared test utilities
-├── Docs/
+├── docs/
 │   ├── PERFORMANCE.md
 │   ├── BUILD.md
 │   ├── TESTING.md
