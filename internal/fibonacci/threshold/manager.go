@@ -1,10 +1,12 @@
 // This file implements dynamic threshold adjustment during calculation.
 
-package fibonacci
+package threshold
 
 import (
 	"sync"
 	"time"
+
+	"github.com/rs/zerolog"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,7 +38,8 @@ const (
 // DynamicThresholdManager adjusts FFT and parallel thresholds during calculation
 // based on observed performance metrics.
 type DynamicThresholdManager struct {
-	mu sync.RWMutex
+	mu     sync.RWMutex
+	logger zerolog.Logger
 
 	// Current thresholds (can be adjusted during calculation)
 	currentFFTThreshold      int
@@ -72,6 +75,7 @@ type DynamicThresholdManager struct {
 // NewDynamicThresholdManager creates a new manager with the given initial thresholds.
 func NewDynamicThresholdManager(fftThreshold, parallelThreshold int) *DynamicThresholdManager {
 	return &DynamicThresholdManager{
+		logger:                    zerolog.Nop(),
 		currentFFTThreshold:       fftThreshold,
 		currentParallelThreshold:  parallelThreshold,
 		originalFFTThreshold:      fftThreshold,
@@ -92,12 +96,18 @@ func NewDynamicThresholdManagerFromConfig(cfg DynamicThresholdConfig) *DynamicTh
 	}
 
 	return &DynamicThresholdManager{
+		logger:                    zerolog.Nop(),
 		currentFFTThreshold:       cfg.InitialFFTThreshold,
 		currentParallelThreshold:  cfg.InitialParallelThreshold,
 		originalFFTThreshold:      cfg.InitialFFTThreshold,
 		originalParallelThreshold: cfg.InitialParallelThreshold,
 		adjustmentInterval:        interval,
 	}
+}
+
+// SetLogger configures the logger for threshold adjustment events.
+func (m *DynamicThresholdManager) SetLogger(l zerolog.Logger) {
+	m.logger = l
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -172,6 +182,8 @@ func (m *DynamicThresholdManager) ShouldAdjust() (newFFT, newParallel int, adjus
 	parallelChanged := m.significantChange(m.currentParallelThreshold, newParallel)
 
 	if fftChanged || parallelChanged {
+		oldFFT := m.currentFFTThreshold
+		oldParallel := m.currentParallelThreshold
 		if fftChanged {
 			m.currentFFTThreshold = newFFT
 		}
@@ -179,6 +191,15 @@ func (m *DynamicThresholdManager) ShouldAdjust() (newFFT, newParallel int, adjus
 			m.currentParallelThreshold = newParallel
 		}
 		m.lastAdjustment = time.Now()
+		m.logger.Debug().
+			Int("iteration", m.iterationCount).
+			Bool("fft_changed", fftChanged).
+			Int("fft_old", oldFFT).
+			Int("fft_new", m.currentFFTThreshold).
+			Bool("parallel_changed", parallelChanged).
+			Int("parallel_old", oldParallel).
+			Int("parallel_new", m.currentParallelThreshold).
+			Msg("thresholds adjusted")
 		return m.currentFFTThreshold, m.currentParallelThreshold, true
 	}
 
@@ -212,111 +233,118 @@ func (m *DynamicThresholdManager) getActiveMetrics() []IterationMetric {
 	return result
 }
 
-// analyzeFFTThreshold analyzes metrics to determine optimal FFT threshold.
-func (m *DynamicThresholdManager) analyzeFFTThreshold() int {
+// thresholdAnalysisParams captures the per-threshold configuration differences
+// used by analyzeThreshold to avoid duplicated analysis logic.
+type thresholdAnalysisParams struct {
+	// predicate selects which metrics belong to the "optimized" mode (FFT or parallel).
+	predicate func(IterationMetric) bool
+	// speedupThreshold is the minimum ratio to consider the optimized mode faster.
+	speedupThreshold float64
+	// lowerNumerator/raiseNumerator over 10: adjustment factors when lowering/raising.
+	lowerNumerator int
+	raiseNumerator int
+	// minThreshold is the floor for the threshold value.
+	minThreshold int
+	// maxCapMultiplier is the multiplier against the original threshold for the ceiling.
+	maxCapMultiplier int
+	// currentThreshold and originalThreshold are the values being analyzed.
+	currentThreshold  int
+	originalThreshold int
+}
+
+// filterMetricsByMode partitions metrics into two groups based on the predicate.
+// Returns (matching, non-matching) slices.
+func filterMetricsByMode(metrics []IterationMetric, predicate func(IterationMetric) bool) (matching, nonMatching []IterationMetric) {
+	matching = make([]IterationMetric, 0, len(metrics))
+	nonMatching = make([]IterationMetric, 0, len(metrics))
+	for _, metric := range metrics {
+		if predicate(metric) {
+			matching = append(matching, metric)
+		} else {
+			nonMatching = append(nonMatching, metric)
+		}
+	}
+	return matching, nonMatching
+}
+
+// calculateSpeedupRatio returns the speedup ratio of baseline over optimized.
+// Returns 0 if either average is non-positive.
+func calculateSpeedupRatio(avgOptimized, avgBaseline float64) float64 {
+	if avgOptimized <= 0 || avgBaseline <= 0 {
+		return 0
+	}
+	return avgBaseline / avgOptimized
+}
+
+// analyzeThreshold is the common analysis logic for both FFT and parallel thresholds.
+// It partitions metrics, computes a speedup ratio, and returns an adjusted threshold.
+func (m *DynamicThresholdManager) analyzeThreshold(params thresholdAnalysisParams) int {
 	metrics := m.getActiveMetrics()
 	if len(metrics) == 0 {
-		return m.currentFFTThreshold
+		return params.currentThreshold
 	}
 
-	// Find the bit length where FFT started being used
-	// and analyze if it was beneficial based on timing trends
-	var fftMetrics, nonFFTMetrics []IterationMetric
-	// Pre-allocate assuming 50/50 split to avoid frequent re-allocation
-	fftMetrics = make([]IterationMetric, 0, len(metrics))
-	nonFFTMetrics = make([]IterationMetric, 0, len(metrics))
+	optimized, baseline := filterMetricsByMode(metrics, params.predicate)
+	if len(optimized) == 0 || len(baseline) == 0 {
+		return params.currentThreshold
+	}
 
-	for _, metric := range metrics {
-		if metric.UsedFFT {
-			fftMetrics = append(fftMetrics, metric)
-		} else {
-			nonFFTMetrics = append(nonFFTMetrics, metric)
+	ratio := calculateSpeedupRatio(m.avgTimePerBit(optimized), m.avgTimePerBit(baseline))
+	if ratio == 0 {
+		return params.currentThreshold
+	}
+
+	return m.applyThresholdAdjustment(ratio, params)
+}
+
+// applyThresholdAdjustment applies the lower/raise logic based on the speedup ratio.
+func (m *DynamicThresholdManager) applyThresholdAdjustment(ratio float64, params thresholdAnalysisParams) int {
+	if ratio > params.speedupThreshold {
+		// Optimized mode is faster, lower threshold
+		newThreshold := params.currentThreshold * params.lowerNumerator / 10
+		if newThreshold < params.minThreshold {
+			newThreshold = params.minThreshold
 		}
+		return newThreshold
 	}
-
-	// Not enough data to analyze
-	if len(fftMetrics) == 0 || len(nonFFTMetrics) == 0 {
-		return m.currentFFTThreshold
-	}
-
-	// Calculate average time per bit for FFT vs non-FFT
-	avgFFTTimePerBit := m.avgTimePerBit(fftMetrics)
-	avgNonFFTTimePerBit := m.avgTimePerBit(nonFFTMetrics)
-
-	// If FFT is significantly faster per bit, lower the threshold
-	if avgFFTTimePerBit > 0 && avgNonFFTTimePerBit > 0 {
-		ratio := avgNonFFTTimePerBit / avgFFTTimePerBit
-		if ratio > FFTSpeedupThreshold {
-			// FFT is faster, lower threshold by 10%
-			newThreshold := m.currentFFTThreshold * 9 / 10
-			// Don't go below a reasonable minimum
-			if newThreshold < 100000 {
-				newThreshold = 100000
-			}
-			return newThreshold
-		} else if ratio < 1.0/FFTSpeedupThreshold {
-			// FFT is slower, raise threshold by 10%
-			newThreshold := m.currentFFTThreshold * 11 / 10
-			// Don't exceed original by too much
-			if newThreshold > m.originalFFTThreshold*2 {
-				newThreshold = m.originalFFTThreshold * 2
-			}
-			return newThreshold
+	if ratio < 1.0/params.speedupThreshold {
+		// Optimized mode is slower, raise threshold
+		newThreshold := params.currentThreshold * params.raiseNumerator / 10
+		maxCap := params.originalThreshold * params.maxCapMultiplier
+		if newThreshold > maxCap {
+			newThreshold = maxCap
 		}
+		return newThreshold
 	}
+	return params.currentThreshold
+}
 
-	return m.currentFFTThreshold
+// analyzeFFTThreshold analyzes metrics to determine optimal FFT threshold.
+func (m *DynamicThresholdManager) analyzeFFTThreshold() int {
+	return m.analyzeThreshold(thresholdAnalysisParams{
+		predicate:         func(metric IterationMetric) bool { return metric.UsedFFT },
+		speedupThreshold:  FFTSpeedupThreshold,
+		lowerNumerator:    9,
+		raiseNumerator:    11,
+		minThreshold:      100000,
+		maxCapMultiplier:  2,
+		currentThreshold:  m.currentFFTThreshold,
+		originalThreshold: m.originalFFTThreshold,
+	})
 }
 
 // analyzeParallelThreshold analyzes metrics to determine optimal parallel threshold.
 func (m *DynamicThresholdManager) analyzeParallelThreshold() int {
-	metrics := m.getActiveMetrics()
-	if len(metrics) == 0 {
-		return m.currentParallelThreshold
-	}
-
-	// Analyze if parallelism was beneficial
-	var parallelMetrics, sequentialMetrics []IterationMetric
-	parallelMetrics = make([]IterationMetric, 0, len(metrics))
-	sequentialMetrics = make([]IterationMetric, 0, len(metrics))
-
-	for _, metric := range metrics {
-		if metric.UsedParallel {
-			parallelMetrics = append(parallelMetrics, metric)
-		} else {
-			sequentialMetrics = append(sequentialMetrics, metric)
-		}
-	}
-
-	// Not enough data
-	if len(parallelMetrics) == 0 || len(sequentialMetrics) == 0 {
-		return m.currentParallelThreshold
-	}
-
-	// Compare performance at similar bit lengths
-	avgParallelTimePerBit := m.avgTimePerBit(parallelMetrics)
-	avgSequentialTimePerBit := m.avgTimePerBit(sequentialMetrics)
-
-	if avgParallelTimePerBit > 0 && avgSequentialTimePerBit > 0 {
-		ratio := avgSequentialTimePerBit / avgParallelTimePerBit
-		if ratio > ParallelSpeedupThreshold {
-			// Parallel is faster, lower threshold
-			newThreshold := m.currentParallelThreshold * 8 / 10
-			if newThreshold < 1024 {
-				newThreshold = 1024
-			}
-			return newThreshold
-		} else if ratio < 1.0/ParallelSpeedupThreshold {
-			// Parallel is slower (overhead), raise threshold
-			newThreshold := m.currentParallelThreshold * 12 / 10
-			if newThreshold > m.originalParallelThreshold*4 {
-				newThreshold = m.originalParallelThreshold * 4
-			}
-			return newThreshold
-		}
-	}
-
-	return m.currentParallelThreshold
+	return m.analyzeThreshold(thresholdAnalysisParams{
+		predicate:         func(metric IterationMetric) bool { return metric.UsedParallel },
+		speedupThreshold:  ParallelSpeedupThreshold,
+		lowerNumerator:    8,
+		raiseNumerator:    12,
+		minThreshold:      1024,
+		maxCapMultiplier:  4,
+		currentThreshold:  m.currentParallelThreshold,
+		originalThreshold: m.originalParallelThreshold,
+	})
 }
 
 // avgTimePerBit calculates average time per bit across metrics.

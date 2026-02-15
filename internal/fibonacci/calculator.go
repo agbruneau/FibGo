@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/agbru/fibcalc/internal/bigfft"
+	"github.com/agbru/fibcalc/internal/fibonacci/memory"
 	"github.com/rs/zerolog/log"
 )
 
@@ -140,7 +141,7 @@ func (c *FibCalculator) CalculateWithObservers(ctx context.Context, subject *Pro
 	if gcMode == "" {
 		gcMode = "auto"
 	}
-	gcCtrl := NewGCController(gcMode, n)
+	gcCtrl := memory.NewGCController(gcMode, n)
 	gcCtrl.Begin()
 	defer gcCtrl.End()
 

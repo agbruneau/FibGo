@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/agbru/fibcalc/internal/config"
 	apperrors "github.com/agbru/fibcalc/internal/errors"
 	"github.com/agbru/fibcalc/internal/fibonacci"
+	"github.com/agbru/fibcalc/internal/progress"
 )
 
 // MockResultPresenter is a mock implementation of ResultPresenter for testing.
@@ -28,7 +28,7 @@ func (MockResultPresenter) HandleError(err error, duration time.Duration, out io
 // used for testing the orchestration logic without invoking real algorithms.
 type MockCalculator struct {
 	NameFunc      func() string
-	CalculateFunc func(ctx context.Context, reporter fibonacci.ProgressCallback, index int, n uint64, opts fibonacci.Options) (*big.Int, error)
+	CalculateFunc func(ctx context.Context, reporter progress.ProgressCallback, index int, n uint64, opts fibonacci.Options) (*big.Int, error)
 }
 
 // Name returns the mocked name of the calculator.
@@ -40,12 +40,12 @@ func (m *MockCalculator) Name() string {
 }
 
 // Calculate invokes the mocked CalculateFunc.
-func (m *MockCalculator) Calculate(ctx context.Context, progressChan chan<- fibonacci.ProgressUpdate, index int, n uint64, opts fibonacci.Options) (*big.Int, error) {
+func (m *MockCalculator) Calculate(ctx context.Context, progressChan chan<- progress.ProgressUpdate, index int, n uint64, opts fibonacci.Options) (*big.Int, error) {
 	if m.CalculateFunc != nil {
 		// Create a dummy reporter that sends to the channel
-		reporter := func(progress float64) {
+		reporter := func(pct float64) {
 			if progressChan != nil {
-				progressChan <- fibonacci.ProgressUpdate{CalculatorIndex: index, Value: progress}
+				progressChan <- progress.ProgressUpdate{CalculatorIndex: index, Value: pct}
 			}
 		}
 		return m.CalculateFunc(ctx, reporter, index, n, opts)
@@ -67,7 +67,7 @@ func TestExecuteCalculations(t *testing.T) {
 			name: "Single success",
 			calculators: []fibonacci.Calculator{
 				&MockCalculator{
-					CalculateFunc: func(ctx context.Context, reporter fibonacci.ProgressCallback, index int, n uint64, opts fibonacci.Options) (*big.Int, error) {
+					CalculateFunc: func(ctx context.Context, reporter progress.ProgressCallback, index int, n uint64, opts fibonacci.Options) (*big.Int, error) {
 						return big.NewInt(1), nil
 					},
 				},
@@ -79,7 +79,7 @@ func TestExecuteCalculations(t *testing.T) {
 			name: "Single failure",
 			calculators: []fibonacci.Calculator{
 				&MockCalculator{
-					CalculateFunc: func(ctx context.Context, reporter fibonacci.ProgressCallback, index int, n uint64, opts fibonacci.Options) (*big.Int, error) {
+					CalculateFunc: func(ctx context.Context, reporter progress.ProgressCallback, index int, n uint64, opts fibonacci.Options) (*big.Int, error) {
 						return nil, errors.New("mock error")
 					},
 				},
@@ -92,7 +92,7 @@ func TestExecuteCalculations(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			results := ExecuteCalculations(context.Background(), tt.calculators, config.AppConfig{}, NullProgressReporter{}, &DiscardWriter{})
+			results := ExecuteCalculations(context.Background(), tt.calculators, 0, fibonacci.Options{}, NullProgressReporter{}, &DiscardWriter{})
 			if len(results) != tt.expectedLen {
 				t.Errorf("expected %d results, got %d", tt.expectedLen, len(results))
 			}
@@ -156,7 +156,7 @@ func TestAnalyzeComparisonResults(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			status := AnalyzeComparisonResults(tt.results, config.AppConfig{}, MockResultPresenter{}, &DiscardWriter{})
+			status := AnalyzeComparisonResults(tt.results, PresentationOptions{}, MockResultPresenter{}, MockResultPresenter{}, &DiscardWriter{})
 			if status != tt.expectedStatus {
 				t.Errorf("expected status %d, got %d", tt.expectedStatus, status)
 			}

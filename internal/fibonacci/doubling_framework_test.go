@@ -2,6 +2,8 @@ package fibonacci
 
 import (
 	"testing"
+
+	"github.com/agbru/fibcalc/internal/fibonacci/threshold"
 )
 
 func TestNewDoublingFrameworkWithDynamicThresholds(t *testing.T) {
@@ -10,7 +12,7 @@ func TestNewDoublingFrameworkWithDynamicThresholds(t *testing.T) {
 	t.Run("Create with dynamic thresholds", func(t *testing.T) {
 		t.Parallel()
 		strategy := &AdaptiveStrategy{}
-		dtm := NewDynamicThresholdManager(1000000, 4096)
+		dtm := threshold.NewDynamicThresholdManager(1000000, 4096)
 
 		framework := NewDoublingFrameworkWithDynamicThresholds(strategy, dtm)
 
@@ -45,7 +47,7 @@ func TestNewDoublingFrameworkWithDynamicThresholds(t *testing.T) {
 	t.Run("Create with KaratsubaStrategy", func(t *testing.T) {
 		t.Parallel()
 		strategy := &KaratsubaStrategy{}
-		dtm := NewDynamicThresholdManager(1000000, 4096)
+		dtm := threshold.NewDynamicThresholdManager(1000000, 4096)
 
 		framework := NewDoublingFrameworkWithDynamicThresholds(strategy, dtm)
 

@@ -13,13 +13,14 @@ import (
 
 	"github.com/agbru/fibcalc/internal/config"
 	"github.com/agbru/fibcalc/internal/fibonacci"
+	"github.com/agbru/fibcalc/internal/progress"
 )
 
 // MockFailingCalculator simulates calculation errors
 type MockFailingCalculator struct{}
 
 func (m *MockFailingCalculator) Name() string { return "fail" }
-func (m *MockFailingCalculator) Calculate(ctx context.Context, progressChan chan<- fibonacci.ProgressUpdate, calcIndex int, n uint64, opts fibonacci.Options) (*big.Int, error) {
+func (m *MockFailingCalculator) Calculate(ctx context.Context, progressChan chan<- progress.ProgressUpdate, calcIndex int, n uint64, opts fibonacci.Options) (*big.Int, error) {
 	return nil, errors.New("simulated error")
 }
 
@@ -29,7 +30,7 @@ type MockBlockingCalculator struct {
 }
 
 func (m *MockBlockingCalculator) Name() string { return "block" }
-func (m *MockBlockingCalculator) Calculate(ctx context.Context, progressChan chan<- fibonacci.ProgressUpdate, calcIndex int, n uint64, opts fibonacci.Options) (*big.Int, error) {
+func (m *MockBlockingCalculator) Calculate(ctx context.Context, progressChan chan<- progress.ProgressUpdate, calcIndex int, n uint64, opts fibonacci.Options) (*big.Int, error) {
 	if m.BlockChan != nil {
 		<-m.BlockChan
 	}
@@ -55,7 +56,7 @@ func TestRunCalibrationWithOptions_LoadProfile(t *testing.T) {
 	// Registry not needed if loading profile succeeds early
 	registry := map[string]fibonacci.Calculator{}
 	ctx := context.Background()
-	exitCode := RunCalibrationWithOptions(ctx, io.Discard, registry, opts)
+	exitCode := RunCalibrationWithOptions(ctx, io.Discard, registry, opts, noopProgressDisplay, noopColorProvider{})
 
 	if exitCode != 0 {
 		t.Errorf("Expected exit code 0, got %d", exitCode)
@@ -73,7 +74,7 @@ func TestRunCalibrationWithOptions_CalculationError(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	exitCode := RunCalibrationWithOptions(ctx, io.Discard, registry, opts)
+	exitCode := RunCalibrationWithOptions(ctx, io.Discard, registry, opts, noopProgressDisplay, noopColorProvider{})
 
 	// Should fail because calculation failed
 	if exitCode == 0 {
@@ -101,7 +102,7 @@ func TestRunCalibrationWithOptions_ContextCanceled(t *testing.T) {
 		close(blockChan) // Unblock to allow clean exit if needed
 	}()
 
-	exitCode := RunCalibrationWithOptions(ctx, io.Discard, registry, opts)
+	exitCode := RunCalibrationWithOptions(ctx, io.Discard, registry, opts, noopProgressDisplay, noopColorProvider{})
 
 	// Should fail due to cancellation
 	if exitCode == 0 {

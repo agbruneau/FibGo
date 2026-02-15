@@ -1,119 +1,123 @@
 package tui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"github.com/charmbracelet/lipgloss"
 
-// Orange-dominant dark theme palette inspired by btop.
-var (
-	colorBg      = lipgloss.Color("#000000")
-	colorText    = lipgloss.Color("#E0E0E0")
-	colorBorder  = lipgloss.Color("#FF6600")
-	colorAccent  = lipgloss.Color("#FF8C00")
-	colorSuccess = lipgloss.Color("#9ece6a")
-	colorWarning = lipgloss.Color("#FFB347")
-	colorError   = lipgloss.Color("#FF4444")
-	colorDim     = lipgloss.Color("#666666")
-	colorCyan    = lipgloss.Color("#FF8C00")
-	colorMagenta = lipgloss.Color("#4488FF")
+	"github.com/agbru/fibcalc/internal/ui"
 )
 
-// panelStyle is the base style for bordered panels.
-var panelStyle = lipgloss.NewStyle().
-	Border(lipgloss.RoundedBorder()).
-	BorderForeground(colorBorder).
-	Background(colorBg).
-	Foreground(colorText)
+// Style variables for the TUI dashboard.
+// Initialized from the ui theme system via initTUIStyles().
+var (
+	panelStyle        lipgloss.Style
+	headerStyle       lipgloss.Style
+	titleStyle        lipgloss.Style
+	versionStyle      lipgloss.Style
+	elapsedStyle      lipgloss.Style
+	logTimeStyle      lipgloss.Style
+	logAlgoStyle      lipgloss.Style
+	logProgressStyle  lipgloss.Style
+	logSuccessStyle   lipgloss.Style
+	logErrorStyle     lipgloss.Style
+	metricLabelStyle  lipgloss.Style
+	metricValueStyle  lipgloss.Style
+	chartBarStyle     lipgloss.Style
+	chartEmptyStyle   lipgloss.Style
+	footerKeyStyle    lipgloss.Style
+	footerDescStyle   lipgloss.Style
+	statusRunningStyle lipgloss.Style
+	statusPausedStyle  lipgloss.Style
+	statusDoneStyle    lipgloss.Style
+	statusErrorStyle   lipgloss.Style
+	cpuSparklineStyle  lipgloss.Style
+	memSparklineStyle  lipgloss.Style
+)
 
-// headerStyle renders the top bar.
-var headerStyle = lipgloss.NewStyle().
-	Bold(true).
-	Foreground(colorAccent).
-	Background(colorBg).
-	Padding(0, 1)
+func init() {
+	initTUIStyles()
+}
 
-// titleStyle for the FibGo Monitor title.
-var titleStyle = lipgloss.NewStyle().
-	Bold(true).
-	Foreground(colorAccent)
+// initTUIStyles rebuilds all TUI styles from the current ui theme.
+// Called at package init and again from Run() after InitTheme has been invoked.
+func initTUIStyles() {
+	t := ui.GetCurrentTUITheme()
 
-// versionStyle for the version label.
-var versionStyle = lipgloss.NewStyle().
-	Foreground(colorDim)
+	panelStyle = lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(t.Border).
+		Background(t.Bg).
+		Foreground(t.Text)
 
-// elapsedStyle for the elapsed time.
-var elapsedStyle = lipgloss.NewStyle().
-	Foreground(colorCyan)
+	headerStyle = lipgloss.NewStyle().
+		Bold(true).
+		Foreground(t.Accent).
+		Background(t.Bg).
+		Padding(0, 1)
 
-// logTimeStyle for timestamps in log entries.
-var logTimeStyle = lipgloss.NewStyle().
-	Foreground(colorDim)
+	titleStyle = lipgloss.NewStyle().
+		Bold(true).
+		Foreground(t.Accent)
 
-// logAlgoStyle for algorithm names.
-var logAlgoStyle = lipgloss.NewStyle().
-	Foreground(colorMagenta)
+	versionStyle = lipgloss.NewStyle().
+		Foreground(t.Dim)
 
-// logProgressStyle for progress percentages.
-var logProgressStyle = lipgloss.NewStyle().
-	Foreground(colorAccent)
+	elapsedStyle = lipgloss.NewStyle().
+		Foreground(t.Accent)
 
-// logSuccessStyle for completed entries.
-var logSuccessStyle = lipgloss.NewStyle().
-	Foreground(colorSuccess)
+	logTimeStyle = lipgloss.NewStyle().
+		Foreground(t.Dim)
 
-// logErrorStyle for error entries.
-var logErrorStyle = lipgloss.NewStyle().
-	Foreground(colorError)
+	logAlgoStyle = lipgloss.NewStyle().
+		Foreground(t.Info)
 
-// metricLabelStyle for metric labels.
-var metricLabelStyle = lipgloss.NewStyle().
-	Foreground(colorDim)
+	logProgressStyle = lipgloss.NewStyle().
+		Foreground(t.Accent)
 
-// metricValueStyle for metric values.
-var metricValueStyle = lipgloss.NewStyle().
-	Foreground(colorCyan).
-	Bold(true)
+	logSuccessStyle = lipgloss.NewStyle().
+		Foreground(t.Success)
 
-// chartBarStyle for the sparkline characters and filled progress bar.
-var chartBarStyle = lipgloss.NewStyle().
-	Foreground(colorAccent)
+	logErrorStyle = lipgloss.NewStyle().
+		Foreground(t.Error)
 
-// chartEmptyStyle for the empty portion of the progress bar.
-var chartEmptyStyle = lipgloss.NewStyle().
-	Foreground(colorDim)
+	metricLabelStyle = lipgloss.NewStyle().
+		Foreground(t.Dim)
 
-// footerKeyStyle for keyboard shortcut keys.
-var footerKeyStyle = lipgloss.NewStyle().
-	Foreground(colorAccent).
-	Bold(true)
+	metricValueStyle = lipgloss.NewStyle().
+		Foreground(t.Accent).
+		Bold(true)
 
-// footerDescStyle for keyboard shortcut descriptions.
-var footerDescStyle = lipgloss.NewStyle().
-	Foreground(colorDim)
+	chartBarStyle = lipgloss.NewStyle().
+		Foreground(t.Accent)
 
-// statusRunningStyle for Running indicator.
-var statusRunningStyle = lipgloss.NewStyle().
-	Foreground(colorSuccess).
-	Bold(true)
+	chartEmptyStyle = lipgloss.NewStyle().
+		Foreground(t.Dim)
 
-// statusPausedStyle for Paused indicator.
-var statusPausedStyle = lipgloss.NewStyle().
-	Foreground(colorWarning).
-	Bold(true)
+	footerKeyStyle = lipgloss.NewStyle().
+		Foreground(t.Accent).
+		Bold(true)
 
-// statusDoneStyle for Done indicator.
-var statusDoneStyle = lipgloss.NewStyle().
-	Foreground(colorAccent).
-	Bold(true)
+	footerDescStyle = lipgloss.NewStyle().
+		Foreground(t.Dim)
 
-// statusErrorStyle for Error indicator.
-var statusErrorStyle = lipgloss.NewStyle().
-	Foreground(colorError).
-	Bold(true)
+	statusRunningStyle = lipgloss.NewStyle().
+		Foreground(t.Success).
+		Bold(true)
 
-// cpuSparklineStyle for CPU sparkline characters (orange).
-var cpuSparklineStyle = lipgloss.NewStyle().
-	Foreground(colorAccent)
+	statusPausedStyle = lipgloss.NewStyle().
+		Foreground(t.Warning).
+		Bold(true)
 
-// memSparklineStyle for memory sparkline characters (warm orange).
-var memSparklineStyle = lipgloss.NewStyle().
-	Foreground(colorWarning)
+	statusDoneStyle = lipgloss.NewStyle().
+		Foreground(t.Accent).
+		Bold(true)
 
+	statusErrorStyle = lipgloss.NewStyle().
+		Foreground(t.Error).
+		Bold(true)
+
+	cpuSparklineStyle = lipgloss.NewStyle().
+		Foreground(t.Accent)
+
+	memSparklineStyle = lipgloss.NewStyle().
+		Foreground(t.Warning)
+}

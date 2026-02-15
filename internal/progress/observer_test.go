@@ -1,4 +1,4 @@
-package fibonacci
+package progress
 
 import (
 	"bytes"
@@ -215,6 +215,98 @@ func TestProgressSubject_AsProgressCallback(t *testing.T) {
 	if mock.updates[0].calcIndex != 5 || mock.updates[0].progress != 0.25 {
 		t.Errorf("unexpected update: %+v", mock.updates[0])
 	}
+}
+
+// TestProgressSubject_FreezeSnapshot verifies Freeze creates an isolated snapshot.
+func TestProgressSubject_FreezeSnapshot(t *testing.T) {
+	t.Parallel()
+
+	subject := NewProgressSubject()
+	mock1 := newMockObserver()
+	mock2 := newMockObserver()
+
+	subject.Register(mock1)
+
+	// Freeze with only mock1 registered
+	callback := subject.Freeze(0)
+
+	// Register mock2 after freeze — should NOT receive updates via callback
+	subject.Register(mock2)
+
+	callback(0.5)
+
+	if mock1.updateCount() != 1 {
+		t.Errorf("mock1 expected 1 update from frozen callback, got %d", mock1.updateCount())
+	}
+	if mock2.updateCount() != 0 {
+		t.Errorf("mock2 should not receive updates from frozen callback, got %d", mock2.updateCount())
+	}
+}
+
+// TestProgressSubject_FreezeRaceConditions verifies Freeze is safe during concurrent register/unregister.
+func TestProgressSubject_FreezeRaceConditions(t *testing.T) {
+	t.Parallel()
+
+	subject := NewProgressSubject()
+	mock := newMockObserver()
+	subject.Register(mock)
+
+	var wg sync.WaitGroup
+
+	// Concurrent freeze calls
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			cb := subject.Freeze(0)
+			cb(0.5)
+		}()
+	}
+
+	// Concurrent register/unregister during freeze
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			obs := newMockObserver()
+			subject.Register(obs)
+			subject.Unregister(obs)
+		}()
+	}
+
+	wg.Wait()
+}
+
+// TestProgressSubject_FreezePanicRecovery verifies Freeze recovers from panicking observers.
+func TestProgressSubject_FreezePanicRecovery(t *testing.T) {
+	t.Parallel()
+
+	subject := NewProgressSubject()
+
+	// Register a panicking observer
+	panicker := &panicObserver{}
+	subject.Register(panicker)
+
+	// Register a normal observer after the panicker
+	mock := newMockObserver()
+	subject.Register(mock)
+
+	callback := subject.Freeze(0)
+
+	// Should not panic — the panicking observer is recovered
+	callback(0.5)
+
+	// The mock observer (registered after panicker) should still receive the update
+	if mock.updateCount() != 1 {
+		t.Errorf("mock expected 1 update despite panicking observer, got %d", mock.updateCount())
+	}
+}
+
+// panicObserver always panics on Update.
+type panicObserver struct{}
+
+func (p *panicObserver) Update(int, float64) {
+	panic("test panic")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

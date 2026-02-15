@@ -82,7 +82,7 @@ func fourierRecursiveUnified(dst, src []fermat, backward bool, n int, k, size, d
 
 	// Validation
 	if len(src[0]) != n+1 || len(dst[0]) != n+1 {
-		return fmt.Errorf("len(src[0]) != n+1 || len(dst[0]) != n+1")
+		return fmt.Errorf("FFT recursion validation failed: len(src[0])=%d, len(dst[0])=%d, expected n+1=%d", len(src[0]), len(dst[0]), n+1)
 	}
 
 	// Base cases
@@ -135,7 +135,7 @@ func fourierRecursiveUnified(dst, src []fermat, backward bool, n int, k, size, d
 			if errSync != nil {
 				return errSync
 			}
-			goto Reconstruct
+			return executeReconstruction(dst1, dst2, ω2shift, tmp, tmp2)
 		default:
 			// Fallthrough to sequential
 		}
@@ -148,9 +148,12 @@ func fourierRecursiveUnified(dst, src []fermat, backward bool, n int, k, size, d
 	if err := fourierRecursiveUnified(dst2, src[1<<idxShift:], backward, n, k, size-1, depth+1, tmp, tmp2, alloc); err != nil {
 		return err
 	}
+	return executeReconstruction(dst1, dst2, ω2shift, tmp, tmp2)
+}
 
-Reconstruct:
-	// Reconstruct transform
+// executeReconstruction applies the butterfly reconstruction step, combining
+// the two halves of the FFT transform using the twiddle factor shift.
+func executeReconstruction(dst1, dst2 []fermat, ω2shift int, tmp, tmp2 fermat) error {
 	for i := range dst1 {
 		tmp.ShiftHalf(dst2[i], i*ω2shift, tmp2)
 		dst2[i].Sub(dst1[i], tmp)

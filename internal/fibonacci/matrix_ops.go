@@ -12,6 +12,8 @@ import (
 // Access is thread-safe via atomic operations.
 var defaultStrassenThresholdBits atomic.Int32
 
+// init sets the default Strassen threshold.
+// This is an immutable default that can be overridden via SetDefaultStrassenThreshold.
 func init() {
 	defaultStrassenThresholdBits.Store(256)
 }

@@ -83,13 +83,6 @@ type DoublingStepExecutor interface {
 	ExecuteStep(ctx context.Context, s *CalculationState, opts Options, inParallel bool) error
 }
 
-// MultiplicationStrategy is a type alias preserved for backward compatibility.
-// New code should use the narrower Multiplier interface where only Multiply/Square
-// are needed, or DoublingStepExecutor where ExecuteStep is also required.
-//
-// Deprecated: Use Multiplier or DoublingStepExecutor instead.
-type MultiplicationStrategy = DoublingStepExecutor
-
 // AdaptiveStrategy uses smartMultiply and smartSquare to adaptively choose
 // between math/big and FFT-based multiplication based on operand sizes
 // and thresholds.

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/agbru/fibcalc/internal/fibonacci"
+	"github.com/agbru/fibcalc/internal/progress"
 	"github.com/briandowns/spinner"
 )
 
@@ -30,13 +30,13 @@ func TestDisplayProgress_LoopCoverage(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
-	progressChan := make(chan fibonacci.ProgressUpdate)
+	progressChan := make(chan progress.ProgressUpdate)
 	out := io.Discard
 
 	go func() {
 		// Send updates
 		for i := 0; i < 5; i++ {
-			progressChan <- fibonacci.ProgressUpdate{
+			progressChan <- progress.ProgressUpdate{
 				CalculatorIndex: 0,
 				Value:           float64(i) * 0.2,
 			}
@@ -50,25 +50,6 @@ func TestDisplayProgress_LoopCoverage(t *testing.T) {
 
 	if !mockS.started {
 		t.Error("Spinner should have started")
-	}
-}
-
-// TestFormatExecutionDuration_MoreCases covers microsecond formatting
-func TestFormatExecutionDuration_MoreCases(t *testing.T) {
-	cases := []struct {
-		in   time.Duration
-		want string
-	}{
-		{500 * time.Nanosecond, "0µs"},
-		{1500 * time.Nanosecond, "1µs"},
-		{999 * time.Microsecond, "999µs"},
-		{1001 * time.Microsecond, "1ms"},
-	}
-	for _, c := range cases {
-		got := FormatExecutionDuration(c.in)
-		if got != c.want {
-			t.Errorf("FormatExecutionDuration(%v) = %s, want %s", c.in, got, c.want)
-		}
 	}
 }
 

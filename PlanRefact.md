@@ -4,7 +4,7 @@
 **Date** : 2026-02-14
 **Auteur** : Généré par Claude Code (équipe de 5 agents d'audit parallèles)
 **Approche** : Top-Down (Architecture d'abord)
-**Statut** : Complet — 65+ problèmes identifiés, 6 phases, 52 tâches
+**Statut** : Complet — 65+ problèmes identifiés, 6 phases, 42 tâches — **TOUTES COMPLÉTÉES**
 
 ---
 
@@ -12,64 +12,64 @@
 
 > **INSTRUCTION** : Après chaque tâche complétée avec succès (build + tests passent), mettre à jour ce tableau en changeant le statut à `FAIT` et en inscrivant la date de complétion. Ne jamais marquer une tâche `FAIT` si `go test -race ./...` échoue.
 
-### Progression globale : 0 / 52 tâches complétées
+### Progression globale : 42 / 42 tâches complétées
 
 | ID    | Tâche                                                        | Phase | Sévérité | Statut       | Date       |
 |-------|--------------------------------------------------------------|-------|----------|--------------|------------|
-| T1.1  | Supprimer l'alias déprécié `MultiplicationStrategy`          | P1    | Critique | `À FAIRE`    |            |
-| T1.2  | Extraire `internal/progress/` (Observer & Progress)          | P1    | Élevé    | `À FAIRE`    |            |
-| T1.3  | Extraire `internal/fibonacci/threshold/`                     | P1    | Moyen    | `À FAIRE`    |            |
-| T1.4  | Extraire `internal/fibonacci/memory/`                        | P1    | Moyen    | `À FAIRE`    |            |
-| T1.5  | Réorganiser les fichiers restants dans `fibonacci/`          | P1    | Faible   | `À FAIRE`    |            |
-| T1.6  | Remplacer `GlobalFactory()` par injection de dépendances     | P1    | Critique | `À FAIRE`    |            |
-| T1.7  | Convertir les `init()` en initialisations explicites         | P1    | Moyen    | `À FAIRE`    |            |
-| T2.1  | Découpler orchestration de `config.AppConfig`                | P2    | Critique | `À FAIRE`    |            |
-| T2.2  | Segmenter l'interface `ResultPresenter`                      | P2    | Critique | `À FAIRE`    |            |
-| T2.3  | Découpler la calibration du CLI                              | P2    | Moyen    | `À FAIRE`    |            |
-| T2.4  | Découpler TUI/CLI des types `orchestration.CalculationResult`| P2    | Moyen    | `À FAIRE`    |            |
-| T2.5  | Réduire les responsabilités de `app.go`                      | P2    | Élevé    | `À FAIRE`    |            |
-| T2.6  | Centraliser la logique de seuils                             | P2    | Moyen    | `À FAIRE`    |            |
-| T2.7  | Extraire l'agrégation de progression dans orchestration      | P2    | Moyen    | `À FAIRE`    |            |
-| T3.1  | Éliminer le `goto` dans `fft_recursion.go`                   | P3    | Élevé    | `À FAIRE`    |            |
-| T3.2  | Extraire les chemins parallèle/séquentiel de FFT             | P3    | Moyen    | `À FAIRE`    |            |
-| T3.3  | Consolider la duplication exécution parallèle                | P3    | Moyen    | `À FAIRE`    |            |
-| T3.4  | Réduire la complexité de `DynamicThresholdManager`           | P3    | Élevé    | `À FAIRE`    |            |
-| T3.5  | Standardiser l'enveloppement d'erreurs                       | P3    | Moyen    | `À FAIRE`    |            |
-| T3.6  | Remplacer les nombres magiques par des constantes            | P3    | Faible   | `À FAIRE`    |            |
-| T3.7  | Corriger le bug de nommage `colorCyan` (TUI)                 | P3    | Faible   | `À FAIRE`    |            |
-| T3.8  | Corriger l'inconsistance `IntToBigInt` dans FFT              | P3    | Faible   | `À FAIRE`    |            |
-| T4.1  | Optimiser le cache FFT (copies redondantes)                  | P4    | Élevé    | `À FAIRE`    |            |
-| T4.2  | Réduire `MaxPooledBitLen`                                    | P4    | Élevé    | `À FAIRE`    |            |
-| T4.3  | Optimiser le buffer de channel progress                      | P4    | Moyen    | `À FAIRE`    |            |
-| T4.4  | Corriger l'allocation du hash de cache                       | P4    | Faible   | `À FAIRE`    |            |
-| T4.5  | Ajuster le dimensionnement de l'arena                        | P4    | Faible   | `À FAIRE`    |            |
-| T4.6  | Évaluer et documenter le pool warming                        | P4    | Moyen    | `À FAIRE`    |            |
-| T5.1  | Corriger la race condition `Freeze()/Notify()`               | P5    | Critique | `À FAIRE`    |            |
-| T5.2  | Augmenter la couverture de `app.go` (≥75%)                   | P5    | Moyen    | `À FAIRE`    |            |
-| T5.3  | Ajouter des tests de concurrence pools/factory               | P5    | Moyen    | `À FAIRE`    |            |
-| T5.4  | Intégrer le logging structuré (zerolog)                      | P5    | Élevé    | `À FAIRE`    |            |
-| T5.5  | Étendre les tests E2E                                        | P5    | Moyen    | `À FAIRE`    |            |
-| T5.6  | Enrichir les fuzz targets (identités supplémentaires)        | P5    | Faible   | `À FAIRE`    |            |
-| T5.7  | Élargir la hiérarchie d'erreurs                              | P5    | Moyen    | `À FAIRE`    |            |
-| T6.1  | Unifier le système de thèmes TUI/CLI                         | P6    | Moyen    | `À FAIRE`    |            |
-| T6.2  | Nettoyer les conventions de nommage CLI                      | P6    | Moyen    | `À FAIRE`    |            |
-| T6.3  | Extraire `FormatBytes` dans le package partagé               | P6    | Faible   | `À FAIRE`    |            |
-| T6.4  | Refactorer la génération de complétion shell                 | P6    | Moyen    | `À FAIRE`    |            |
-| T6.5  | Refactorer le modèle TUI (composition)                       | P6    | Moyen    | `À FAIRE`    |            |
-| T6.6  | Rendre l'override d'env déclaratif                           | P6    | Moyen    | `À FAIRE`    |            |
-| T6.7  | Corriger la thread-safety de `programRef` (TUI)              | P6    | Faible   | `À FAIRE`    |            |
+| T1.1  | Supprimer l'alias déprécié `MultiplicationStrategy`          | P1    | Critique | `FAIT`       | 2026-02-14 |
+| T1.2  | Extraire `internal/progress/` (Observer & Progress)          | P1    | Élevé    | `FAIT`       | 2026-02-14 |
+| T1.3  | Extraire `internal/fibonacci/threshold/`                     | P1    | Moyen    | `FAIT`       | 2026-02-14 |
+| T1.4  | Extraire `internal/fibonacci/memory/`                        | P1    | Moyen    | `FAIT`       | 2026-02-14 |
+| T1.5  | Réorganiser les fichiers restants dans `fibonacci/`          | P1    | Faible   | `FAIT`       | 2026-02-14 |
+| T1.6  | Remplacer `GlobalFactory()` par injection de dépendances     | P1    | Critique | `FAIT`       | 2026-02-14 |
+| T1.7  | Convertir les `init()` en initialisations explicites         | P1    | Moyen    | `FAIT`       | 2026-02-14 |
+| T2.1  | Découpler orchestration de `config.AppConfig`                | P2    | Critique | `FAIT`       | 2026-02-14 |
+| T2.2  | Segmenter l'interface `ResultPresenter`                      | P2    | Critique | `FAIT`       | 2026-02-14 |
+| T2.3  | Découpler la calibration du CLI                              | P2    | Moyen    | `FAIT`       | 2026-02-14 |
+| T2.4  | Découpler TUI/CLI des types `orchestration.CalculationResult`| P2    | Moyen    | `FAIT`       | 2026-02-14 |
+| T2.5  | Réduire les responsabilités de `app.go`                      | P2    | Élevé    | `FAIT`       | 2026-02-14 |
+| T2.6  | Centraliser la logique de seuils                             | P2    | Moyen    | `FAIT`       | 2026-02-14 |
+| T2.7  | Extraire l'agrégation de progression dans orchestration      | P2    | Moyen    | `FAIT`       | 2026-02-14 |
+| T3.1  | Éliminer le `goto` dans `fft_recursion.go`                   | P3    | Élevé    | `FAIT`       | 2026-02-14 |
+| T3.2  | Extraire les chemins parallèle/séquentiel de FFT             | P3    | Moyen    | `FAIT`       | 2026-02-14 |
+| T3.3  | Consolider la duplication exécution parallèle                | P3    | Moyen    | `FAIT`       | 2026-02-14 |
+| T3.4  | Réduire la complexité de `DynamicThresholdManager`           | P3    | Élevé    | `FAIT`       | 2026-02-14 |
+| T3.5  | Standardiser l'enveloppement d'erreurs                       | P3    | Moyen    | `FAIT`       | 2026-02-14 |
+| T3.6  | Remplacer les nombres magiques par des constantes            | P3    | Faible   | `FAIT`       | 2026-02-14 |
+| T3.7  | Corriger le bug de nommage `colorCyan` (TUI)                 | P3    | Faible   | `FAIT`       | 2026-02-14 |
+| T3.8  | Corriger l'inconsistance `IntToBigInt` dans FFT              | P3    | Faible   | `FAIT`       | 2026-02-14 |
+| T4.1  | Optimiser le cache FFT (copies redondantes)                  | P4    | Élevé    | `FAIT`       | 2026-02-14 |
+| T4.2  | Réduire `MaxPooledBitLen`                                    | P4    | Élevé    | `FAIT`       | 2026-02-14 |
+| T4.3  | Optimiser le buffer de channel progress                      | P4    | Moyen    | `FAIT`       | 2026-02-14 |
+| T4.4  | Corriger l'allocation du hash de cache                       | P4    | Faible   | `FAIT`       | 2026-02-14 |
+| T4.5  | Ajuster le dimensionnement de l'arena                        | P4    | Faible   | `FAIT`       | 2026-02-14 |
+| T4.6  | Évaluer et documenter le pool warming                        | P4    | Moyen    | `FAIT`       | 2026-02-14 |
+| T5.1  | Corriger la race condition `Freeze()/Notify()`               | P5    | Critique | `FAIT`       | 2026-02-14 |
+| T5.2  | Augmenter la couverture de `app.go` (≥75%)                   | P5    | Moyen    | `FAIT`       | 2026-02-14 |
+| T5.3  | Ajouter des tests de concurrence pools/factory               | P5    | Moyen    | `FAIT`       | 2026-02-14 |
+| T5.4  | Intégrer le logging structuré (zerolog)                      | P5    | Élevé    | `FAIT`       | 2026-02-14 |
+| T5.5  | Étendre les tests E2E                                        | P5    | Moyen    | `FAIT`       | 2026-02-14 |
+| T5.6  | Enrichir les fuzz targets (identités supplémentaires)        | P5    | Faible   | `FAIT`       | 2026-02-14 |
+| T5.7  | Élargir la hiérarchie d'erreurs                              | P5    | Moyen    | `FAIT`       | 2026-02-14 |
+| T6.1  | Unifier le système de thèmes TUI/CLI                         | P6    | Moyen    | `FAIT`       | 2026-02-14 |
+| T6.2  | Nettoyer les conventions de nommage CLI                      | P6    | Moyen    | `FAIT`       | 2026-02-14 |
+| T6.3  | Extraire `FormatBytes` dans le package partagé               | P6    | Faible   | `FAIT`       | 2026-02-14 |
+| T6.4  | Refactorer la génération de complétion shell                 | P6    | Moyen    | `FAIT`       | 2026-02-14 |
+| T6.5  | Refactorer le modèle TUI (composition)                       | P6    | Moyen    | `FAIT`       | 2026-02-14 |
+| T6.6  | Rendre l'override d'env déclaratif                           | P6    | Moyen    | `FAIT`       | 2026-02-14 |
+| T6.7  | Corriger la thread-safety de `programRef` (TUI)              | P6    | Faible   | `FAIT`       | 2026-02-14 |
 
 ### Résumé par phase
 
 | Phase | Description                          | Total | Fait | Restant | Progression |
 |-------|--------------------------------------|-------|------|---------|-------------|
-| P1    | Restructuration packages & globals   | 7     | 0    | 7       | 0%          |
-| P2    | Découplage couches & interfaces      | 7     | 0    | 7       | 0%          |
-| P3    | Qualité code & complexité            | 8     | 0    | 8       | 0%          |
-| P4    | Performance & mémoire                | 6     | 0    | 6       | 0%          |
-| P5    | Tests & observabilité                | 7     | 0    | 7       | 0%          |
-| P6    | TUI, CLI & polish                    | 7     | 0    | 7       | 0%          |
-| **—** | **Total**                            | **52**| **0**| **52**  | **0%**      |
+| P1    | Restructuration packages & globals   | 7     | 7    | 0       | 100%        |
+| P2    | Découplage couches & interfaces      | 7     | 7    | 0       | 100%        |
+| P3    | Qualité code & complexité            | 8     | 8    | 0       | 100%        |
+| P4    | Performance & mémoire                | 6     | 6    | 0       | 100%        |
+| P5    | Tests & observabilité                | 7     | 7    | 0       | 100%        |
+| P6    | TUI, CLI & polish                    | 7     | 7    | 0       | 100%        |
+| **—** | **Total**                            | **42**| **42**| **0**  | **100%**    |
 
 ---
 

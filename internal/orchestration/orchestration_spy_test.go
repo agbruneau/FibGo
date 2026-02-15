@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/agbru/fibcalc/internal/config"
 	"github.com/agbru/fibcalc/internal/fibonacci"
+	"github.com/agbru/fibcalc/internal/progress"
 )
 
 // TestExecuteCalculationsRespectsStrassenConfig verifies that the orchestration layer
@@ -26,13 +26,11 @@ func TestExecuteCalculationsRespectsStrassenConfig(t *testing.T) {
 	spy := &SpyCalculator{}
 	calculators := []fibonacci.Calculator{spy}
 
-	cfg := config.AppConfig{
-		N:                 10,
+	opts := fibonacci.Options{
 		StrassenThreshold: 12345, // Unique value to verify
-		Algo:              "matrix",
 	}
 
-	ExecuteCalculations(context.Background(), calculators, cfg, NullProgressReporter{}, io.Discard)
+	ExecuteCalculations(context.Background(), calculators, 10, opts, NullProgressReporter{}, io.Discard)
 
 	if spy.capturedOpts.StrassenThreshold != 12345 {
 		t.Errorf("ExecuteCalculations failed to pass StrassenThreshold. Expected 12345, got %d", spy.capturedOpts.StrassenThreshold)
@@ -43,7 +41,7 @@ type SpyCalculator struct {
 	capturedOpts fibonacci.Options
 }
 
-func (s *SpyCalculator) Calculate(ctx context.Context, progressChan chan<- fibonacci.ProgressUpdate, calcIndex int, n uint64, opts fibonacci.Options) (*big.Int, error) {
+func (s *SpyCalculator) Calculate(ctx context.Context, progressChan chan<- progress.ProgressUpdate, calcIndex int, n uint64, opts fibonacci.Options) (*big.Int, error) {
 	s.capturedOpts = opts
 	return big.NewInt(55), nil // F(10)
 }

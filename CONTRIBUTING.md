@@ -288,7 +288,7 @@ go install go.uber.org/mock/mockgen@latest
 | ------------------------ | --------------------------------------------- |
 | `Calculator`             | `internal/fibonacci/mocks/mock_calculator.go` |
 | `CalculatorFactory`      | `internal/fibonacci/mocks/mock_registry.go`   |
-| `MultiplicationStrategy` | `internal/fibonacci/mocks/mock_strategy.go`   |
+| `DoublingStepExecutor`   | `internal/fibonacci/mocks/mock_strategy.go`   |
 | `Spinner`                | `internal/cli/mocks/mock_ui.go`               |
 
 ### Using Mocks in Tests

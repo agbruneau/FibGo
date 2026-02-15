@@ -1,4 +1,26 @@
 // Pool pre-warming for adaptive buffer pre-allocation based on calculation size.
+//
+// Pool warming pre-populates sync.Pool instances with appropriately-sized buffers
+// before a Fibonacci calculation begins, so that the first few pool acquisitions
+// return pre-allocated buffers instead of triggering fresh heap allocations.
+//
+// When it is beneficial:
+//
+//   - Large FFT calculations (n >= 100,000) where multiple large buffers are
+//     needed early in the computation. Pre-warming avoids allocation spikes
+//     during the latency-sensitive initial iterations and reduces GC pressure
+//     from many simultaneous large allocations.
+//
+// When it is NOT beneficial:
+//
+//   - Small calculations (n < ~10,000) where buffers are tiny and allocation
+//     cost is negligible. The overhead of estimating sizes and pre-filling pools
+//     can exceed the savings.
+//   - Short-lived processes that exit before the pools would be reused, since
+//     the pre-allocated buffers are never reclaimed through recycling.
+//
+// See BenchmarkPoolWithWarming and BenchmarkPoolWithoutWarming in
+// pool_warming_bench_test.go for empirical validation on your hardware.
 
 package bigfft
 

@@ -9,12 +9,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/agbru/fibcalc/internal/cli"
 	"github.com/agbru/fibcalc/internal/config"
 	apperrors "github.com/agbru/fibcalc/internal/errors"
 	"github.com/agbru/fibcalc/internal/fibonacci"
+	"github.com/agbru/fibcalc/internal/progress"
 	"github.com/agbru/fibcalc/internal/ui"
 )
+
+// ProgressDisplayFunc is a function that displays progress from a channel.
+// It decouples calibration from CLI display concerns.
+type ProgressDisplayFunc func(wg *sync.WaitGroup, progressChan <-chan progress.ProgressUpdate, numCalculators int, out io.Writer)
 
 // CalibrationOptions configures the calibration process.
 type CalibrationOptions struct {
@@ -50,15 +54,15 @@ type calibrationResult struct {
 //
 // Returns:
 //   - int: The exit code (0 for success, non-zero for errors).
-func RunCalibration(ctx context.Context, out io.Writer, calculatorRegistry map[string]fibonacci.Calculator) int {
+func RunCalibration(ctx context.Context, out io.Writer, calculatorRegistry map[string]fibonacci.Calculator, progressDisplay ProgressDisplayFunc, colorProvider apperrors.ColorProvider) int {
 	return RunCalibrationWithOptions(ctx, out, calculatorRegistry, CalibrationOptions{
 		SaveProfile: true,
 		LoadProfile: false, // Full calibration should run fresh
-	})
+	}, progressDisplay, colorProvider)
 }
 
 // RunCalibrationWithOptions executes calibration with the specified options.
-func RunCalibrationWithOptions(ctx context.Context, out io.Writer, calculatorRegistry map[string]fibonacci.Calculator, opts CalibrationOptions) int {
+func RunCalibrationWithOptions(ctx context.Context, out io.Writer, calculatorRegistry map[string]fibonacci.Calculator, opts CalibrationOptions, progressDisplay ProgressDisplayFunc, colorProvider apperrors.ColorProvider) int {
 	fmt.Fprintf(out, "--- Calibration Mode: Finding the Optimal Parallelism Threshold ---\n")
 
 	// Try to load existing profile if requested
@@ -91,9 +95,9 @@ func RunCalibrationWithOptions(ctx context.Context, out io.Writer, calculatorReg
 	calibrationStart := time.Now()
 
 	var wg sync.WaitGroup
-	progressChan := make(chan fibonacci.ProgressUpdate, 5)
+	progressChan := make(chan progress.ProgressUpdate, 5)
 	wg.Add(1)
-	go cli.DisplayProgress(&wg, progressChan, 1, out)
+	go progressDisplay(&wg, progressChan, 1, out)
 
 	for _, threshold := range thresholdsToTest {
 		if ctx.Err() != nil {
@@ -113,7 +117,7 @@ func RunCalibrationWithOptions(ctx context.Context, out io.Writer, calculatorReg
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				close(progressChan)
 				wg.Wait()
-				return apperrors.HandleCalculationError(err, duration, out, cli.CLIColorProvider{})
+				return apperrors.HandleCalculationError(err, duration, out, colorProvider)
 			}
 			continue
 		}
@@ -144,8 +148,8 @@ func RunCalibrationWithOptions(ctx context.Context, out io.Writer, calculatorReg
 	if opts.SaveProfile {
 		profile := NewProfile()
 		profile.OptimalParallelThreshold = bestThreshold
-		profile.OptimalFFTThreshold = EstimateOptimalFFTThreshold()
-		profile.OptimalStrassenThreshold = EstimateOptimalStrassenThreshold()
+		profile.OptimalFFTThreshold = config.EstimateOptimalFFTThreshold()
+		profile.OptimalStrassenThreshold = config.EstimateOptimalStrassenThreshold()
 		profile.CalibrationN = fibonacci.CalibrationN
 		profile.CalibrationTime = calibrationDuration.String()
 

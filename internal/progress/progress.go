@@ -1,8 +1,15 @@
 // This file contains progress reporting types and utilities used by calculators.
 
-package fibonacci
+package progress
 
 import "math"
+
+// ProgressReportThreshold is the minimum progress change (0.0 to 1.0) required
+// before a new progress update is sent. This prevents excessive UI updates
+// that could slow down calculations.
+//
+// A value of 0.01 (1%) provides smooth progress updates without overhead.
+const ProgressReportThreshold = 0.01
 
 // ProgressUpdate is a data transfer object (DTO) that encapsulates the
 // progress state of a calculation. It is sent over a channel from the

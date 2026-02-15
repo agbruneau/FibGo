@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 )
 
 func TestConfigError(t *testing.T) {
@@ -95,6 +96,193 @@ func TestCalculationError(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTimeoutError(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name        string
+		err         TimeoutError
+		expected    string
+		checkTypeAs bool
+	}{
+		{
+			name:     "Error returns formatted message",
+			err:      TimeoutError{Operation: "fibonacci", Limit: 30 * time.Second},
+			expected: `operation "fibonacci" timed out after 30s`,
+		},
+		{
+			name:     "Error with subsecond limit",
+			err:      TimeoutError{Operation: "matrix multiply", Limit: 500 * time.Millisecond},
+			expected: `operation "matrix multiply" timed out after 500ms`,
+		},
+		{
+			name:        "errors.As works with TimeoutError",
+			err:         TimeoutError{Operation: "fft", Limit: 10 * time.Second},
+			expected:    `operation "fft" timed out after 10s`,
+			checkTypeAs: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var err error = tt.err
+			if err.Error() != tt.expected {
+				t.Errorf("expected %q, got %q", tt.expected, err.Error())
+			}
+			if tt.checkTypeAs {
+				var timeoutErr TimeoutError
+				if !errors.As(err, &timeoutErr) {
+					t.Error("expected error to be TimeoutError type")
+				}
+				if timeoutErr.Operation != tt.err.Operation {
+					t.Errorf("expected Operation %q, got %q", tt.err.Operation, timeoutErr.Operation)
+				}
+				if timeoutErr.Limit != tt.err.Limit {
+					t.Errorf("expected Limit %v, got %v", tt.err.Limit, timeoutErr.Limit)
+				}
+			}
+		})
+	}
+}
+
+func TestValidationError(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name        string
+		err         ValidationError
+		expected    string
+		checkTypeAs bool
+	}{
+		{
+			name:     "Error returns formatted message",
+			err:      ValidationError{Field: "n", Message: "must be non-negative"},
+			expected: `validation error for "n": must be non-negative`,
+		},
+		{
+			name:     "Error with different field",
+			err:      ValidationError{Field: "threshold", Message: "must be greater than zero"},
+			expected: `validation error for "threshold": must be greater than zero`,
+		},
+		{
+			name:        "errors.As works with ValidationError",
+			err:         ValidationError{Field: "algorithm", Message: "unknown algorithm"},
+			expected:    `validation error for "algorithm": unknown algorithm`,
+			checkTypeAs: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var err error = tt.err
+			if err.Error() != tt.expected {
+				t.Errorf("expected %q, got %q", tt.expected, err.Error())
+			}
+			if tt.checkTypeAs {
+				var validationErr ValidationError
+				if !errors.As(err, &validationErr) {
+					t.Error("expected error to be ValidationError type")
+				}
+				if validationErr.Field != tt.err.Field {
+					t.Errorf("expected Field %q, got %q", tt.err.Field, validationErr.Field)
+				}
+				if validationErr.Message != tt.err.Message {
+					t.Errorf("expected Message %q, got %q", tt.err.Message, validationErr.Message)
+				}
+			}
+		})
+	}
+}
+
+func TestMemoryError(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name        string
+		err         MemoryError
+		expected    string
+		checkTypeAs bool
+	}{
+		{
+			name:     "Error returns formatted message",
+			err:      MemoryError{Requested: 1073741824, Available: 536870912, Limit: 1073741824},
+			expected: "memory error: requested 1073741824 bytes, available 536870912 bytes (limit: 1073741824)",
+		},
+		{
+			name:     "Error with small values",
+			err:      MemoryError{Requested: 1024, Available: 512, Limit: 2048},
+			expected: "memory error: requested 1024 bytes, available 512 bytes (limit: 2048)",
+		},
+		{
+			name:        "errors.As works with MemoryError",
+			err:         MemoryError{Requested: 4096, Available: 2048, Limit: 8192},
+			expected:    "memory error: requested 4096 bytes, available 2048 bytes (limit: 8192)",
+			checkTypeAs: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var err error = tt.err
+			if err.Error() != tt.expected {
+				t.Errorf("expected %q, got %q", tt.expected, err.Error())
+			}
+			if tt.checkTypeAs {
+				var memErr MemoryError
+				if !errors.As(err, &memErr) {
+					t.Error("expected error to be MemoryError type")
+				}
+				if memErr.Requested != tt.err.Requested {
+					t.Errorf("expected Requested %d, got %d", tt.err.Requested, memErr.Requested)
+				}
+				if memErr.Available != tt.err.Available {
+					t.Errorf("expected Available %d, got %d", tt.err.Available, memErr.Available)
+				}
+				if memErr.Limit != tt.err.Limit {
+					t.Errorf("expected Limit %d, got %d", tt.err.Limit, memErr.Limit)
+				}
+			}
+		})
+	}
+}
+
+func TestNewErrorTypes_ErrorsAsWithWrapping(t *testing.T) {
+	t.Parallel()
+
+	t.Run("TimeoutError wrapped in CalculationError", func(t *testing.T) {
+		t.Parallel()
+		inner := TimeoutError{Operation: "fibonacci", Limit: 5 * time.Second}
+		err := CalculationError{Cause: inner}
+
+		var timeoutErr TimeoutError
+		if !errors.As(err, &timeoutErr) {
+			t.Error("errors.As should find TimeoutError through CalculationError")
+		}
+	})
+
+	t.Run("ValidationError wrapped with WrapError", func(t *testing.T) {
+		t.Parallel()
+		inner := ValidationError{Field: "n", Message: "too large"}
+		err := WrapError(inner, "config check failed")
+
+		var validationErr ValidationError
+		if !errors.As(err, &validationErr) {
+			t.Error("errors.As should find ValidationError through WrapError")
+		}
+	})
+
+	t.Run("MemoryError wrapped in CalculationError", func(t *testing.T) {
+		t.Parallel()
+		inner := MemoryError{Requested: 4096, Available: 1024, Limit: 2048}
+		err := CalculationError{Cause: inner}
+
+		var memErr MemoryError
+		if !errors.As(err, &memErr) {
+			t.Error("errors.As should find MemoryError through CalculationError")
+		}
+	})
 }
 
 func TestWrapError(t *testing.T) {

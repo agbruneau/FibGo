@@ -1,4 +1,4 @@
-package fibonacci
+package memory
 
 import (
 	"math/big"

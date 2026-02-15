@@ -9,7 +9,7 @@ import (
 
 	apperrors "github.com/agbru/fibcalc/internal/errors"
 	"github.com/agbru/fibcalc/internal/format"
-	"github.com/agbru/fibcalc/internal/fibonacci"
+	"github.com/agbru/fibcalc/internal/progress"
 	"github.com/agbru/fibcalc/internal/orchestration"
 )
 
@@ -17,13 +17,24 @@ import (
 // Because bubbletea copies the model on every Update, we need a pointer
 // that survives copies so the bridge goroutines can send messages.
 type programRef struct {
+	mu      sync.RWMutex
 	program *tea.Program
+}
+
+// SetProgram sets the tea.Program reference (thread-safe).
+func (r *programRef) SetProgram(p *tea.Program) {
+	r.mu.Lock()
+	r.program = p
+	r.mu.Unlock()
 }
 
 // Send sends a message to the bubbletea program (thread-safe).
 func (r *programRef) Send(msg tea.Msg) {
-	if r.program != nil {
-		r.program.Send(msg)
+	r.mu.RLock()
+	p := r.program
+	r.mu.RUnlock()
+	if p != nil {
+		p.Send(msg)
 	}
 }
 
@@ -37,23 +48,22 @@ type TUIProgressReporter struct {
 var _ orchestration.ProgressReporter = (*TUIProgressReporter)(nil)
 
 // DisplayProgress drains the progress channel and sends ProgressMsg to the TUI.
-func (t *TUIProgressReporter) DisplayProgress(wg *sync.WaitGroup, progressChan <-chan fibonacci.ProgressUpdate, numCalculators int, _ io.Writer) {
+func (t *TUIProgressReporter) DisplayProgress(wg *sync.WaitGroup, progressChan <-chan progress.ProgressUpdate, numCalculators int, _ io.Writer) {
 	defer wg.Done()
-	if numCalculators <= 0 {
-		for range progressChan {
-		}
+
+	agg := orchestration.NewProgressAggregator(numCalculators)
+	if agg == nil {
+		orchestration.DrainChannel(progressChan)
 		return
 	}
 
-	state := format.NewProgressWithETA(numCalculators)
-
 	for update := range progressChan {
-		avgProgress, eta := state.UpdateWithETA(update.CalculatorIndex, update.Value)
+		ap := agg.Update(update)
 		t.ref.Send(ProgressMsg{
-			CalculatorIndex: update.CalculatorIndex,
-			Value:           update.Value,
-			AverageProgress: avgProgress,
-			ETA:             eta,
+			CalculatorIndex: ap.CalculatorIndex,
+			Value:           ap.Value,
+			AverageProgress: ap.AverageProgress,
+			ETA:             ap.ETA,
 		})
 	}
 	t.ref.Send(ProgressDoneMsg{})
@@ -66,7 +76,11 @@ type TUIResultPresenter struct {
 }
 
 // Verify interface compliance.
-var _ orchestration.ResultPresenter = (*TUIResultPresenter)(nil)
+var (
+	_ orchestration.ResultPresenter  = (*TUIResultPresenter)(nil)
+	_ orchestration.DurationFormatter = (*TUIResultPresenter)(nil)
+	_ orchestration.ErrorHandler     = (*TUIResultPresenter)(nil)
+)
 
 // PresentComparisonTable sends comparison results to the TUI.
 func (t *TUIResultPresenter) PresentComparisonTable(results []orchestration.CalculationResult, _ io.Writer) {

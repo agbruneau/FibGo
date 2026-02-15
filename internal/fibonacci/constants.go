@@ -63,10 +63,7 @@ const (
 // ─────────────────────────────────────────────────────────────────────────────
 
 const (
-	// ProgressReportThreshold is the minimum progress change (0.0 to 1.0) required
-	// before a new progress update is sent. This prevents excessive UI updates
-	// that could slow down calculations.
-	//
-	// A value of 0.01 (1%) provides smooth progress updates without overhead.
-	ProgressReportThreshold = 0.01
+	// FibonacciGrowthFactor is log2(phi), where phi ≈ 1.618 (golden ratio).
+	// Used to estimate bit length of F(n).
+	FibonacciGrowthFactor = 0.69424
 )

@@ -18,6 +18,61 @@ import (
 	"github.com/agbru/fibcalc/internal/sysmon"
 )
 
+// ExecutionState holds the execution-related fields of a TUI session.
+type ExecutionState struct {
+	ctx         context.Context
+	cancel      context.CancelFunc
+	calculators []fibonacci.Calculator
+	generation  uint64
+	done        bool
+	exitCode    int
+}
+
+// LayoutManager holds terminal dimensions and provides layout calculations.
+type LayoutManager struct {
+	width  int
+	height int
+}
+
+// bodyHeight returns the available height for the main body panels.
+func (l LayoutManager) bodyHeight() int {
+	h := l.height - headerHeight - footerHeight
+	if h < minBodyHeight {
+		h = minBodyHeight
+	}
+	return h
+}
+
+// logsWidth returns the width allocated to the logs panel.
+func (l LayoutManager) logsWidth() int {
+	return l.width * LogsPanelWidthPercent / 100
+}
+
+// rightWidth returns the width allocated to the right column (metrics + chart).
+func (l LayoutManager) rightWidth() int {
+	return l.width - l.logsWidth()
+}
+
+// metricsHeight returns the height allocated to the metrics panel.
+func (l LayoutManager) metricsHeight() int {
+	body := l.bodyHeight()
+	h := MetricsPanelHeight
+	if h > body/2 {
+		h = body / 2
+	}
+	return h
+}
+
+// metricsWidth returns the width allocated to the metrics panel.
+func (l LayoutManager) metricsWidth() int {
+	return l.rightWidth()
+}
+
+// chartHeight returns the height allocated to the chart panel.
+func (l LayoutManager) chartHeight() int {
+	return l.bodyHeight() - l.metricsHeight()
+}
+
 // Model is the root bubbletea model for the TUI dashboard.
 type Model struct {
 	header  HeaderModel
@@ -28,20 +83,13 @@ type Model struct {
 
 	keymap KeyMap
 
-	parentCtx   context.Context
-	ctx         context.Context
-	cancel      context.CancelFunc
-	config      config.AppConfig
-	calculators []fibonacci.Calculator
-	generation  uint64
+	ExecutionState
+	LayoutManager
 
-	ref *programRef
-
-	width    int
-	height   int
-	paused   bool
-	done     bool
-	exitCode int
+	parentCtx context.Context
+	config    config.AppConfig
+	ref       *programRef
+	paused    bool
 }
 
 // NewModel creates a new TUI model.
@@ -57,19 +105,21 @@ func NewModel(parentCtx context.Context, calculators []fibonacci.Calculator, cfg
 	logs.AddExecutionConfig(cfg)
 
 	return Model{
-		header:      NewHeaderModel(version),
-		logs:        logs,
-		metrics:     NewMetricsModel(),
-		chart:       NewChartModel(),
-		footer:      NewFooterModel(),
-		keymap:      DefaultKeyMap(),
-		parentCtx:   parentCtx,
-		ctx:         ctx,
-		cancel:      cancel,
-		config:      cfg,
-		calculators: calculators,
-		ref:         &programRef{},
-		exitCode:    apperrors.ExitSuccess,
+		header:  NewHeaderModel(version),
+		logs:    logs,
+		metrics: NewMetricsModel(),
+		chart:   NewChartModel(),
+		footer:  NewFooterModel(),
+		keymap:  DefaultKeyMap(),
+		ExecutionState: ExecutionState{
+			ctx:         ctx,
+			cancel:      cancel,
+			calculators: calculators,
+			exitCode:    apperrors.ExitSuccess,
+		},
+		parentCtx: parentCtx,
+		config:    cfg,
+		ref:       &programRef{},
 	}
 }
 
@@ -254,59 +304,33 @@ func (m Model) View() string {
 
 // Layout constants for the TUI dashboard.
 const (
-	headerHeight   = 1
-	footerHeight   = 1
-	minBodyHeight  = 4
-	metricsFixedH  = 7 // compact: top line + 1 data row + borders; expands to ~9 with indicators
+	headerHeight         = 1
+	footerHeight         = 1
+	minBodyHeight        = 4
+	LogsPanelWidthPercent = 60
+	MetricsPanelHeight   = 7 // compact: top line + 1 data row + borders; expands to ~9 with indicators
 )
 
 func (m *Model) layoutPanels() {
-	bodyHeight := m.height - headerHeight - footerHeight
-	if bodyHeight < minBodyHeight {
-		bodyHeight = minBodyHeight
-	}
-
-	logsWidth := m.width * 60 / 100
-	rightWidth := m.width - logsWidth
-
-	metricsH := metricsFixedH
-	if metricsH > bodyHeight/2 {
-		metricsH = bodyHeight / 2
-	}
-	chartH := bodyHeight - metricsH
-
 	m.header.SetWidth(m.width)
 	m.footer.SetWidth(m.width)
-	m.logs.SetSize(logsWidth, bodyHeight)
-	m.metrics.SetSize(rightWidth, metricsH)
-	m.chart.SetSize(rightWidth, chartH)
-}
-
-func (m Model) metricsWidth() int {
-	return m.width - m.width*60/100
-}
-
-func (m Model) metricsHeight() int {
-	bodyHeight := m.height - headerHeight - footerHeight
-	if bodyHeight < minBodyHeight {
-		bodyHeight = minBodyHeight
-	}
-	metricsH := metricsFixedH
-	if metricsH > bodyHeight/2 {
-		metricsH = bodyHeight / 2
-	}
-	return metricsH
+	m.logs.SetSize(m.logsWidth(), m.bodyHeight())
+	m.metrics.SetSize(m.rightWidth(), m.metricsHeight())
+	m.chart.SetSize(m.rightWidth(), m.chartHeight())
 }
 
 // Run is the public entry point for the TUI mode.
 // It creates the bubbletea program, runs it, and returns the exit code.
 func Run(ctx context.Context, calculators []fibonacci.Calculator, cfg config.AppConfig, version string) int {
+	// Rebuild styles from the current ui theme (set by app.Run via InitTheme).
+	initTUIStyles()
+
 	model := NewModel(ctx, calculators, cfg, version)
 	defer model.cancel()
 
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	// Inject the program reference before running so bridge goroutines can Send.
-	model.ref.program = p
+	model.ref.SetProgram(p)
 
 	finalModel, err := p.Run()
 	if err != nil {
@@ -326,8 +350,19 @@ func startCalculationCmd(ref *programRef, ctx context.Context, calculators []fib
 		progressReporter := &TUIProgressReporter{ref: ref}
 		presenter := &TUIResultPresenter{ref: ref}
 
-		results := orchestration.ExecuteCalculations(ctx, calculators, cfg, progressReporter, io.Discard)
-		exitCode := orchestration.AnalyzeComparisonResults(results, cfg, presenter, io.Discard)
+		opts := fibonacci.Options{
+			ParallelThreshold: cfg.Threshold,
+			FFTThreshold:      cfg.FFTThreshold,
+			StrassenThreshold: cfg.StrassenThreshold,
+		}
+		results := orchestration.ExecuteCalculations(ctx, calculators, cfg.N, opts, progressReporter, io.Discard)
+		presOpts := orchestration.PresentationOptions{
+			N:         cfg.N,
+			Verbose:   cfg.Verbose,
+			Details:   cfg.Details,
+			ShowValue: cfg.ShowValue,
+		}
+		exitCode := orchestration.AnalyzeComparisonResults(results, presOpts, presenter, presenter, io.Discard)
 
 		return CalculationCompleteMsg{ExitCode: exitCode, Generation: gen}
 	}

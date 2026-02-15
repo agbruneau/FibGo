@@ -97,84 +97,113 @@ func isFlagSetAny(fs *flag.FlagSet, names ...string) bool {
 	return false
 }
 
+// envOverride declares a single environment variable override.
+// Each entry maps an env key (without the FIBCALC_ prefix) to the CLI flag
+// name(s) it corresponds to and a function that applies the env value.
+type envOverride struct {
+	envKey   string
+	flags    []string
+	apply    func(*AppConfig, string)
+}
+
+// envOverrides is the declarative table of all environment variable overrides.
+// Order matches the original procedural grouping (numeric, duration, string, bool).
+var envOverrides = []envOverride{
+	// Numeric overrides
+	{"N", []string{"n"}, func(c *AppConfig, v string) {
+		if parsed, err := strconv.ParseUint(v, 10, 64); err == nil {
+			c.N = parsed
+		}
+	}},
+	{"THRESHOLD", []string{"threshold"}, func(c *AppConfig, v string) {
+		if parsed, err := strconv.Atoi(v); err == nil {
+			c.Threshold = parsed
+		}
+	}},
+	{"FFT_THRESHOLD", []string{"fft-threshold"}, func(c *AppConfig, v string) {
+		if parsed, err := strconv.Atoi(v); err == nil {
+			c.FFTThreshold = parsed
+		}
+	}},
+	{"STRASSEN_THRESHOLD", []string{"strassen-threshold"}, func(c *AppConfig, v string) {
+		if parsed, err := strconv.Atoi(v); err == nil {
+			c.StrassenThreshold = parsed
+		}
+	}},
+
+	// Duration overrides
+	{"TIMEOUT", []string{"timeout"}, func(c *AppConfig, v string) {
+		if parsed, err := time.ParseDuration(v); err == nil {
+			c.Timeout = parsed
+		}
+	}},
+
+	// String overrides
+	{"ALGO", []string{"algo"}, func(c *AppConfig, v string) {
+		c.Algo = v
+	}},
+	{"OUTPUT", []string{"output", "o"}, func(c *AppConfig, v string) {
+		c.OutputFile = v
+	}},
+	{"CALIBRATION_PROFILE", []string{"calibration-profile"}, func(c *AppConfig, v string) {
+		c.CalibrationProfile = v
+	}},
+	{"MEMORY_LIMIT", []string{"memory-limit"}, func(c *AppConfig, v string) {
+		c.MemoryLimit = v
+	}},
+
+	// Boolean overrides
+	{"VERBOSE", []string{"v", "verbose"}, func(c *AppConfig, v string) {
+		c.Verbose = parseBoolEnv(v, c.Verbose)
+	}},
+	{"DETAILS", []string{"d", "details"}, func(c *AppConfig, v string) {
+		c.Details = parseBoolEnv(v, c.Details)
+	}},
+	{"QUIET", []string{"quiet", "q"}, func(c *AppConfig, v string) {
+		c.Quiet = parseBoolEnv(v, c.Quiet)
+	}},
+	{"CALIBRATE", []string{"calibrate"}, func(c *AppConfig, v string) {
+		c.Calibrate = parseBoolEnv(v, c.Calibrate)
+	}},
+	{"AUTO_CALIBRATE", []string{"auto-calibrate"}, func(c *AppConfig, v string) {
+		c.AutoCalibrate = parseBoolEnv(v, c.AutoCalibrate)
+	}},
+	{"CALCULATE", []string{"calculate", "c"}, func(c *AppConfig, v string) {
+		c.ShowValue = parseBoolEnv(v, c.ShowValue)
+	}},
+	{"TUI", []string{"tui"}, func(c *AppConfig, v string) {
+		c.TUI = parseBoolEnv(v, c.TUI)
+	}},
+}
+
+// parseBoolEnv parses a boolean environment variable value.
+// Accepts "true", "1", "yes" as true; "false", "0", "no" as false (case-insensitive).
+// Returns defaultVal if the value is not recognized.
+func parseBoolEnv(val string, defaultVal bool) bool {
+	switch strings.ToLower(val) {
+	case "true", "1", "yes":
+		return true
+	case "false", "0", "no":
+		return false
+	}
+	return defaultVal
+}
+
 // applyEnvOverrides applies environment variable values to the configuration
 // for any flags that were not explicitly set on the command line.
 // This implements the priority: CLI flags > Environment variables > Defaults.
 //
-// Supported environment variables:
-//   - FIBCALC_N: Index of the Fibonacci number to calculate (uint64)
-//   - FIBCALC_ALGO: Algorithm to use (string: fast, matrix, fft, all)
-//   - FIBCALC_TIMEOUT: Calculation timeout (duration: "5m", "30s")
-//   - FIBCALC_THRESHOLD: Parallelism threshold in bits (int)
-//   - FIBCALC_FFT_THRESHOLD: FFT multiplication threshold in bits (int)
-//   - FIBCALC_STRASSEN_THRESHOLD: Strassen algorithm threshold in bits (int)
-//   - FIBCALC_VERBOSE: Enable verbose output (bool)
-//   - FIBCALC_QUIET: Enable quiet mode (bool)
-//   - FIBCALC_OUTPUT: Output file path (string)
-//   - FIBCALC_CALIBRATION_PROFILE: Path to calibration profile (string)
+// Supported environment variables (all prefixed with FIBCALC_):
+//   - N, ALGO, TIMEOUT, THRESHOLD, FFT_THRESHOLD, STRASSEN_THRESHOLD,
+//     VERBOSE, DETAILS, QUIET, CALIBRATE, AUTO_CALIBRATE, CALCULATE,
+//     OUTPUT, CALIBRATION_PROFILE, MEMORY_LIMIT, TUI
 func applyEnvOverrides(config *AppConfig, fs *flag.FlagSet) {
-	applyNumericOverrides(config, fs)
-	applyDurationOverrides(config, fs)
-	applyStringOverrides(config, fs)
-	applyBooleanOverrides(config, fs)
-}
-
-func applyNumericOverrides(config *AppConfig, fs *flag.FlagSet) {
-	if !isFlagSet(fs, "n") {
-		config.N = getEnvUint64("N", config.N)
-	}
-	if !isFlagSet(fs, "threshold") {
-		config.Threshold = getEnvInt("THRESHOLD", config.Threshold)
-	}
-	if !isFlagSet(fs, "fft-threshold") {
-		config.FFTThreshold = getEnvInt("FFT_THRESHOLD", config.FFTThreshold)
-	}
-	if !isFlagSet(fs, "strassen-threshold") {
-		config.StrassenThreshold = getEnvInt("STRASSEN_THRESHOLD", config.StrassenThreshold)
-	}
-}
-
-func applyDurationOverrides(config *AppConfig, fs *flag.FlagSet) {
-	if !isFlagSet(fs, "timeout") {
-		config.Timeout = getEnvDuration("TIMEOUT", config.Timeout)
-	}
-}
-
-func applyStringOverrides(config *AppConfig, fs *flag.FlagSet) {
-	if !isFlagSet(fs, "algo") {
-		config.Algo = getEnvString("ALGO", config.Algo)
-	}
-	if !isFlagSetAny(fs, "output", "o") {
-		config.OutputFile = getEnvString("OUTPUT", config.OutputFile)
-	}
-	if !isFlagSet(fs, "calibration-profile") {
-		config.CalibrationProfile = getEnvString("CALIBRATION_PROFILE", config.CalibrationProfile)
-	}
-	if !isFlagSet(fs, "memory-limit") {
-		config.MemoryLimit = getEnvString("MEMORY_LIMIT", config.MemoryLimit)
-	}
-}
-
-func applyBooleanOverrides(config *AppConfig, fs *flag.FlagSet) {
-	if !isFlagSetAny(fs, "v", "verbose") {
-		config.Verbose = getEnvBool("VERBOSE", config.Verbose)
-	}
-	if !isFlagSetAny(fs, "d", "details") {
-		config.Details = getEnvBool("DETAILS", config.Details)
-	}
-	if !isFlagSetAny(fs, "quiet", "q") {
-		config.Quiet = getEnvBool("QUIET", config.Quiet)
-	}
-	if !isFlagSet(fs, "calibrate") {
-		config.Calibrate = getEnvBool("CALIBRATE", config.Calibrate)
-	}
-	if !isFlagSet(fs, "auto-calibrate") {
-		config.AutoCalibrate = getEnvBool("AUTO_CALIBRATE", config.AutoCalibrate)
-	}
-	if !isFlagSetAny(fs, "calculate", "c") {
-		config.ShowValue = getEnvBool("CALCULATE", config.ShowValue)
-	}
-	if !isFlagSet(fs, "tui") {
-		config.TUI = getEnvBool("TUI", config.TUI)
+	for _, o := range envOverrides {
+		if isFlagSetAny(fs, o.flags...) {
+			continue
+		}
+		if val := os.Getenv(EnvPrefix + o.envKey); val != "" {
+			o.apply(config, val)
+		}
 	}
 }

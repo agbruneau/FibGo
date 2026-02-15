@@ -153,7 +153,7 @@ Business core of the application. Contains algorithm implementations, the factor
 |------|---------------|
 | `calculator.go` | `Calculator` and `coreCalculator` interfaces, `FibCalculator` decorator |
 | `registry.go` | `CalculatorFactory` interface, `DefaultFactory` with lazy creation and caching |
-| `strategy.go` | `Multiplier` (narrow) and `DoublingStepExecutor` (wide) interfaces, `MultiplicationStrategy` (deprecated alias); `AdaptiveStrategy`, `FFTOnlyStrategy`, `KaratsubaStrategy` |
+| `strategy.go` | `Multiplier` (narrow) and `DoublingStepExecutor` (wide) interfaces; `AdaptiveStrategy`, `FFTOnlyStrategy`, `KaratsubaStrategy` |
 | `observer.go` | `ProgressObserver` interface, `ProgressSubject` (observable) |
 | `observers.go` | Observer implementations: `ChannelObserver`, `LoggingObserver`, `NoOpObserver` |
 | `options.go` | `Options` struct: `ParallelThreshold`, `FFTThreshold`, `StrassenThreshold`, FFT cache settings (`FFTCacheMinBitLen`, `FFTCacheMaxEntries`, `FFTCacheEnabled`), dynamic threshold settings (`EnableDynamicThresholds`, `DynamicAdjustmentInterval`); `normalizeOptions()` fills zero values with defaults |
@@ -359,8 +359,6 @@ type DoublingStepExecutor interface {
     ExecuteStep(ctx context.Context, s *CalculationState, opts Options, inParallel bool) error
 }
 
-// MultiplicationStrategy is a deprecated type alias for DoublingStepExecutor.
-type MultiplicationStrategy = DoublingStepExecutor
 ```
 
 ### ProgressObserver

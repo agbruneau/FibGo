@@ -6,11 +6,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"math/big"
-	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/agbru/fibcalc/internal/calibration"
 	"github.com/agbru/fibcalc/internal/cli"
@@ -24,33 +21,33 @@ import (
 )
 
 // Application represents the fibcalc application instance.
-// It encapsulates the configuration and provides methods to run
-// the application in CLI mode.
 type Application struct {
-	// Config holds the parsed application configuration.
-	Config config.AppConfig
-	// Factory provides access to the Fibonacci calculator implementations.
-	// Uses the interface type for better testability and dependency injection.
-	Factory fibonacci.CalculatorFactory
-	// ErrWriter is the writer for error output (typically os.Stderr).
+	Config    config.AppConfig
+	Factory   fibonacci.CalculatorFactory
 	ErrWriter io.Writer
 }
 
+// AppOption configures an Application during construction.
+type AppOption func(*Application)
+
+// WithFactory sets a custom CalculatorFactory for the application.
+func WithFactory(f fibonacci.CalculatorFactory) AppOption {
+	return func(a *Application) { a.Factory = f }
+}
+
 // New creates a new Application instance by parsing command-line arguments.
-// It validates the configuration and returns an error if parsing or validation fails.
-//
-// Parameters:
-//   - args: The command-line arguments (typically os.Args).
-//   - errWriter: The writer for error output.
-//
-// Returns:
-//   - *Application: A new application instance.
-//   - error: An error if configuration parsing or validation fails.
-func New(args []string, errWriter io.Writer) (*Application, error) {
-	factory := fibonacci.GlobalFactory()
+func New(args []string, errWriter io.Writer, opts ...AppOption) (*Application, error) {
+	app := &Application{ErrWriter: errWriter}
+	for _, opt := range opts {
+		opt(app)
+	}
+	if app.Factory == nil {
+		app.Factory = fibonacci.NewDefaultFactory()
+	}
+
+	factory := app.Factory
 	availableAlgos := factory.List()
 
-	// args[0] is program name, args[1:] are the actual arguments
 	programName := "fibcalc"
 	var cmdArgs []string
 	if len(args) > 0 {
@@ -63,92 +60,35 @@ func New(args []string, errWriter io.Writer) (*Application, error) {
 		return nil, err
 	}
 
-	// Try to load cached calibration profile first
-	// This allows the application to use optimal thresholds found in previous runs
 	if cfgWithProfile, loaded := calibration.LoadCachedCalibration(cfg, cfg.CalibrationProfile); loaded {
 		cfg = cfgWithProfile
 	} else {
-		// Fallback to adaptive thresholds based on hardware characteristics
-		// This provides automatic optimization without requiring --auto-calibrate
-		cfg = applyAdaptiveThresholds(cfg)
+		cfg = config.ApplyAdaptiveThresholds(cfg)
 	}
 
-	return &Application{
-		Config:    cfg,
-		Factory:   factory,
-		ErrWriter: errWriter,
-	}, nil
-}
-
-// applyAdaptiveThresholds adjusts the configuration thresholds based on
-// hardware characteristics (CPU cores, architecture) when default values
-// are detected. This provides automatic performance optimization without
-// requiring explicit calibration.
-//
-// The function only modifies thresholds that are set to their static default
-// values, preserving any user-specified overrides via command-line flags.
-//
-// Parameters:
-//   - cfg: The initial configuration with potentially default threshold values.
-//
-// Returns:
-//   - config.AppConfig: The configuration with adaptive thresholds applied.
-func applyAdaptiveThresholds(cfg config.AppConfig) config.AppConfig {
-	// Only adjust thresholds if they're at their zero default (not explicitly set).
-	// This preserves explicit user overrides via --threshold, --fft-threshold, etc.
-
-	// Parallel threshold: adapt based on CPU core count
-	if cfg.Threshold == 0 {
-		cfg.Threshold = calibration.EstimateOptimalParallelThreshold()
-	}
-
-	// FFT threshold: adapt based on architecture (32-bit vs 64-bit)
-	if cfg.FFTThreshold == 0 {
-		cfg.FFTThreshold = calibration.EstimateOptimalFFTThreshold()
-	}
-
-	// Strassen threshold: adapt based on CPU core count
-	if cfg.StrassenThreshold == 0 {
-		cfg.StrassenThreshold = calibration.EstimateOptimalStrassenThreshold()
-	}
-
-	return cfg
+	app.Config = cfg
+	return app, nil
 }
 
 // Run executes the application based on the configured mode.
-// It dispatches to the appropriate handler (completion, calibration, or CLI).
-//
-// Parameters:
-//   - ctx: The context for managing cancellation and timeouts.
-//   - out: The writer for standard output.
-//
-// Returns:
-//   - int: An exit code (0 for success, non-zero for errors).
 func (a *Application) Run(ctx context.Context, out io.Writer) int {
-	// Handle completion script generation
 	if a.Config.Completion != "" {
 		return a.runCompletion(out)
 	}
 
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-
-	// Initialize CLI theme (respects NO_COLOR env var)
 	ui.InitTheme(false)
 
-	// Calibration mode
 	if a.Config.Calibrate {
 		return a.runCalibration(ctx, out)
 	}
 
-	// Run auto-calibration if enabled
 	a.Config = a.runAutoCalibrationIfEnabled(ctx, out)
 
-	// TUI dashboard mode
 	if a.Config.TUI {
 		return a.runTUI(ctx, out)
 	}
 
-	// Standard CLI calculation mode
 	return a.runCalculate(ctx, out)
 }
 
@@ -164,11 +104,10 @@ func (a *Application) runCompletion(out io.Writer) int {
 
 // runCalibration runs the full calibration mode.
 func (a *Application) runCalibration(ctx context.Context, out io.Writer) int {
-	return calibration.RunCalibration(ctx, out, a.Factory.GetAll())
+	return calibration.RunCalibration(ctx, out, a.Factory.GetAll(), cli.DisplayProgress, cli.CLIColorProvider{})
 }
 
-// runAutoCalibrationIfEnabled runs auto-calibration if enabled in the configuration.
-// Returns the potentially updated configuration with calibrated threshold values.
+// runAutoCalibrationIfEnabled runs auto-calibration if enabled.
 func (a *Application) runAutoCalibrationIfEnabled(ctx context.Context, out io.Writer) config.AppConfig {
 	if a.Config.AutoCalibrate {
 		if updated, ok := calibration.AutoCalibrate(ctx, a.Config, out, a.Factory.GetAll()); ok {
@@ -185,186 +124,11 @@ func (a *Application) runTUI(ctx context.Context, _ io.Writer) int {
 	ctx, stopSignals := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stopSignals()
 
-	calculatorsToRun := orchestration.GetCalculatorsToRun(a.Config, a.Factory)
+	calculatorsToRun := orchestration.GetCalculatorsToRun(a.Config.Algo, a.Factory)
 	return tui.Run(ctx, calculatorsToRun, a.Config, Version)
 }
 
-// runCalculate orchestrates the execution of the CLI calculation command.
-func (a *Application) runCalculate(ctx context.Context, out io.Writer) int {
-	// Partial computation mode: last K digits only
-	if a.Config.LastDigits > 0 {
-		return a.runLastDigits(ctx, out)
-	}
-
-	// Memory budget validation
-	if a.Config.MemoryLimit != "" {
-		limit, err := fibonacci.ParseMemoryLimit(a.Config.MemoryLimit)
-		if err != nil {
-			fmt.Fprintf(out, "Invalid --memory-limit: %v\n", err)
-			return apperrors.ExitErrorConfig
-		}
-		est := fibonacci.EstimateMemoryUsage(a.Config.N)
-		if est.TotalBytes > limit {
-			fmt.Fprintf(out, "Estimated memory %s exceeds limit %s.\n",
-				fibonacci.FormatMemoryEstimate(est),
-				a.Config.MemoryLimit)
-			if a.Config.LastDigits == 0 {
-				fmt.Fprintf(out, "Consider using --last-digits K for O(K) memory usage.\n")
-			}
-			return apperrors.ExitErrorConfig
-		}
-		if !a.Config.Quiet {
-			fmt.Fprintf(out, "Memory estimate: %s (limit: %s)\n",
-				fibonacci.FormatMemoryEstimate(est), a.Config.MemoryLimit)
-		}
-	}
-
-	// Setup lifecycle (timeout + signals)
-	ctx, cancelTimeout := context.WithTimeout(ctx, a.Config.Timeout)
-	defer cancelTimeout()
-	ctx, stopSignals := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer stopSignals()
-
-	// Get calculators to run
-	calculatorsToRun := orchestration.GetCalculatorsToRun(a.Config, a.Factory)
-
-	// Skip verbose output in quiet mode
-	if !a.Config.Quiet {
-		cli.PrintExecutionConfig(a.Config, out)
-		cli.PrintExecutionMode(calculatorsToRun, out)
-	}
-
-	// Choose progress reporter based on quiet mode
-	var progressReporter orchestration.ProgressReporter
-	progressOut := out
-	if a.Config.Quiet {
-		progressOut = io.Discard
-		progressReporter = orchestration.NullProgressReporter{}
-	} else {
-		progressReporter = cli.CLIProgressReporter{}
-	}
-
-	// Execute calculations
-	results := orchestration.ExecuteCalculations(ctx, calculatorsToRun, a.Config, progressReporter, progressOut)
-
-	// Build output config for the CLI options
-	outputCfg := cli.OutputConfig{
-		OutputFile: a.Config.OutputFile,
-		Quiet:      a.Config.Quiet,
-		Verbose:    a.Config.Verbose,
-		ShowValue:  a.Config.ShowValue,
-	}
-
-	return a.analyzeResultsWithOutput(results, outputCfg, out)
-}
-
-// runLastDigits computes only the last K decimal digits of F(N) using modular
-// arithmetic, requiring O(K) memory regardless of N.
-func (a *Application) runLastDigits(ctx context.Context, out io.Writer) int {
-	ctx, cancelTimeout := context.WithTimeout(ctx, a.Config.Timeout)
-	defer cancelTimeout()
-	ctx, stopSignals := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer stopSignals()
-
-	k := a.Config.LastDigits
-	n := a.Config.N
-
-	// Compute modulus = 10^k
-	mod := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(k)), nil)
-
-	if !a.Config.Quiet {
-		fmt.Fprintf(out, "Computing last %d digits of F(%d)...\n", k, n)
-	}
-
-	start := time.Now()
-	result, err := fibonacci.FastDoublingMod(n, mod)
-	elapsed := time.Since(start)
-
-	if err != nil {
-		fmt.Fprintf(a.ErrWriter, "Error: %v\n", err)
-		return apperrors.ExitErrorGeneric
-	}
-
-	// Format with leading zeros to exactly k digits
-	format := fmt.Sprintf("%%0%ds", k)
-	digits := fmt.Sprintf(format, result.String())
-
-	if a.Config.Quiet {
-		fmt.Fprintln(out, digits)
-	} else {
-		fmt.Fprintf(out, "Last %d digits of F(%d): %s\n", k, n, digits)
-		fmt.Fprintf(out, "Computed in %s\n", elapsed.Round(time.Millisecond))
-	}
-
-	return apperrors.ExitSuccess
-}
-
-func (a *Application) analyzeResultsWithOutput(results []orchestration.CalculationResult, outputCfg cli.OutputConfig, out io.Writer) int {
-	bestResult := findBestResult(results)
-
-	// Handle quiet mode for single result
-	if outputCfg.Quiet && bestResult != nil {
-		cli.DisplayQuietResult(out, bestResult.Result, a.Config.N, bestResult.Duration)
-
-		// Save to file if requested
-		if err := a.saveResultIfNeeded(bestResult, outputCfg); err != nil {
-			return apperrors.ExitErrorGeneric
-		}
-
-		return apperrors.ExitSuccess
-	}
-
-	// Use standard analysis for non-quiet mode
-	exitCode := orchestration.AnalyzeComparisonResults(results, a.Config, cli.CLIResultPresenter{}, out)
-
-	// Handle file output for non-quiet mode
-	if bestResult != nil && exitCode == apperrors.ExitSuccess {
-		// Save to file if requested
-		if err := a.saveResultIfNeeded(bestResult, outputCfg); err != nil {
-			return apperrors.ExitErrorGeneric
-		}
-		if outputCfg.OutputFile != "" {
-			fmt.Fprintf(out, "\n%s✓ Result saved to: %s%s%s\n",
-				ui.ColorGreen(), ui.ColorCyan(), outputCfg.OutputFile, ui.ColorReset())
-		}
-	}
-
-	return exitCode
-}
-
 // IsHelpError checks if the error is a help flag error (--help was used).
-// This is useful for determining if the application should exit with success
-// after displaying help text.
-//
-// Parameters:
-//   - err: The error to check.
-//
-// Returns:
-//   - bool: True if the error indicates help was requested.
 func IsHelpError(err error) bool {
 	return errors.Is(err, flag.ErrHelp)
 }
-
-func findBestResult(results []orchestration.CalculationResult) *orchestration.CalculationResult {
-	var bestResult *orchestration.CalculationResult
-	for i := range results {
-		if results[i].Err == nil {
-			if bestResult == nil || results[i].Duration < bestResult.Duration {
-				bestResult = &results[i]
-			}
-		}
-	}
-	return bestResult
-}
-
-func (a *Application) saveResultIfNeeded(res *orchestration.CalculationResult, cfg cli.OutputConfig) error {
-	if cfg.OutputFile == "" {
-		return nil
-	}
-	if err := cli.WriteResultToFile(res.Result, a.Config.N, res.Duration, res.Name, cfg); err != nil {
-		fmt.Fprintf(os.Stderr, "Error saving result: %v\n", err)
-		return err
-	}
-	return nil
-}
-

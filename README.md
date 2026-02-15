@@ -75,7 +75,7 @@ FibCalc serves as both a practical high-performance tool and a reference impleme
 
 - **Clean Architecture**: Strict separation of concerns (Core Logic, Orchestration, Interface, Infrastructure) with interface-based decoupling.
 - **Interface-Based Decoupling**: The orchestration layer uses `ProgressReporter` and `ResultPresenter` interfaces to avoid depending on CLI, enabling testability and alternative presentations.
-- **Strategy + Interface Segregation (ISP)**: Narrow `Multiplier` interface for basic operations, wider `DoublingStepExecutor` for optimized doubling steps. Three concrete strategies: `AdaptiveStrategy`, `FFTOnlyStrategy`, `KaratsubaStrategy`. The legacy `MultiplicationStrategy` type alias is deprecated.
+- **Strategy + Interface Segregation (ISP)**: Narrow `Multiplier` interface for basic operations, wider `DoublingStepExecutor` for optimized doubling steps. Three concrete strategies: `AdaptiveStrategy`, `FFTOnlyStrategy`, `KaratsubaStrategy`.
 - **Framework Pattern**: `DoublingFramework` and `MatrixFramework` encapsulate algorithm loops, accepting pluggable strategies.
 - **Modern CLI**: Features progress spinners, ETA calculation, formatted output, and color themes.
 - **Interactive TUI Dashboard**: Optional btop-inspired terminal dashboard (`--tui`) with real-time progress logs, system memory metrics, progress bar with ETA, sparkline charts, and keyboard navigation — powered by [Bubble Tea](https://github.com/charmbracelet/bubbletea).

@@ -2,11 +2,33 @@ package orchestration
 
 import (
 	"io"
+	"math/big"
 	"sync"
 	"time"
 
-	"github.com/agbru/fibcalc/internal/fibonacci"
+	"github.com/agbru/fibcalc/internal/progress"
 )
+
+// CalculationResult encapsulates the outcome of a single Fibonacci calculation.
+// It serves as the shared domain type between orchestration and presentation layers.
+type CalculationResult struct {
+	// Name is the identifier of the algorithm used (e.g., "Fast Doubling").
+	Name string
+	// Result is the computed Fibonacci number. It is nil if an error occurred.
+	Result *big.Int
+	// Duration is the time taken to complete the calculation.
+	Duration time.Duration
+	// Err contains any error that occurred during the calculation.
+	Err error
+}
+
+// PresentationOptions configures how results are presented to the user.
+type PresentationOptions struct {
+	N         uint64
+	Verbose   bool
+	Details   bool
+	ShowValue bool
+}
 
 // ProgressReporter defines the interface for displaying calculation progress.
 // This interface decouples the orchestration layer from the presentation layer,
@@ -26,15 +48,15 @@ type ProgressReporter interface {
 	//   - progressChan: Channel receiving progress updates from calculators.
 	//   - numCalculators: The number of concurrent calculators being tracked.
 	//   - out: The writer for progress output.
-	DisplayProgress(wg *sync.WaitGroup, progressChan <-chan fibonacci.ProgressUpdate, numCalculators int, out io.Writer)
+	DisplayProgress(wg *sync.WaitGroup, progressChan <-chan progress.ProgressUpdate, numCalculators int, out io.Writer)
 }
 
 // ProgressReporterFunc is a function adapter that implements ProgressReporter.
 // This allows passing a function directly where a ProgressReporter is expected.
-type ProgressReporterFunc func(wg *sync.WaitGroup, progressChan <-chan fibonacci.ProgressUpdate, numCalculators int, out io.Writer)
+type ProgressReporterFunc func(wg *sync.WaitGroup, progressChan <-chan progress.ProgressUpdate, numCalculators int, out io.Writer)
 
 // DisplayProgress calls the underlying function.
-func (f ProgressReporterFunc) DisplayProgress(wg *sync.WaitGroup, progressChan <-chan fibonacci.ProgressUpdate, numCalculators int, out io.Writer) {
+func (f ProgressReporterFunc) DisplayProgress(wg *sync.WaitGroup, progressChan <-chan progress.ProgressUpdate, numCalculators int, out io.Writer) {
 	f(wg, progressChan, numCalculators, out)
 }
 
@@ -44,7 +66,7 @@ func (f ProgressReporterFunc) DisplayProgress(wg *sync.WaitGroup, progressChan <
 type NullProgressReporter struct{}
 
 // DisplayProgress drains the channel without output.
-func (NullProgressReporter) DisplayProgress(wg *sync.WaitGroup, progressChan <-chan fibonacci.ProgressUpdate, _ int, _ io.Writer) {
+func (NullProgressReporter) DisplayProgress(wg *sync.WaitGroup, progressChan <-chan progress.ProgressUpdate, _ int, _ io.Writer) {
 	defer wg.Done()
 	for range progressChan {
 		// Drain channel silently
@@ -56,42 +78,19 @@ func (NullProgressReporter) DisplayProgress(wg *sync.WaitGroup, progressChan <-c
 // allowing different output formats (CLI, JSON, etc.) without modifying
 // the orchestration logic.
 type ResultPresenter interface {
-	// PresentComparisonTable displays the comparison summary table with
-	// algorithm names, durations, and status.
-	//
-	// Parameters:
-	//   - results: The sorted calculation results to display.
-	//   - out: The writer for output.
+	// PresentComparisonTable displays the comparison summary table.
 	PresentComparisonTable(results []CalculationResult, out io.Writer)
 
 	// PresentResult displays the final calculation result.
-	//
-	// Parameters:
-	//   - result: The calculation result to display.
-	//   - n: The Fibonacci index calculated.
-	//   - verbose: Whether to display full result.
-	//   - details: Whether to display detailed metrics.
-	//   - showValue: Whether to display the calculated value section.
-	//   - out: The writer for output.
 	PresentResult(result CalculationResult, n uint64, verbose, details, showValue bool, out io.Writer)
+}
 
-	// FormatDuration formats a duration for display.
-	//
-	// Parameters:
-	//   - d: The duration to format.
-	//
-	// Returns:
-	//   - string: The formatted duration string.
+// DurationFormatter formats durations for display.
+type DurationFormatter interface {
 	FormatDuration(d time.Duration) string
+}
 
-	// HandleError handles calculation errors and returns an appropriate exit code.
-	//
-	// Parameters:
-	//   - err: The error that occurred.
-	//   - duration: The duration of the calculation attempt.
-	//   - out: The writer for error output.
-	//
-	// Returns:
-	//   - int: The exit code for the error.
+// ErrorHandler handles calculation errors and returns exit codes.
+type ErrorHandler interface {
 	HandleError(err error, duration time.Duration, out io.Writer) int
 }

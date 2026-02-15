@@ -8,11 +8,16 @@
 //
 //   - Format* functions return a formatted string without performing I/O.
 //     They are pure functions suitable for composition.
-//     Examples: [FormatQuietResult], [FormatExecutionDuration].
+//     Example: [FormatQuietResult].
+//     Pure formatting helpers (duration, numbers, ETA) live in the format
+//     package and should be imported from there directly.
 //
 //   - Write* functions write data to files on the filesystem.
 //     They handle file creation, directory setup, and error handling.
 //     Examples: [WriteResultToFile].
+//
+//   - Print* functions write to stdout as convenience wrappers.
+//     Examples: [PrintExecutionConfig], [PrintExecutionMode].
 
 package cli
 

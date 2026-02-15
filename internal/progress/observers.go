@@ -1,6 +1,6 @@
 // This file contains concrete observer implementations for the Observer pattern.
 
-package fibonacci
+package progress
 
 import (
 	"fmt"

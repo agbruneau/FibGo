@@ -1,6 +1,6 @@
 // This file contains the Observer pattern implementation for progress reporting.
 
-package fibonacci
+package progress
 
 import (
 	"sync"
@@ -140,7 +140,12 @@ func (s *ProgressSubject) Freeze(calcIndex int) ProgressCallback {
 
 	return func(progress float64) {
 		for _, observer := range snapshot {
-			observer.Update(calcIndex, progress)
+			func() {
+				defer func() {
+					recover() // prevent panicking observer from crashing calculation
+				}()
+				observer.Update(calcIndex, progress)
+			}()
 		}
 	}
 }

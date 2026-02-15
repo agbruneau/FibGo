@@ -9,7 +9,7 @@ import (
 	"time"
 
 	apperrors "github.com/agbru/fibcalc/internal/errors"
-	"github.com/agbru/fibcalc/internal/fibonacci"
+	"github.com/agbru/fibcalc/internal/progress"
 	"github.com/agbru/fibcalc/internal/orchestration"
 )
 
@@ -18,15 +18,15 @@ func TestTUIProgressReporter_DrainsChannel(t *testing.T) {
 
 	reporter := &TUIProgressReporter{ref: ref}
 
-	ch := make(chan fibonacci.ProgressUpdate, 10)
+	ch := make(chan progress.ProgressUpdate, 10)
 	var wg sync.WaitGroup
 	wg.Add(1)
 
 	// Send some updates
-	ch <- fibonacci.ProgressUpdate{CalculatorIndex: 0, Value: 0.25}
-	ch <- fibonacci.ProgressUpdate{CalculatorIndex: 0, Value: 0.50}
-	ch <- fibonacci.ProgressUpdate{CalculatorIndex: 0, Value: 0.75}
-	ch <- fibonacci.ProgressUpdate{CalculatorIndex: 0, Value: 1.00}
+	ch <- progress.ProgressUpdate{CalculatorIndex: 0, Value: 0.25}
+	ch <- progress.ProgressUpdate{CalculatorIndex: 0, Value: 0.50}
+	ch <- progress.ProgressUpdate{CalculatorIndex: 0, Value: 0.75}
+	ch <- progress.ProgressUpdate{CalculatorIndex: 0, Value: 1.00}
 	close(ch)
 
 	go reporter.DisplayProgress(&wg, ch, 1, nil)
@@ -40,8 +40,8 @@ func TestTUIProgressReporter_ZeroCalculators(t *testing.T) {
 	ref := &programRef{}
 	reporter := &TUIProgressReporter{ref: ref}
 
-	ch := make(chan fibonacci.ProgressUpdate, 5)
-	ch <- fibonacci.ProgressUpdate{CalculatorIndex: 0, Value: 0.5}
+	ch := make(chan progress.ProgressUpdate, 5)
+	ch <- progress.ProgressUpdate{CalculatorIndex: 0, Value: 0.5}
 	close(ch)
 
 	var wg sync.WaitGroup
@@ -150,14 +150,14 @@ func TestTUIProgressReporter_MultipleCalculators(t *testing.T) {
 	ref := &programRef{}
 	reporter := &TUIProgressReporter{ref: ref}
 
-	ch := make(chan fibonacci.ProgressUpdate, 10)
+	ch := make(chan progress.ProgressUpdate, 10)
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	ch <- fibonacci.ProgressUpdate{CalculatorIndex: 0, Value: 0.25}
-	ch <- fibonacci.ProgressUpdate{CalculatorIndex: 1, Value: 0.50}
-	ch <- fibonacci.ProgressUpdate{CalculatorIndex: 0, Value: 0.75}
-	ch <- fibonacci.ProgressUpdate{CalculatorIndex: 1, Value: 1.00}
+	ch <- progress.ProgressUpdate{CalculatorIndex: 0, Value: 0.25}
+	ch <- progress.ProgressUpdate{CalculatorIndex: 1, Value: 0.50}
+	ch <- progress.ProgressUpdate{CalculatorIndex: 0, Value: 0.75}
+	ch <- progress.ProgressUpdate{CalculatorIndex: 1, Value: 1.00}
 	close(ch)
 
 	go reporter.DisplayProgress(&wg, ch, 2, nil)
@@ -196,7 +196,7 @@ func TestTUIProgressReporter_EmptyChannel(t *testing.T) {
 	ref := &programRef{}
 	reporter := &TUIProgressReporter{ref: ref}
 
-	ch := make(chan fibonacci.ProgressUpdate)
+	ch := make(chan progress.ProgressUpdate)
 	close(ch)
 
 	var wg sync.WaitGroup

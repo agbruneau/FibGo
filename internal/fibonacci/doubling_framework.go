@@ -8,10 +8,9 @@ import (
 	"fmt"
 	"math/big"
 	"math/bits"
-	"sync"
 	"time"
 
-	"github.com/agbru/fibcalc/internal/parallel"
+	"github.com/agbru/fibcalc/internal/fibonacci/threshold"
 )
 
 // DoublingFramework encapsulates the common Fast Doubling algorithm logic.
@@ -19,7 +18,7 @@ import (
 // different strategies (adaptive, FFT-only, etc.) to be plugged in.
 type DoublingFramework struct {
 	strategy         DoublingStepExecutor
-	dynamicThreshold *DynamicThresholdManager
+	dynamicThreshold *threshold.DynamicThresholdManager
 }
 
 // NewDoublingFramework creates a new Fast Doubling framework with the given strategy.
@@ -41,7 +40,7 @@ func NewDoublingFramework(strategy DoublingStepExecutor) *DoublingFramework {
 //
 // Returns:
 //   - *DoublingFramework: A new framework instance.
-func NewDoublingFrameworkWithDynamicThresholds(strategy DoublingStepExecutor, dtm *DynamicThresholdManager) *DoublingFramework {
+func NewDoublingFrameworkWithDynamicThresholds(strategy DoublingStepExecutor, dtm *threshold.DynamicThresholdManager) *DoublingFramework {
 	return &DoublingFramework{
 		strategy:         strategy,
 		dynamicThreshold: dtm,
@@ -65,60 +64,34 @@ func NewDoublingFrameworkWithDynamicThresholds(strategy DoublingStepExecutor, dt
 //   - error: An error if any multiplication failed, with context about which operation failed.
 func executeDoublingStepMultiplications(ctx context.Context, strategy Multiplier, s *CalculationState, opts Options, inParallel bool) error {
 	if inParallel {
-		var wg sync.WaitGroup
-		var ec parallel.ErrorCollector
-		wg.Add(3)
-
-		// 1. T3 = FK * FK1
-		go func() {
-			defer wg.Done()
-			if err := ctx.Err(); err != nil {
-				ec.SetError(fmt.Errorf("canceled before multiply: %w", err))
-				return
-			}
-			var err error
-			// Note: We access s.T3, s.FK, s.FK1 safely because each goroutine
-			// operates on disjoint destination sets or reads shared sources
-			// (FK, FK1 are read-only here).
-			// T3 is destination for this goroutine.
-			s.T3, err = strategy.Multiply(s.T3, s.FK, s.FK1, opts)
-			if err != nil {
-				ec.SetError(fmt.Errorf("parallel multiply FK * FK1 failed: %w", err))
-			}
-		}()
-
-		// 2. T1 = FK1^2
-		go func() {
-			defer wg.Done()
-			if err := ctx.Err(); err != nil {
-				ec.SetError(fmt.Errorf("canceled before multiply: %w", err))
-				return
-			}
-			var err error
-			// T1 is destination for this goroutine.
-			s.T1, err = strategy.Square(s.T1, s.FK1, opts)
-			if err != nil {
-				ec.SetError(fmt.Errorf("parallel square FK1 failed: %w", err))
-			}
-		}()
-
-		// 3. T2 = FK^2
-		go func() {
-			defer wg.Done()
-			if err := ctx.Err(); err != nil {
-				ec.SetError(fmt.Errorf("canceled before multiply: %w", err))
-				return
-			}
-			var err error
-			// T2 is destination for this goroutine.
-			s.T2, err = strategy.Square(s.T2, s.FK, opts)
-			if err != nil {
-				ec.SetError(fmt.Errorf("parallel square FK failed: %w", err))
-			}
-		}()
-
-		wg.Wait()
-		return ec.Err()
+		// Each goroutine writes to a disjoint destination (T3, T1, T2)
+		// and reads shared sources (FK, FK1) which are read-only here.
+		return executeParallel3(ctx,
+			func() error {
+				var err error
+				s.T3, err = strategy.Multiply(s.T3, s.FK, s.FK1, opts)
+				if err != nil {
+					return fmt.Errorf("parallel multiply FK * FK1 failed: %w", err)
+				}
+				return nil
+			},
+			func() error {
+				var err error
+				s.T1, err = strategy.Square(s.T1, s.FK1, opts)
+				if err != nil {
+					return fmt.Errorf("parallel square FK1 failed: %w", err)
+				}
+				return nil
+			},
+			func() error {
+				var err error
+				s.T2, err = strategy.Square(s.T2, s.FK, opts)
+				if err != nil {
+					return fmt.Errorf("parallel square FK failed: %w", err)
+				}
+				return nil
+			},
+		)
 	}
 
 	// Sequential execution with context checks between multiplications

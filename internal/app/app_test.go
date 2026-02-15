@@ -392,7 +392,7 @@ func TestApplyAdaptiveThresholds(t *testing.T) {
 		// we mainly check that it runs safely and returns a valid config.
 		// The thresholds might remain default if the environment matches the defaults,
 		// or change if it differs.
-		newCfg := applyAdaptiveThresholds(cfg)
+		newCfg := config.ApplyAdaptiveThresholds(cfg)
 		_ = newCfg
 	})
 
@@ -405,7 +405,7 @@ func TestApplyAdaptiveThresholds(t *testing.T) {
 			StrassenThreshold: 9012,
 		}
 
-		newCfg := applyAdaptiveThresholds(cfg)
+		newCfg := config.ApplyAdaptiveThresholds(cfg)
 
 		if newCfg.Threshold != 1234 {
 			t.Errorf("Threshold changed, want %d, got %d", 1234, newCfg.Threshold)
@@ -712,4 +712,563 @@ func TestRunAllModes(t *testing.T) {
 				apperrors.ExitErrorCanceled, exitCode)
 		}
 	})
+}
+
+// TestWithFactory tests the WithFactory option for dependency injection.
+func TestWithFactory(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Custom factory is used", func(t *testing.T) {
+		t.Parallel()
+		var errBuf bytes.Buffer
+		customFactory := createMockFactory(big.NewInt(42), nil)
+		args := []string{"fibcalc", "-n", "10"}
+
+		app, err := New(args, &errBuf, WithFactory(customFactory))
+
+		if err != nil {
+			t.Fatalf("New() returned unexpected error: %v", err)
+		}
+		if app.Factory != customFactory {
+			t.Error("Expected custom factory to be set")
+		}
+	})
+
+	t.Run("Default factory when WithFactory not provided", func(t *testing.T) {
+		t.Parallel()
+		var errBuf bytes.Buffer
+		args := []string{"fibcalc", "-n", "10"}
+
+		app, err := New(args, &errBuf)
+
+		if err != nil {
+			t.Fatalf("New() returned unexpected error: %v", err)
+		}
+		if app.Factory == nil {
+			t.Error("Factory should be set to default when WithFactory not provided")
+		}
+	})
+}
+
+// TestApplyAdaptiveThresholdsZeroValues tests that zero-value thresholds
+// trigger the adaptive estimation paths.
+func TestApplyAdaptiveThresholdsZeroValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		cfg  config.AppConfig
+	}{
+		{
+			name: "All zero thresholds are replaced",
+			cfg: config.AppConfig{
+				Threshold:         0,
+				FFTThreshold:      0,
+				StrassenThreshold: 0,
+			},
+		},
+		{
+			name: "Only Threshold zero",
+			cfg: config.AppConfig{
+				Threshold:         0,
+				FFTThreshold:      999999,
+				StrassenThreshold: 5555,
+			},
+		},
+		{
+			name: "Only FFTThreshold zero",
+			cfg: config.AppConfig{
+				Threshold:         1111,
+				FFTThreshold:      0,
+				StrassenThreshold: 2222,
+			},
+		},
+		{
+			name: "Only StrassenThreshold zero",
+			cfg: config.AppConfig{
+				Threshold:         3333,
+				FFTThreshold:      4444,
+				StrassenThreshold: 0,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result := config.ApplyAdaptiveThresholds(tc.cfg)
+
+			// Zero thresholds should be replaced with positive values
+			if tc.cfg.Threshold == 0 && result.Threshold == 0 {
+				t.Error("Expected Threshold to be set to a positive value when input is 0")
+			}
+			if tc.cfg.FFTThreshold == 0 && result.FFTThreshold == 0 {
+				t.Error("Expected FFTThreshold to be set to a positive value when input is 0")
+			}
+			if tc.cfg.StrassenThreshold == 0 && result.StrassenThreshold == 0 {
+				t.Error("Expected StrassenThreshold to be set to a positive value when input is 0")
+			}
+
+			// Non-zero thresholds should be preserved
+			if tc.cfg.Threshold != 0 && result.Threshold != tc.cfg.Threshold {
+				t.Errorf("Non-zero Threshold should be preserved: want %d, got %d",
+					tc.cfg.Threshold, result.Threshold)
+			}
+			if tc.cfg.FFTThreshold != 0 && result.FFTThreshold != tc.cfg.FFTThreshold {
+				t.Errorf("Non-zero FFTThreshold should be preserved: want %d, got %d",
+					tc.cfg.FFTThreshold, result.FFTThreshold)
+			}
+			if tc.cfg.StrassenThreshold != 0 && result.StrassenThreshold != tc.cfg.StrassenThreshold {
+				t.Errorf("Non-zero StrassenThreshold should be preserved: want %d, got %d",
+					tc.cfg.StrassenThreshold, result.StrassenThreshold)
+			}
+		})
+	}
+}
+
+// TestRunLastDigits tests the runLastDigits method for computing
+// the last K decimal digits of F(N).
+func TestRunLastDigits(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Compute last 5 digits of F(100)", func(t *testing.T) {
+		t.Parallel()
+		var outBuf bytes.Buffer
+		factory := createMockFactory(big.NewInt(55), nil)
+
+		app := &Application{
+			Config: config.AppConfig{
+				N:          100,
+				LastDigits: 5,
+				Timeout:    1 * time.Minute,
+			},
+			Factory:   factory,
+			ErrWriter: &bytes.Buffer{},
+		}
+
+		exitCode := app.runLastDigits(context.Background(), &outBuf)
+
+		if exitCode != apperrors.ExitSuccess {
+			t.Errorf("Expected exit code %d, got %d", apperrors.ExitSuccess, exitCode)
+		}
+		output := outBuf.String()
+		// F(100) = 354224848179261915075, last 5 digits = 15075
+		if !strings.Contains(output, "15075") {
+			t.Errorf("Expected output to contain '15075'. Output:\n%s", output)
+		}
+	})
+
+	t.Run("Quiet mode outputs only digits", func(t *testing.T) {
+		t.Parallel()
+		var outBuf bytes.Buffer
+		factory := createMockFactory(big.NewInt(55), nil)
+
+		app := &Application{
+			Config: config.AppConfig{
+				N:          100,
+				LastDigits: 5,
+				Timeout:    1 * time.Minute,
+				Quiet:      true,
+			},
+			Factory:   factory,
+			ErrWriter: &bytes.Buffer{},
+		}
+
+		exitCode := app.runLastDigits(context.Background(), &outBuf)
+
+		if exitCode != apperrors.ExitSuccess {
+			t.Errorf("Expected exit code %d, got %d", apperrors.ExitSuccess, exitCode)
+		}
+		output := strings.TrimSpace(outBuf.String())
+		if output != "15075" {
+			t.Errorf("Expected quiet output '15075', got '%s'", output)
+		}
+	})
+
+	t.Run("Last digits with timeout", func(t *testing.T) {
+		t.Parallel()
+		var outBuf bytes.Buffer
+		factory := createMockFactory(big.NewInt(55), nil)
+
+		app := &Application{
+			Config: config.AppConfig{
+				N:          10,
+				LastDigits: 3,
+				Timeout:    1 * time.Minute,
+			},
+			Factory:   factory,
+			ErrWriter: &bytes.Buffer{},
+		}
+
+		exitCode := app.runLastDigits(context.Background(), &outBuf)
+
+		if exitCode != apperrors.ExitSuccess {
+			t.Errorf("Expected exit code %d, got %d", apperrors.ExitSuccess, exitCode)
+		}
+		// F(10) = 55, last 3 digits = "055" (zero-padded)
+		output := outBuf.String()
+		if !strings.Contains(output, "055") {
+			t.Errorf("Expected output to contain '055'. Output:\n%s", output)
+		}
+	})
+}
+
+// TestRunLastDigitsViaRun tests the last-digits mode dispatched through Run.
+func TestRunLastDigitsViaRun(t *testing.T) {
+	t.Parallel()
+	var outBuf bytes.Buffer
+	factory := createMockFactory(big.NewInt(55), nil)
+
+	app := &Application{
+		Config: config.AppConfig{
+			N:          100,
+			Algo:       "fast",
+			LastDigits: 5,
+			Timeout:    1 * time.Minute,
+		},
+		Factory:   factory,
+		ErrWriter: &bytes.Buffer{},
+	}
+
+	exitCode := app.Run(context.Background(), &outBuf)
+
+	if exitCode != apperrors.ExitSuccess {
+		t.Errorf("Expected exit code %d, got %d", apperrors.ExitSuccess, exitCode)
+	}
+	output := outBuf.String()
+	if !strings.Contains(output, "15075") {
+		t.Errorf("Expected output to contain '15075'. Output:\n%s", output)
+	}
+}
+
+// TestRunCalculateMemoryLimit tests the memory limit validation paths
+// in runCalculate.
+func TestRunCalculateMemoryLimit(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Invalid memory limit format", func(t *testing.T) {
+		t.Parallel()
+		var outBuf bytes.Buffer
+		factory := createMockFactory(big.NewInt(55), nil)
+
+		app := &Application{
+			Config: config.AppConfig{
+				N:           10,
+				Algo:        "fast",
+				Timeout:     1 * time.Minute,
+				MemoryLimit: "not-a-number",
+			},
+			Factory:   factory,
+			ErrWriter: &bytes.Buffer{},
+		}
+
+		exitCode := app.Run(context.Background(), &outBuf)
+
+		if exitCode != apperrors.ExitErrorConfig {
+			t.Errorf("Expected exit code %d (config error), got %d",
+				apperrors.ExitErrorConfig, exitCode)
+		}
+		output := outBuf.String()
+		if !strings.Contains(output, "Invalid --memory-limit") {
+			t.Errorf("Expected output to mention invalid memory limit. Output:\n%s", output)
+		}
+	})
+
+	t.Run("Memory limit exceeded", func(t *testing.T) {
+		t.Parallel()
+		var outBuf bytes.Buffer
+		factory := createMockFactory(big.NewInt(55), nil)
+
+		// Use a very large N to ensure estimated memory exceeds a tiny limit
+		app := &Application{
+			Config: config.AppConfig{
+				N:           1_000_000_000,
+				Algo:        "fast",
+				Timeout:     1 * time.Minute,
+				MemoryLimit: "1K",
+			},
+			Factory:   factory,
+			ErrWriter: &bytes.Buffer{},
+		}
+
+		exitCode := app.Run(context.Background(), &outBuf)
+
+		if exitCode != apperrors.ExitErrorConfig {
+			t.Errorf("Expected exit code %d (config error), got %d",
+				apperrors.ExitErrorConfig, exitCode)
+		}
+		output := outBuf.String()
+		if !strings.Contains(output, "exceeds limit") {
+			t.Errorf("Expected output to mention exceeding limit. Output:\n%s", output)
+		}
+		// Should suggest --last-digits
+		if !strings.Contains(output, "last-digits") {
+			t.Errorf("Expected output to suggest --last-digits. Output:\n%s", output)
+		}
+	})
+
+	t.Run("Memory limit sufficient", func(t *testing.T) {
+		t.Parallel()
+		var outBuf bytes.Buffer
+		factory := createMockFactory(big.NewInt(55), nil)
+
+		app := &Application{
+			Config: config.AppConfig{
+				N:           10,
+				Algo:        "fast",
+				Timeout:     1 * time.Minute,
+				MemoryLimit: "8G",
+			},
+			Factory:   factory,
+			ErrWriter: &bytes.Buffer{},
+		}
+
+		exitCode := app.Run(context.Background(), &outBuf)
+
+		if exitCode != apperrors.ExitSuccess {
+			t.Errorf("Expected exit code %d, got %d", apperrors.ExitSuccess, exitCode)
+		}
+		output := outBuf.String()
+		if !strings.Contains(output, "Memory estimate") {
+			t.Errorf("Expected output to show memory estimate. Output:\n%s", output)
+		}
+	})
+
+	t.Run("Memory limit sufficient quiet mode", func(t *testing.T) {
+		t.Parallel()
+		var outBuf bytes.Buffer
+		factory := createMockFactory(big.NewInt(55), nil)
+
+		app := &Application{
+			Config: config.AppConfig{
+				N:           10,
+				Algo:        "fast",
+				Timeout:     1 * time.Minute,
+				MemoryLimit: "8G",
+				Quiet:       true,
+			},
+			Factory:   factory,
+			ErrWriter: &bytes.Buffer{},
+		}
+
+		exitCode := app.Run(context.Background(), &outBuf)
+
+		if exitCode != apperrors.ExitSuccess {
+			t.Errorf("Expected exit code %d, got %d", apperrors.ExitSuccess, exitCode)
+		}
+		// In quiet mode, the memory estimate line should not appear
+		output := outBuf.String()
+		if strings.Contains(output, "Memory estimate") {
+			t.Errorf("Quiet mode should not show memory estimate. Output:\n%s", output)
+		}
+	})
+}
+
+// TestAnalyzeResultsQuietModeWithOutputFile tests quiet mode output
+// with file saving in analyzeResultsWithOutput.
+func TestAnalyzeResultsQuietModeWithOutputFile(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+	outputPath := strings.ReplaceAll(tmpDir+"/quiet_result.txt", "\\", "/")
+
+	app := &Application{
+		Config: config.AppConfig{
+			N:          10,
+			OutputFile: outputPath,
+		},
+		ErrWriter: &bytes.Buffer{},
+	}
+
+	results := []orchestration.CalculationResult{
+		{
+			Name:     "fast",
+			Result:   big.NewInt(55),
+			Duration: 1 * time.Millisecond,
+		},
+	}
+
+	var outBuf bytes.Buffer
+	outputCfg := cli.OutputConfig{
+		Quiet:      true,
+		OutputFile: outputPath,
+	}
+
+	exitCode := app.analyzeResultsWithOutput(results, outputCfg, &outBuf)
+	if exitCode != apperrors.ExitSuccess {
+		t.Errorf("Expected exit code %d, got %d", apperrors.ExitSuccess, exitCode)
+	}
+
+	// Verify result was printed
+	if !strings.Contains(outBuf.String(), "55") {
+		t.Errorf("Expected quiet output to contain '55'. Got:\n%s", outBuf.String())
+	}
+
+	// Verify file was created
+	if _, err := os.Stat(outputPath); os.IsNotExist(err) {
+		t.Errorf("Output file %s was not created", outputPath)
+	}
+}
+
+// TestSaveResultIfNeeded tests the saveResultIfNeeded helper.
+func TestSaveResultIfNeeded(t *testing.T) {
+	t.Parallel()
+
+	t.Run("No output file does nothing", func(t *testing.T) {
+		t.Parallel()
+		app := &Application{
+			Config:    config.AppConfig{N: 10},
+			ErrWriter: &bytes.Buffer{},
+		}
+		res := &orchestration.CalculationResult{
+			Name:     "fast",
+			Result:   big.NewInt(55),
+			Duration: 1 * time.Millisecond,
+		}
+		err := app.saveResultIfNeeded(res, cli.OutputConfig{})
+		if err != nil {
+			t.Errorf("Expected nil error for empty output file, got: %v", err)
+		}
+	})
+
+	t.Run("Invalid output path returns error", func(t *testing.T) {
+		t.Parallel()
+		app := &Application{
+			Config:    config.AppConfig{N: 10},
+			ErrWriter: &bytes.Buffer{},
+		}
+		res := &orchestration.CalculationResult{
+			Name:     "fast",
+			Result:   big.NewInt(55),
+			Duration: 1 * time.Millisecond,
+		}
+		// Use a path with a null byte which is invalid on all platforms
+		cfg := cli.OutputConfig{OutputFile: "invalid\x00path/file.txt"}
+		err := app.saveResultIfNeeded(res, cfg)
+		if err == nil {
+			t.Error("Expected error for invalid output path")
+		}
+	})
+}
+
+// TestFindBestResult tests the findBestResult helper function.
+func TestFindBestResult(t *testing.T) {
+	t.Parallel()
+
+	t.Run("All errors returns nil", func(t *testing.T) {
+		t.Parallel()
+		results := []orchestration.CalculationResult{
+			{Name: "a", Err: fmt.Errorf("error a")},
+			{Name: "b", Err: fmt.Errorf("error b")},
+		}
+		best := findBestResult(results)
+		if best != nil {
+			t.Error("Expected nil for all-error results")
+		}
+	})
+
+	t.Run("Selects fastest successful result", func(t *testing.T) {
+		t.Parallel()
+		results := []orchestration.CalculationResult{
+			{Name: "slow", Result: big.NewInt(55), Duration: 100 * time.Millisecond},
+			{Name: "fast", Result: big.NewInt(55), Duration: 10 * time.Millisecond},
+			{Name: "err", Err: fmt.Errorf("failed")},
+		}
+		best := findBestResult(results)
+		if best == nil {
+			t.Fatal("Expected non-nil result")
+		}
+		if best.Name != "fast" {
+			t.Errorf("Expected fastest result 'fast', got '%s'", best.Name)
+		}
+	})
+
+	t.Run("Empty results returns nil", func(t *testing.T) {
+		t.Parallel()
+		best := findBestResult(nil)
+		if best != nil {
+			t.Error("Expected nil for nil results")
+		}
+	})
+}
+
+// TestNewWithCustomFactory tests creating an Application with
+// a custom factory via the WithFactory option.
+func TestNewWithCustomFactory(t *testing.T) {
+	t.Parallel()
+	var errBuf bytes.Buffer
+	customFactory := createMockFactory(big.NewInt(42), nil)
+	args := []string{"fibcalc", "-n", "50"}
+
+	app, err := New(args, &errBuf, WithFactory(customFactory))
+
+	if err != nil {
+		t.Fatalf("New() returned unexpected error: %v", err)
+	}
+	if app == nil {
+		t.Fatal("New() returned nil application")
+	}
+	if app.Factory != customFactory {
+		t.Error("Expected custom factory to be used")
+	}
+
+	// Verify it can run successfully with the custom factory
+	var outBuf bytes.Buffer
+	exitCode := app.Run(context.Background(), &outBuf)
+	if exitCode != apperrors.ExitSuccess {
+		t.Errorf("Expected exit code %d, got %d", apperrors.ExitSuccess, exitCode)
+	}
+}
+
+// TestRunCalculateVerboseMode tests the verbose flag path in runCalculate.
+func TestRunCalculateVerboseMode(t *testing.T) {
+	t.Parallel()
+	var outBuf bytes.Buffer
+	factory := createMockFactory(big.NewInt(55), nil)
+
+	app := &Application{
+		Config: config.AppConfig{
+			N:         10,
+			Algo:      "fast",
+			Timeout:   1 * time.Minute,
+			Verbose:   true,
+			Details:   true,
+			ShowValue: true,
+		},
+		Factory:   factory,
+		ErrWriter: &bytes.Buffer{},
+	}
+
+	exitCode := app.Run(context.Background(), &outBuf)
+
+	if exitCode != apperrors.ExitSuccess {
+		t.Errorf("Expected exit code %d, got %d", apperrors.ExitSuccess, exitCode)
+	}
+	output := testutil.StripAnsiCodes(outBuf.String())
+	if !strings.Contains(output, "55") {
+		t.Errorf("Verbose output should contain the result. Output:\n%s", output)
+	}
+}
+
+// TestRunCalculateCalculatorError tests that calculator errors are handled.
+func TestRunCalculateCalculatorError(t *testing.T) {
+	t.Parallel()
+	var outBuf bytes.Buffer
+	factory := createMockFactory(nil, fmt.Errorf("calculation failed"))
+
+	app := &Application{
+		Config: config.AppConfig{
+			N:       10,
+			Algo:    "fast",
+			Timeout: 1 * time.Minute,
+		},
+		Factory:   factory,
+		ErrWriter: &bytes.Buffer{},
+	}
+
+	exitCode := app.Run(context.Background(), &outBuf)
+
+	// Should return an error exit code
+	if exitCode == apperrors.ExitSuccess {
+		t.Error("Expected non-success exit code for calculator error")
+	}
 }

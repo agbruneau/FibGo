@@ -3,6 +3,8 @@ package ui
 import (
 	"os"
 	"sync"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 // Theme defines a color scheme for UI output.
@@ -96,6 +98,62 @@ var (
 	currentTheme = DarkTheme
 	themeMutex   sync.RWMutex
 )
+
+// TUITheme defines lipgloss-compatible colors for the TUI dashboard.
+// Each field is a lipgloss.TerminalColor suitable for use with
+// lipgloss.Style.Foreground() and Background().
+type TUITheme struct {
+	Bg      lipgloss.TerminalColor
+	Text    lipgloss.TerminalColor
+	Border  lipgloss.TerminalColor
+	Accent  lipgloss.TerminalColor
+	Success lipgloss.TerminalColor
+	Warning lipgloss.TerminalColor
+	Error   lipgloss.TerminalColor
+	Dim     lipgloss.TerminalColor
+	Info    lipgloss.TerminalColor
+}
+
+var (
+	// DarkTUITheme is the orange-dominant btop-inspired TUI palette.
+	DarkTUITheme = TUITheme{
+		Bg:      lipgloss.Color("#000000"),
+		Text:    lipgloss.Color("#E0E0E0"),
+		Border:  lipgloss.Color("#FF6600"),
+		Accent:  lipgloss.Color("#FF8C00"),
+		Success: lipgloss.Color("#9ece6a"),
+		Warning: lipgloss.Color("#FFB347"),
+		Error:   lipgloss.Color("#FF4444"),
+		Dim:     lipgloss.Color("#666666"),
+		Info:    lipgloss.Color("#4488FF"),
+	}
+
+	// NoColorTUITheme disables all TUI colors.
+	// lipgloss.NoColor{} renders text with the terminal's default colors.
+	NoColorTUITheme = TUITheme{
+		Bg:      lipgloss.NoColor{},
+		Text:    lipgloss.NoColor{},
+		Border:  lipgloss.NoColor{},
+		Accent:  lipgloss.NoColor{},
+		Success: lipgloss.NoColor{},
+		Warning: lipgloss.NoColor{},
+		Error:   lipgloss.NoColor{},
+		Dim:     lipgloss.NoColor{},
+		Info:    lipgloss.NoColor{},
+	}
+)
+
+// GetCurrentTUITheme returns the TUI theme matching the currently active theme.
+// When NoColorTheme is active, returns NoColorTUITheme; otherwise DarkTUITheme.
+func GetCurrentTUITheme() TUITheme {
+	themeMutex.RLock()
+	defer themeMutex.RUnlock()
+
+	if currentTheme.Name == "none" {
+		return NoColorTUITheme
+	}
+	return DarkTUITheme
+}
 
 // GetCurrentTheme returns the currently active theme in a thread-safe manner.
 func GetCurrentTheme() Theme {

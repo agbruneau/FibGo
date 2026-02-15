@@ -7,7 +7,8 @@ import (
 	"time"
 
 	apperrors "github.com/agbru/fibcalc/internal/errors"
-	"github.com/agbru/fibcalc/internal/fibonacci"
+	"github.com/agbru/fibcalc/internal/format"
+	"github.com/agbru/fibcalc/internal/progress"
 	"github.com/agbru/fibcalc/internal/orchestration"
 	"github.com/agbru/fibcalc/internal/ui"
 )
@@ -21,7 +22,7 @@ type CLIProgressReporter struct{}
 var _ orchestration.ProgressReporter = CLIProgressReporter{}
 
 // DisplayProgress displays a spinner and progress bar for ongoing calculations.
-func (CLIProgressReporter) DisplayProgress(wg *sync.WaitGroup, progressChan <-chan fibonacci.ProgressUpdate, numCalculators int, out io.Writer) {
+func (CLIProgressReporter) DisplayProgress(wg *sync.WaitGroup, progressChan <-chan progress.ProgressUpdate, numCalculators int, out io.Writer) {
 	DisplayProgress(wg, progressChan, numCalculators, out)
 }
 
@@ -30,8 +31,12 @@ func (CLIProgressReporter) DisplayProgress(wg *sync.WaitGroup, progressChan <-ch
 // command-line interface.
 type CLIResultPresenter struct{}
 
-// Verify that CLIResultPresenter implements orchestration.ResultPresenter.
-var _ orchestration.ResultPresenter = CLIResultPresenter{}
+// Verify interface compliance.
+var (
+	_ orchestration.ResultPresenter = CLIResultPresenter{}
+	_ orchestration.DurationFormatter = CLIResultPresenter{}
+	_ orchestration.ErrorHandler = CLIResultPresenter{}
+)
 
 // PresentComparisonTable displays the comparison summary table with
 // algorithm names, durations, and status in a formatted tabular layout.
@@ -46,7 +51,7 @@ func (CLIResultPresenter) PresentComparisonTable(results []orchestration.Calcula
 		if len(res.Name) > maxNameLen {
 			maxNameLen = len(res.Name)
 		}
-		duration := FormatExecutionDuration(res.Duration)
+		duration := format.FormatExecutionDuration(res.Duration)
 		if res.Duration == 0 {
 			duration = "< 1µs"
 		}
@@ -69,7 +74,7 @@ func (CLIResultPresenter) PresentComparisonTable(results []orchestration.Calcula
 		} else {
 			status = fmt.Sprintf("%s✅ Success%s", ui.ColorGreen(), ui.ColorReset())
 		}
-		duration := FormatExecutionDuration(res.Duration)
+		duration := format.FormatExecutionDuration(res.Duration)
 		if res.Duration == 0 {
 			duration = "< 1µs"
 		}
@@ -97,7 +102,7 @@ func (CLIResultPresenter) PresentResult(result orchestration.CalculationResult, 
 // FormatDuration formats a duration for display using the CLI's standard
 // duration formatting.
 func (CLIResultPresenter) FormatDuration(d time.Duration) string {
-	return FormatExecutionDuration(d)
+	return format.FormatExecutionDuration(d)
 }
 
 // HandleError handles calculation errors and returns an appropriate exit code.
@@ -108,8 +113,8 @@ func (CLIResultPresenter) HandleError(err error, duration time.Duration, out io.
 // DisplayMemoryStats shows memory statistics after a calculation.
 func DisplayMemoryStats(heapAlloc, totalAlloc uint64, numGC uint32, pauseTotalNs uint64, out io.Writer) {
 	fmt.Fprintf(out, "\nMemory Stats:\n")
-	fmt.Fprintf(out, "  Peak heap:       %s\n", FormatBytes(heapAlloc))
-	fmt.Fprintf(out, "  Total allocated: %s\n", FormatBytes(totalAlloc))
+	fmt.Fprintf(out, "  Peak heap:       %s\n", format.FormatBytes(heapAlloc))
+	fmt.Fprintf(out, "  Total allocated: %s\n", format.FormatBytes(totalAlloc))
 	fmt.Fprintf(out, "  GC cycles:       %d\n", numGC)
 	if pauseTotalNs > 0 {
 		fmt.Fprintf(out, "  GC pause total:  %.2fms\n", float64(pauseTotalNs)/1e6)
@@ -118,16 +123,3 @@ func DisplayMemoryStats(heapAlloc, totalAlloc uint64, numGC uint32, pauseTotalNs
 	}
 }
 
-// FormatBytes formats a byte count as a human-readable string.
-func FormatBytes(b uint64) string {
-	switch {
-	case b >= 1<<30:
-		return fmt.Sprintf("%.1f GB", float64(b)/(1<<30))
-	case b >= 1<<20:
-		return fmt.Sprintf("%.1f MB", float64(b)/(1<<20))
-	case b >= 1<<10:
-		return fmt.Sprintf("%.1f KB", float64(b)/(1<<10))
-	default:
-		return fmt.Sprintf("%d B", b)
-	}
-}

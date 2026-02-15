@@ -1,11 +1,14 @@
 package fibonacci
 
 import (
+	"context"
+	"fmt"
 	"math/big"
 	"runtime"
 	"sync"
 
 	"github.com/agbru/fibcalc/internal/parallel"
+	"github.com/rs/zerolog"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,7 +39,7 @@ func getTaskSemaphore() chan struct{} {
 // Increased to 100M bits (~12.5 MB) to allow pooling of intermediate results
 // for large Fibonacci calculations (e.g., F(10^8)), avoiding repeated
 // allocation of multi-megabyte big.Int values.
-const MaxPooledBitLen = 100_000_000
+const MaxPooledBitLen = 50_000_000
 
 // checkLimit checks if a big.Int exceeds the maximum pooled bit length.
 // This is used to prevent the pool from holding onto excessively large objects.
@@ -60,6 +63,54 @@ func preSizeBigInt(z *big.Int, words int) {
 	// We use a slice with length=0, cap=words to give z the backing array.
 	buf := make([]big.Word, 0, words)
 	z.SetBits(buf)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Logging
+// ─────────────────────────────────────────────────────────────────────────────
+
+// taskLogger is the package-level logger for parallel task distribution.
+// Defaults to zerolog.Nop() (no output) to avoid performance impact.
+var taskLogger = zerolog.Nop()
+
+// SetTaskLogger configures the logger used for parallel task distribution decisions.
+func SetTaskLogger(l zerolog.Logger) {
+	taskLogger = l
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Parallel Execution Helper
+// ─────────────────────────────────────────────────────────────────────────────
+
+// executeParallel3 runs three operations concurrently, returning the first
+// error encountered. Each goroutine checks for context cancellation before
+// starting its operation. The caller is responsible for ensuring that the
+// three operations write to disjoint memory (no shared mutable state).
+//
+// Parameters:
+//   - ctx: The context for cancellation checking before each operation.
+//   - op1, op2, op3: The operations to execute concurrently.
+//
+// Returns:
+//   - error: The first error from any operation, or a context error.
+func executeParallel3(ctx context.Context, op1, op2, op3 func() error) error {
+	var wg sync.WaitGroup
+	var ec parallel.ErrorCollector
+	wg.Add(3)
+
+	for _, op := range [3]func() error{op1, op2, op3} {
+		go func(fn func() error) {
+			defer wg.Done()
+			if err := ctx.Err(); err != nil {
+				ec.SetError(fmt.Errorf("canceled before parallel operation: %w", err))
+				return
+			}
+			ec.SetError(fn())
+		}(op)
+	}
+
+	wg.Wait()
+	return ec.Err()
 }
 
 // task defines a common interface for executable tasks.
@@ -120,6 +171,10 @@ func executeTasks[T any, PT interface {
 	*T
 	task
 }](tasks []T, inParallel bool) error {
+	taskLogger.Debug().
+		Int("task_count", len(tasks)).
+		Bool("parallel", inParallel).
+		Msg("executing tasks")
 	if inParallel {
 		sem := getTaskSemaphore()
 		var wg sync.WaitGroup
@@ -162,6 +217,12 @@ func executeMixedTasks(sqrTasks []squaringTask, mulTasks []multiplicationTask, i
 		return nil
 	}
 
+	taskLogger.Debug().
+		Int("sqr_tasks", len(sqrTasks)).
+		Int("mul_tasks", len(mulTasks)).
+		Int("total_tasks", totalTasks).
+		Bool("parallel", inParallel).
+		Msg("executing mixed tasks")
 	if inParallel {
 		sem := getTaskSemaphore()
 		var wg sync.WaitGroup

@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/agbru/fibcalc/internal/format"
 )
 
 func TestMetricsModel_UpdateMemStats(t *testing.T) {
@@ -129,9 +131,9 @@ func TestFormatBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := formatBytes(tt.input)
+			got := format.FormatBytes(tt.input)
 			if !strings.Contains(got, tt.contains) {
-				t.Errorf("formatBytes(%d) = %q, want to contain %q", tt.input, got, tt.contains)
+				t.Errorf("format.FormatBytes(%d) = %q, want to contain %q", tt.input, got, tt.contains)
 			}
 		})
 	}
@@ -153,9 +155,9 @@ func TestFormatBytes_Boundaries(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := formatBytes(tt.input)
+			got := format.FormatBytes(tt.input)
 			if !strings.Contains(got, tt.contains) {
-				t.Errorf("formatBytes(%d) = %q, want to contain %q", tt.input, got, tt.contains)
+				t.Errorf("format.FormatBytes(%d) = %q, want to contain %q", tt.input, got, tt.contains)
 			}
 		})
 	}

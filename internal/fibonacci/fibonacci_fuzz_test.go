@@ -115,12 +115,17 @@ func FuzzFFTBasedConsistency(f *testing.F) {
 // FuzzFibonacciIdentities verifies mathematical identities of Fibonacci numbers.
 // These identities provide an independent verification of the implementation.
 func FuzzFibonacciIdentities(f *testing.F) {
-	// Seed corpus
+	// Seed corpus — includes powers of 2 and known Fibonacci indices
 	f.Add(uint64(5), uint64(3))
 	f.Add(uint64(10), uint64(5))
 	f.Add(uint64(20), uint64(10))
 	f.Add(uint64(100), uint64(50))
 	f.Add(uint64(500), uint64(250))
+	f.Add(uint64(1024), uint64(512))  // 2^10
+	f.Add(uint64(144), uint64(72))    // F(12)=144
+	f.Add(uint64(233), uint64(117))   // F(13)=233
+	f.Add(uint64(2), uint64(1))       // Small edge case
+	f.Add(uint64(9999), uint64(5000)) // Near upper bound
 
 	calc := NewCalculator(&OptimizedFastDoubling{})
 	ctx := context.Background()
@@ -203,6 +208,67 @@ func FuzzFibonacciIdentities(f *testing.F) {
 			if diff.Cmp(fnm) != 0 {
 				t.Errorf("d'Ocagne identity violated for n=%d, m=%d:\n  |F(m)*F(n+1) - F(m+1)*F(n)|=%s\n  F(n-m)=%s",
 					n, m, diff.String(), fnm.String())
+			}
+		}
+
+		// Verify Cassini identity: F(n-1)*F(n+1) - F(n)^2 = (-1)^n
+		// Requires n >= 1 so that F(n-1) is defined.
+		if n >= 1 {
+			fnMinus1, err := calc.Calculate(ctx, nil, 0, n-1, opts)
+			if err != nil {
+				t.Fatalf("Failed to calculate F(%d): %v", n-1, err)
+			}
+
+			fnPlus1, err := calc.Calculate(ctx, nil, 0, n+1, opts)
+			if err != nil {
+				t.Fatalf("Failed to calculate F(%d): %v", n+1, err)
+			}
+
+			// F(n-1)*F(n+1)
+			prod := new(big.Int).Mul(fnMinus1, fnPlus1)
+			// F(n)^2
+			fnSq := new(big.Int).Mul(fn, fn)
+			// F(n-1)*F(n+1) - F(n)^2
+			cassini := new(big.Int).Sub(prod, fnSq)
+
+			// Expected: (-1)^n — +1 when n is even, -1 when n is odd
+			expected := big.NewInt(1)
+			if n%2 != 0 {
+				expected.SetInt64(-1)
+			}
+
+			if cassini.Cmp(expected) != 0 {
+				t.Errorf("Cassini identity violated for n=%d:\n  F(n-1)*F(n+1) - F(n)^2 = %s, want %s",
+					n, cassini.String(), expected.String())
+			}
+		}
+
+		// Verify addition identity: F(m+n) = F(m)*F(n+1) + F(m-1)*F(n)
+		// Requires m >= 1 so that F(m-1) is defined, and m+n <= 10000.
+		if m >= 1 && m+n <= 10000 {
+			fmn, err := calc.Calculate(ctx, nil, 0, m+n, opts)
+			if err != nil {
+				t.Fatalf("Failed to calculate F(%d): %v", m+n, err)
+			}
+
+			fn1, err := calc.Calculate(ctx, nil, 0, n+1, opts)
+			if err != nil {
+				t.Fatalf("Failed to calculate F(%d): %v", n+1, err)
+			}
+
+			fmMinus1, err := calc.Calculate(ctx, nil, 0, m-1, opts)
+			if err != nil {
+				t.Fatalf("Failed to calculate F(%d): %v", m-1, err)
+			}
+
+			// F(m)*F(n+1) + F(m-1)*F(n)
+			term1 := new(big.Int).Mul(fm, fn1)
+			term2 := new(big.Int).Mul(fmMinus1, fn)
+			sum := new(big.Int).Add(term1, term2)
+
+			if fmn.Cmp(sum) != 0 {
+				t.Errorf("Addition identity violated for m=%d, n=%d:\n  F(m+n)=%s\n  F(m)*F(n+1)+F(m-1)*F(n)=%s",
+					m, n, fmn.String(), sum.String())
 			}
 		}
 	})

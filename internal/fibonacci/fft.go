@@ -8,6 +8,9 @@ import (
 	"github.com/agbru/fibcalc/internal/bigfft"
 )
 
+// FFTSafetyMarginWords is the safety margin added to FFT word count to avoid overflow.
+const FFTSafetyMarginWords = 2
+
 // mulFFT performs the multiplication of two *big.Int instances, x and y.
 // It uses an algorithm based on the Fast Fourier Transform (FFT), and returns
 // the result as a new *big.Int. This method is particularly efficient for
@@ -88,7 +91,7 @@ func executeDoublingStepFFT(ctx context.Context, s *CalculationState, opts Optio
 	// FK1 is roughly N iterations * 2.
 	// For GetFFTParams, we need words.
 	fk1Words := len(s.FK1.Bits())
-	targetWords := 2*fk1Words + 2
+	targetWords := 2*fk1Words + FFTSafetyMarginWords
 	k, m := bigfft.GetFFTParams(targetWords)
 
 	// Transform operands once
@@ -99,100 +102,78 @@ func executeDoublingStepFFT(ctx context.Context, s *CalculationState, opts Optio
 	pFk := bigfft.PolyFromInt(s.FK, k, m)
 	fkPoly, err := pFk.Transform(n)
 	if err != nil {
-		return err
+		return fmt.Errorf("FFT transform FK failed: %w", err)
 	}
 
 	pFk1 := bigfft.PolyFromInt(s.FK1, k, m)
 	fk1Poly, err := pFk1.Transform(n)
 	if err != nil {
-		return err
+		return fmt.Errorf("FFT transform FK1 failed: %w", err)
 	}
 
 	if inParallel {
-		// Parallel execution of pointwise multiplications and inverse transforms.
-		//
-		// Optimization: No clones needed. PolValues.Mul() and PolValues.Sqr() are
-		// read-only on their receiver — they read p.Values[i] as operands to
-		// fermat.Mul(buf, x, y) where buf is a separate temporary, so the source
-		// PolValues are never modified. Multiple concurrent readers with no writers
-		// is safe, eliminating two Clone() calls that previously allocated and
-		// copied K*(n+1) words each (e.g., ~hundreds of KB for F(10M)).
-		type result struct {
-			p   *big.Int
-			err error
-		}
-		resChan := make(chan result, 3)
+		return executeFFTTransformsParallel(ctx, &fkPoly, &fk1Poly, s, m)
+	}
+	return executeFFTTransformsSequential(ctx, &fkPoly, &fk1Poly, s, m)
+}
 
-		go func() {
-			if err := ctx.Err(); err != nil {
-				resChan <- result{nil, fmt.Errorf("canceled before FFT operation: %w", err)}
-				return
-			}
-			// Changed: use fk1Poly instead of t4Poly (FK×FK1 instead of FK×T4)
-			v, err := fkPoly.Mul(&fk1Poly)
+// executeFFTTransformsParallel performs the three FFT pointwise multiplications
+// and inverse transforms concurrently using executeParallel3.
+//
+// Optimization: No clones needed. PolValues.Mul() and PolValues.Sqr() are
+// read-only on their receiver — they read p.Values[i] as operands to
+// fermat.Mul(buf, x, y) where buf is a separate temporary, so the source
+// PolValues are never modified. Multiple concurrent readers with no writers
+// is safe, eliminating two Clone() calls that previously allocated and
+// copied K*(n+1) words each (e.g., ~hundreds of KB for F(10M)).
+func executeFFTTransformsParallel(ctx context.Context, fkPoly, fk1Poly *bigfft.PolValues, s *CalculationState, m int) error {
+	return executeParallel3(ctx,
+		func() error {
+			v, err := fkPoly.Mul(fk1Poly)
 			if err != nil {
-				resChan <- result{nil, err}
-				return
+				return err
 			}
 			p, err := v.InvTransform()
 			if err != nil {
-				resChan <- result{nil, err}
-				return
+				return err
 			}
 			p.M = m
-			resChan <- result{p.IntToBigInt(s.T3), nil}
-		}()
-
-		go func() {
-			if err := ctx.Err(); err != nil {
-				resChan <- result{nil, fmt.Errorf("canceled before FFT operation: %w", err)}
-				return
-			}
+			s.T3 = p.IntToBigInt(s.T3)
+			return nil
+		},
+		func() error {
 			v, err := fk1Poly.Sqr()
 			if err != nil {
-				resChan <- result{nil, err}
-				return
+				return err
 			}
 			p, err := v.InvTransform()
 			if err != nil {
-				resChan <- result{nil, err}
-				return
+				return err
 			}
 			p.M = m
-			resChan <- result{p.IntToBigInt(s.T1), nil}
-		}()
-
-		go func() {
-			if err := ctx.Err(); err != nil {
-				resChan <- result{nil, fmt.Errorf("canceled before FFT operation: %w", err)}
-				return
-			}
+			s.T1 = p.IntToBigInt(s.T1)
+			return nil
+		},
+		func() error {
 			v, err := fkPoly.Sqr()
 			if err != nil {
-				resChan <- result{nil, err}
-				return
+				return err
 			}
 			p, err := v.InvTransform()
 			if err != nil {
-				resChan <- result{nil, err}
-				return
+				return err
 			}
 			p.M = m
-			resChan <- result{p.IntToBigInt(s.T2), nil}
-		}()
+			s.T2 = p.IntToBigInt(s.T2)
+			return nil
+		},
+	)
+}
 
-		for i := 0; i < 3; i++ {
-			res := <-resChan
-			if res.err != nil {
-				return res.err
-			}
-		}
-		return nil
-	}
-
-	// Sequential with context checks between operations
-	// Changed: use fk1Poly instead of t4Poly
-	v1, err := fkPoly.Mul(&fk1Poly)
+// executeFFTTransformsSequential performs the three FFT pointwise multiplications
+// and inverse transforms sequentially with context cancellation checks between operations.
+func executeFFTTransformsSequential(ctx context.Context, fkPoly, fk1Poly *bigfft.PolValues, s *CalculationState, m int) error {
+	v1, err := fkPoly.Mul(fk1Poly)
 	if err != nil {
 		return err
 	}
@@ -201,7 +182,7 @@ func executeDoublingStepFFT(ctx context.Context, s *CalculationState, opts Optio
 		return err
 	}
 	p1.M = m
-	p1.IntToBigInt(s.T3)
+	s.T3 = p1.IntToBigInt(s.T3)
 
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("canceled after FFT multiply: %w", err)
@@ -216,7 +197,7 @@ func executeDoublingStepFFT(ctx context.Context, s *CalculationState, opts Optio
 		return err
 	}
 	p2.M = m
-	p2.IntToBigInt(s.T1)
+	s.T1 = p2.IntToBigInt(s.T1)
 
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("canceled after FFT square FK1: %w", err)
@@ -231,7 +212,7 @@ func executeDoublingStepFFT(ctx context.Context, s *CalculationState, opts Optio
 		return err
 	}
 	p3.M = m
-	p3.IntToBigInt(s.T2)
+	s.T2 = p3.IntToBigInt(s.T2)
 
 	return nil
 }

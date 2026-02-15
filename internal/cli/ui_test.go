@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/agbru/fibcalc/internal/fibonacci"
+	"github.com/agbru/fibcalc/internal/progress"
 	"github.com/agbru/fibcalc/internal/ui"
 	"github.com/briandowns/spinner"
 )
@@ -31,48 +31,6 @@ func (m *MockSpinner) Stop() {
 
 func (m *MockSpinner) UpdateSuffix(suffix string) {
 	m.suffix = suffix
-}
-
-func TestFormatExecutionDuration(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		d        time.Duration
-		expected string
-	}{
-		{500 * time.Nanosecond, "0µs"}, // Truncates
-		{10 * time.Microsecond, "10µs"},
-		{10 * time.Millisecond, "10ms"},
-		{2 * time.Second, "2s"},
-	}
-
-	for _, tt := range tests {
-		got := FormatExecutionDuration(tt.d)
-		if got != tt.expected {
-			t.Errorf("FormatExecutionDuration(%v) = %s; want %s", tt.d, got, tt.expected)
-		}
-	}
-}
-
-func TestProgressBar(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		progress float64
-		length   int
-		contains string
-	}{
-		{0.0, 10, "░░░░░░░░░░"},
-		{0.5, 10, "█████░░░░░"},
-		{1.0, 10, "██████████"},
-		{1.2, 10, "██████████"},  // Cap at 1.0
-		{-0.1, 10, "░░░░░░░░░░"}, // Floor at 0.0
-	}
-
-	for _, tt := range tests {
-		got := progressBar(tt.progress, tt.length)
-		if got != tt.contains {
-			t.Errorf("progressBar(%f, %d) = %s; want %s", tt.progress, tt.length, got, tt.contains)
-		}
-	}
 }
 
 func TestDisplayResult(t *testing.T) {
@@ -145,30 +103,6 @@ func TestDisplayResult(t *testing.T) {
 	}
 }
 
-func TestFormatNumberString(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"", ""},
-		{"1", "1"},
-		{"12", "12"},
-		{"123", "123"},
-		{"1234", "1,234"},
-		{"123456", "123,456"},
-		{"1234567", "1,234,567"},
-		{"-1234", "-1,234"},
-	}
-
-	for _, tt := range tests {
-		got := FormatNumberString(tt.input)
-		if got != tt.expected {
-			t.Errorf("FormatNumberString(%q) = %q; want %q", tt.input, got, tt.expected)
-		}
-	}
-}
-
 func TestRealSpinner(t *testing.T) {
 	t.Parallel()
 	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond)
@@ -213,12 +147,12 @@ func TestDisplayProgress(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	progressChan := make(chan fibonacci.ProgressUpdate)
+	progressChan := make(chan progress.ProgressUpdate)
 	out := io.Discard // Discard output
 
 	go func() {
 		// Send some updates
-		progressChan <- fibonacci.ProgressUpdate{CalculatorIndex: 0, Value: 0.5}
+		progressChan <- progress.ProgressUpdate{CalculatorIndex: 0, Value: 0.5}
 		time.Sleep(10 * time.Millisecond)
 		close(progressChan)
 	}()
@@ -237,7 +171,7 @@ func TestDisplayProgress(t *testing.T) {
 func TestDisplayProgress_ZeroCalculators(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
-	progressChan := make(chan fibonacci.ProgressUpdate)
+	progressChan := make(chan progress.ProgressUpdate)
 	close(progressChan)
 
 	DisplayProgress(&wg, progressChan, 0, io.Discard)

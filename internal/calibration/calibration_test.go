@@ -7,12 +7,31 @@ import (
 	"math/big"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/agbru/fibcalc/internal/config"
+	apperrors "github.com/agbru/fibcalc/internal/errors"
 	"github.com/agbru/fibcalc/internal/fibonacci"
+	"github.com/agbru/fibcalc/internal/progress"
 )
+
+// noopProgressDisplay drains the progress channel without output (for tests).
+func noopProgressDisplay(wg *sync.WaitGroup, progressChan <-chan progress.ProgressUpdate, _ int, _ io.Writer) {
+	defer wg.Done()
+	for range progressChan {
+	}
+}
+
+// noopColorProvider returns empty strings for all colors (for tests).
+type noopColorProvider struct{}
+
+var _ apperrors.ColorProvider = noopColorProvider{}
+
+func (noopColorProvider) Red() string    { return "" }
+func (noopColorProvider) Yellow() string { return "" }
+func (noopColorProvider) Reset() string  { return "" }
 
 // MockCalculator implements fibonacci.Calculator for testing calibration
 type MockCalculator struct {
@@ -23,7 +42,7 @@ func (m *MockCalculator) Name() string {
 	return m.name
 }
 
-func (m *MockCalculator) Calculate(ctx context.Context, progressChan chan<- fibonacci.ProgressUpdate, calcIndex int, n uint64, opts fibonacci.Options) (*big.Int, error) {
+func (m *MockCalculator) Calculate(ctx context.Context, progressChan chan<- progress.ProgressUpdate, calcIndex int, n uint64, opts fibonacci.Options) (*big.Int, error) {
 	// Simulate work duration dependent on threshold to test optimization logic
 	// We use cumulative speedups to ensure the combination of optimal parameters
 	// yields the strictly fastest time.
@@ -103,7 +122,7 @@ func TestRunCalibration(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	exitCode := RunCalibration(ctx, io.Discard, registry)
+	exitCode := RunCalibration(ctx, io.Discard, registry, noopProgressDisplay, noopColorProvider{})
 
 	if exitCode != 0 { // ExitSuccess
 		t.Errorf("RunCalibration failed with code %d", exitCode)
@@ -115,7 +134,7 @@ func TestRunCalibrationMissingFast(t *testing.T) {
 	registry := map[string]fibonacci.Calculator{} // Empty
 
 	ctx := context.Background()
-	exitCode := RunCalibration(ctx, io.Discard, registry)
+	exitCode := RunCalibration(ctx, io.Discard, registry, noopProgressDisplay, noopColorProvider{})
 
 	if exitCode == 0 {
 		t.Error("RunCalibration should fail if 'fast' calculator is missing")

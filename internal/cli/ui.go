@@ -4,15 +4,7 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
-
-	"github.com/agbru/fibcalc/internal/format"
 )
-
-// FormatExecutionDuration formats a time.Duration for display.
-// It delegates to the format package for the shared implementation.
-func FormatExecutionDuration(d time.Duration) string {
-	return format.FormatExecutionDuration(d)
-}
 
 const (
 	// TruncationLimit is the digit threshold from which a result is truncated
@@ -77,18 +69,4 @@ var newSpinner = func(options ...spinner.Option) Spinner {
 	// Using the same interval as ProgressRefreshRate to synchronize
 	s := spinner.New(spinner.CharSets[11], ProgressRefreshRate, options...)
 	return &realSpinner{s}
-}
-
-// ProgressState is a type alias for format.ProgressState.
-// It is kept here for backward compatibility within the CLI package.
-type ProgressState = format.ProgressState
-
-// NewProgressState delegates to format.NewProgressState.
-func NewProgressState(numCalculators int) *ProgressState {
-	return format.NewProgressState(numCalculators)
-}
-
-// progressBar delegates to format.ProgressBar.
-func progressBar(progress float64, length int) string {
-	return format.ProgressBar(progress, length)
 }

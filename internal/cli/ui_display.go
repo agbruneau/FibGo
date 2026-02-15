@@ -9,8 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/agbru/fibcalc/internal/fibonacci"
+	"github.com/agbru/fibcalc/internal/format"
 	"github.com/agbru/fibcalc/internal/metrics"
+	"github.com/agbru/fibcalc/internal/orchestration"
+	"github.com/agbru/fibcalc/internal/progress"
 	"github.com/agbru/fibcalc/internal/ui"
 	"github.com/briandowns/spinner"
 )
@@ -31,15 +33,15 @@ import (
 //   - progressChan: The channel receiving progress updates.
 //   - numCalculators: The number of calculators contributing to the progress.
 //   - out: The io.Writer to which the progress bar is rendered.
-func DisplayProgress(wg *sync.WaitGroup, progressChan <-chan fibonacci.ProgressUpdate, numCalculators int, out io.Writer) {
+func DisplayProgress(wg *sync.WaitGroup, progressChan <-chan progress.ProgressUpdate, numCalculators int, out io.Writer) {
 	defer wg.Done()
-	if numCalculators <= 0 {
-		for range progressChan { // Drain the channel
-		}
+
+	agg := orchestration.NewProgressAggregator(numCalculators)
+	if agg == nil {
+		orchestration.DrainChannel(progressChan)
 		return
 	}
 
-	state := NewProgressWithETA(numCalculators)
 	s := newSpinner(spinner.WithWriter(out))
 	s.Start()
 	spinnerStopped := false
@@ -48,6 +50,11 @@ func DisplayProgress(wg *sync.WaitGroup, progressChan <-chan fibonacci.ProgressU
 			s.Stop()
 		}
 	}()
+
+	label := "Progress"
+	if agg.IsMultiCalculator() {
+		label = "Avg progress"
+	}
 
 	ticker := time.NewTicker(ProgressRefreshRate)
 	defer ticker.Stop()
@@ -64,12 +71,8 @@ func DisplayProgress(wg *sync.WaitGroup, progressChan <-chan fibonacci.ProgressU
 
 				// Display actual final progress (not hardcoded 100%).
 				// Progress may be less than 100% if calculation was canceled or timed out.
-				finalProgress := state.CalculateAverage()
-				bar := progressBar(finalProgress, ProgressBarWidth)
-				label := "Progress"
-				if numCalculators > 1 {
-					label = "Avg progress"
-				}
+				finalProgress := agg.CalculateAverage()
+				bar := format.ProgressBar(finalProgress, ProgressBarWidth)
 				etaStr := "< 1s"
 				if finalProgress < 1.0 {
 					etaStr = "N/A (interrupted)"
@@ -77,16 +80,12 @@ func DisplayProgress(wg *sync.WaitGroup, progressChan <-chan fibonacci.ProgressU
 				fmt.Fprintf(out, "%s: %6.2f%% [%s] ETA: %s\n", label, finalProgress*100, bar, etaStr)
 				return
 			}
-			state.UpdateWithETA(update.CalculatorIndex, update.Value)
+			agg.Update(update)
 		case <-ticker.C:
-			avgProgress := state.CalculateAverage()
-			eta := state.GetETA()
-			bar := progressBar(avgProgress, ProgressBarWidth)
-			label := "Progress"
-			if numCalculators > 1 {
-				label = "Avg progress"
-			}
-			etaStr := FormatETA(eta)
+			avgProgress := agg.CalculateAverage()
+			eta := agg.GetETA()
+			bar := format.ProgressBar(avgProgress, ProgressBarWidth)
+			etaStr := format.FormatETA(eta)
 			s.UpdateSuffix(fmt.Sprintf(" %s: %6.2f%% [%s] ETA: %s", label, avgProgress*100, bar, etaStr))
 		}
 	}
@@ -99,7 +98,7 @@ func DisplayProgress(wg *sync.WaitGroup, progressChan <-chan fibonacci.ProgressU
 //   - bitLen: The number of bits in the result.
 func displayResultHeader(out io.Writer, bitLen int) {
 	fmt.Fprintf(out, "Result binary size: %s%s%s bits.\n",
-		ui.ColorCyan(), FormatNumberString(fmt.Sprintf("%d", bitLen)), ui.ColorReset())
+		ui.ColorCyan(), format.FormatNumberString(fmt.Sprintf("%d", bitLen)), ui.ColorReset())
 }
 
 // displayDetailedAnalysis prints detailed execution metrics including
@@ -112,7 +111,7 @@ func displayResultHeader(out io.Writer, bitLen int) {
 func displayDetailedAnalysis(out io.Writer, result *big.Int, duration time.Duration) {
 	fmt.Fprintf(out, "\n%s--- Detailed result analysis ---%s\n", ui.ColorBold(), ui.ColorReset())
 
-	durationStr := FormatExecutionDuration(duration)
+	durationStr := format.FormatExecutionDuration(duration)
 	if duration == 0 {
 		durationStr = "< 1µs"
 	}
@@ -121,7 +120,7 @@ func displayDetailedAnalysis(out io.Writer, result *big.Int, duration time.Durat
 	resultStr := result.String()
 	numDigits := len(resultStr)
 	fmt.Fprintf(out, "Number of digits      : %s%s%s\n",
-		ui.ColorCyan(), FormatNumberString(fmt.Sprintf("%d", numDigits)), ui.ColorReset())
+		ui.ColorCyan(), format.FormatNumberString(fmt.Sprintf("%d", numDigits)), ui.ColorReset())
 
 	if numDigits > 6 {
 		f := new(big.Float).SetInt(result)
@@ -145,7 +144,7 @@ func displayCalculatedValue(out io.Writer, result *big.Int, n uint64, verbose bo
 	if verbose {
 		fmt.Fprintf(out, "F(%s%d%s) =\n%s%s%s\n",
 			ui.ColorMagenta(), n, ui.ColorReset(),
-			ui.ColorGreen(), FormatNumberString(resultStr), ui.ColorReset())
+			ui.ColorGreen(), format.FormatNumberString(resultStr), ui.ColorReset())
 		return
 	}
 
@@ -160,7 +159,7 @@ func displayCalculatedValue(out io.Writer, result *big.Int, n uint64, verbose bo
 
 	fmt.Fprintf(out, "F(%s%d%s) = %s%s%s\n",
 		ui.ColorMagenta(), n, ui.ColorReset(),
-		ui.ColorGreen(), FormatNumberString(resultStr), ui.ColorReset())
+		ui.ColorGreen(), format.FormatNumberString(resultStr), ui.ColorReset())
 }
 
 // DisplayResult formats and prints the final calculation result.

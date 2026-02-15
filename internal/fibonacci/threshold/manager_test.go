@@ -1,4 +1,4 @@
-package fibonacci
+package threshold
 
 import (
 	"testing"

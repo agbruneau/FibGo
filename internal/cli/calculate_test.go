@@ -54,8 +54,7 @@ func TestPrintExecutionMode(t *testing.T) {
 	t.Run("Multiple calculators mode", func(t *testing.T) {
 		t.Parallel()
 		var buf bytes.Buffer
-		cfg := config.AppConfig{Algo: "all"}
-		calculators := orchestration.GetCalculatorsToRun(cfg, factory)
+		calculators := orchestration.GetCalculatorsToRun("all", factory)
 
 		PrintExecutionMode(calculators, &buf)
 

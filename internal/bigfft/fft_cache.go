@@ -9,6 +9,8 @@ import (
 	"math/big"
 	"sync"
 	"sync/atomic"
+
+	"github.com/rs/zerolog"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -48,6 +50,9 @@ type cacheEntry struct {
 	n      int      // coefficient length
 }
 
+// cacheLogInterval is the number of accesses between periodic cache stats logging.
+const cacheLogInterval = 100
+
 // TransformCache is a thread-safe LRU cache for FFT transforms.
 // It caches the forward FFT transform results to avoid recomputation
 // when the same values are multiplied repeatedly.
@@ -59,6 +64,8 @@ type TransformCache struct {
 	hits      atomic.Uint64
 	misses    atomic.Uint64
 	evictions atomic.Uint64
+	accesses  atomic.Uint64
+	logger    zerolog.Logger
 }
 
 // NewTransformCache creates a new FFT transform cache with the given config.
@@ -67,7 +74,14 @@ func NewTransformCache(config TransformCacheConfig) *TransformCache {
 		config:  config,
 		entries: make(map[uint64]*list.Element),
 		lru:     list.New(),
+		logger:  zerolog.Nop(),
 	}
+}
+
+// SetCacheLogger configures the logger for the global FFT transform cache.
+func SetCacheLogger(l zerolog.Logger) {
+	cache := GetTransformCache()
+	cache.logger = l
 }
 
 // globalTransformCache is the package-level transform cache.
@@ -102,14 +116,14 @@ func SetTransformCacheConfig(config TransformCacheConfig) {
 // resistance for cache key purposes.
 func computeCacheKey(data nat, k uint, n int) uint64 {
 	h := fnv.New64a()
-	buf := make([]byte, 8)
-	binary.LittleEndian.PutUint64(buf, uint64(k))
-	h.Write(buf)
-	binary.LittleEndian.PutUint64(buf, uint64(n))
-	h.Write(buf)
+	var buf [8]byte
+	binary.LittleEndian.PutUint64(buf[:], uint64(k))
+	h.Write(buf[:])
+	binary.LittleEndian.PutUint64(buf[:], uint64(n))
+	h.Write(buf[:])
 	for _, word := range data {
-		binary.LittleEndian.PutUint64(buf, uint64(word))
-		h.Write(buf)
+		binary.LittleEndian.PutUint64(buf[:], uint64(word))
+		h.Write(buf[:])
 	}
 	return h.Sum64()
 }
@@ -118,15 +132,15 @@ func computeCacheKey(data nat, k uint, n int) uint64 {
 // avoiding the intermediate allocation of flattenPolyData.
 func computePolyKey(p *Poly, k uint, n int) uint64 {
 	h := fnv.New64a()
-	buf := make([]byte, 8)
-	binary.LittleEndian.PutUint64(buf, uint64(k))
-	h.Write(buf)
-	binary.LittleEndian.PutUint64(buf, uint64(n))
-	h.Write(buf)
+	var buf [8]byte
+	binary.LittleEndian.PutUint64(buf[:], uint64(k))
+	h.Write(buf[:])
+	binary.LittleEndian.PutUint64(buf[:], uint64(n))
+	h.Write(buf[:])
 	for _, a := range p.A {
 		for _, word := range a {
-			binary.LittleEndian.PutUint64(buf, uint64(word))
-			h.Write(buf)
+			binary.LittleEndian.PutUint64(buf[:], uint64(word))
+			h.Write(buf[:])
 		}
 	}
 	return h.Sum64()
@@ -139,6 +153,9 @@ func computeKey(data nat, k uint, n int) uint64 {
 
 // Get retrieves a cached transform if available.
 // Returns the PolValues and true if found, zero values and false otherwise.
+// IMPORTANT: The returned PolValues references internal cache data and MUST NOT
+// be modified. PolValues.Mul() and PolValues.Sqr() are safe as they create new
+// result values without mutating the receiver.
 func (tc *TransformCache) Get(data nat, k uint, n int) (PolValues, bool) {
 	if !tc.config.Enabled || len(data)*_W < tc.config.MinBitLen {
 		return PolValues{}, false
@@ -150,6 +167,9 @@ func (tc *TransformCache) Get(data nat, k uint, n int) (PolValues, bool) {
 }
 
 // getByKey retrieves a cached transform by precomputed key.
+// The returned PolValues shares its backing data with the cache.
+// Callers MUST NOT modify the returned values. PolValues.Mul() and
+// PolValues.Sqr() are safe as they produce new result values.
 func (tc *TransformCache) getByKey(key uint64) (PolValues, bool) {
 	tc.mu.RLock()
 	elem, found := tc.entries[key]
@@ -157,6 +177,7 @@ func (tc *TransformCache) getByKey(key uint64) (PolValues, bool) {
 
 	if !found {
 		tc.misses.Add(1)
+		tc.logPeriodicStats()
 		return PolValues{}, false
 	}
 
@@ -165,26 +186,42 @@ func (tc *TransformCache) getByKey(key uint64) (PolValues, bool) {
 	tc.mu.Unlock()
 
 	tc.hits.Add(1)
+	tc.logPeriodicStats()
 
 	entry := elem.Value.(*cacheEntry)
 
-	// Return a copy of the cached values using a contiguous buffer to avoid
-	// K separate allocations and improve cache locality
-	K := len(entry.values)
-	n := entry.n
-	wordCount := K * (n + 1)
-	backing := make([]big.Word, wordCount)
-	valuesCopy := make([]fermat, K)
-	for i, v := range entry.values {
-		valuesCopy[i] = fermat(backing[i*(n+1) : (i+1)*(n+1)])
-		copy(valuesCopy[i], v)
-	}
-
+	// Return a reference to cached values (zero-copy).
+	// Safe because Mul/Sqr create new result slices without mutating inputs.
 	return PolValues{
 		K:      entry.k,
 		N:      entry.n,
-		Values: valuesCopy,
+		Values: entry.values,
 	}, true
+}
+
+// logPeriodicStats logs cache statistics every cacheLogInterval accesses.
+func (tc *TransformCache) logPeriodicStats() {
+	count := tc.accesses.Add(1)
+	if count%cacheLogInterval != 0 {
+		return
+	}
+	hits := tc.hits.Load()
+	misses := tc.misses.Load()
+	total := hits + misses
+	var hitRate float64
+	if total > 0 {
+		hitRate = float64(hits) / float64(total)
+	}
+	tc.mu.RLock()
+	size := tc.lru.Len()
+	tc.mu.RUnlock()
+	tc.logger.Debug().
+		Uint64("hits", hits).
+		Uint64("misses", misses).
+		Float64("hit_rate", hitRate).
+		Int("size", size).
+		Uint64("evictions", tc.evictions.Load()).
+		Msg("fft cache stats")
 }
 
 // Put stores a transform result in the cache.

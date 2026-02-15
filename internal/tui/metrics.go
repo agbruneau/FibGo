@@ -11,6 +11,12 @@ import (
 	"github.com/agbru/fibcalc/internal/metrics"
 )
 
+// EMA smoothing constants for speed calculation.
+const (
+	EMASmoothFactor = 0.7
+	EMADecayFactor  = 0.3
+)
+
 // MetricsModel displays runtime memory and performance metrics.
 type MetricsModel struct {
 	alloc        uint64
@@ -57,7 +63,7 @@ func (m *MetricsModel) UpdateProgress(progress float64) {
 		if dp > 0 {
 			instantSpeed := dp / dt
 			if m.speed > 0 {
-				m.speed = 0.7*m.speed + 0.3*instantSpeed
+				m.speed = EMASmoothFactor*m.speed + EMADecayFactor*instantSpeed
 			} else {
 				m.speed = instantSpeed
 			}
@@ -77,7 +83,7 @@ func (m MetricsModel) View() string {
 	var rows strings.Builder
 
 	// Compact top line: Heap: X / Y | GC: N (Xms)
-	heapStr := metricValueStyle.Render(formatBytes(m.alloc) + " / " + formatBytes(m.heapSys))
+	heapStr := metricValueStyle.Render(format.FormatBytes(m.alloc) + " / " + format.FormatBytes(m.heapSys))
 	gcPauseStr := metricValueStyle.Render(fmt.Sprintf("%d (%.1fms)", m.numGC, float64(m.pauseTotalNs)/1e6))
 	pipe := metricLabelStyle.Render(" | ")
 	topLine := fmt.Sprintf("  %s %s%s%s %s",
@@ -132,18 +138,5 @@ func formatMetricCol(label, value string, colWidth int) string {
 		cell += strings.Repeat(" ", colWidth-visible)
 	}
 	return cell
-}
-
-func formatBytes(b uint64) string {
-	switch {
-	case b >= 1<<30:
-		return fmt.Sprintf("%.1f GB", float64(b)/(1<<30))
-	case b >= 1<<20:
-		return fmt.Sprintf("%.1f MB", float64(b)/(1<<20))
-	case b >= 1<<10:
-		return fmt.Sprintf("%.1f KB", float64(b)/(1<<10))
-	default:
-		return fmt.Sprintf("%d B", b)
-	}
 }
 

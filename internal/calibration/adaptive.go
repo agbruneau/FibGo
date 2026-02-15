@@ -4,6 +4,8 @@ package calibration
 
 import (
 	"runtime"
+
+	"github.com/agbru/fibcalc/internal/config"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,49 +87,15 @@ func GenerateQuickStrassenThresholds() []int {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Threshold Estimation (without benchmarking)
+// Delegates to config.EstimateOptimal* — canonical implementations live there.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// EstimateOptimalParallelThreshold provides a heuristic estimate of the optimal
-// parallel threshold without running benchmarks.
-// This can be used as a fallback or starting point.
-func EstimateOptimalParallelThreshold() int {
-	numCPU := runtime.NumCPU()
+// EstimateOptimalParallelThreshold delegates to config.EstimateOptimalParallelThreshold.
+func EstimateOptimalParallelThreshold() int { return config.EstimateOptimalParallelThreshold() }
 
-	switch {
-	case numCPU == 1:
-		return 0 // No parallelism
-	case numCPU <= 2:
-		return 8192 // High threshold - parallelism overhead is significant
-	case numCPU <= 4:
-		return 4096 // Default
-	case numCPU <= 8:
-		return 2048 // Can use more parallelism
-	case numCPU <= 16:
-		return 1024 // Many cores available
-	default:
-		return 512 // High core count - aggressive parallelism
-	}
-}
+// EstimateOptimalFFTThreshold delegates to config.EstimateOptimalFFTThreshold.
+func EstimateOptimalFFTThreshold() int { return config.EstimateOptimalFFTThreshold() }
 
-// EstimateOptimalFFTThreshold provides a heuristic estimate of the optimal
-// FFT threshold without running benchmarks.
-func EstimateOptimalFFTThreshold() int {
-	wordSize := 32 << (^uint(0) >> 63)
-
-	if wordSize == 64 {
-		return 500000 // 500K bits on 64-bit (optimal for modern CPUs with large L3 caches)
-	}
-	return 250000 // 250K bits on 32-bit (lower due to smaller word size)
-}
-
-// EstimateOptimalStrassenThreshold provides a heuristic estimate of the optimal
-// Strassen threshold without running benchmarks.
-func EstimateOptimalStrassenThreshold() int {
-	numCPU := runtime.NumCPU()
-
-	if numCPU >= 4 {
-		return 256 // With parallelism, lower threshold
-	}
-	return 3072 // Default from constants
-}
+// EstimateOptimalStrassenThreshold delegates to config.EstimateOptimalStrassenThreshold.
+func EstimateOptimalStrassenThreshold() int { return config.EstimateOptimalStrassenThreshold() }
 

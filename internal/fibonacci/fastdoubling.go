@@ -5,6 +5,9 @@ import (
 	"math/big"
 	"runtime"
 	"sync"
+
+	"github.com/agbru/fibcalc/internal/fibonacci/memory"
+	"github.com/agbru/fibcalc/internal/fibonacci/threshold"
 )
 
 // OptimizedFastDoubling provides a high-performance implementation of the "Fast
@@ -97,9 +100,9 @@ func (fd *OptimizedFastDoubling) CalculateCore(ctx context.Context, reporter Pro
 	// Create arena for contiguous memory allocation.
 	// Pre-size all big.Int buffers from the arena to avoid per-buffer
 	// GC tracking and reduce memory fragmentation.
-	arena := NewCalculationArena(n)
+	arena := memory.NewCalculationArena(n)
 	if n > 1000 {
-		estimatedBits := int(float64(n) * 0.69424)
+		estimatedBits := int(float64(n) * FibonacciGrowthFactor)
 		estimatedWords := (estimatedBits + 63) / 64
 		arena.PreSizeFromArena(s.FK, estimatedWords)
 		arena.PreSizeFromArena(s.FK1, estimatedWords)
@@ -124,9 +127,9 @@ func (fd *OptimizedFastDoubling) CalculateCore(ctx context.Context, reporter Pro
 		// Create dynamic threshold manager
 		interval := normalizedOpts.DynamicAdjustmentInterval
 		if interval <= 0 {
-			interval = DynamicAdjustmentInterval
+			interval = threshold.DynamicAdjustmentInterval
 		}
-		dtm := NewDynamicThresholdManagerFromConfig(DynamicThresholdConfig{
+		dtm := threshold.NewDynamicThresholdManagerFromConfig(threshold.DynamicThresholdConfig{
 			InitialFFTThreshold:      normalizedOpts.FFTThreshold,
 			InitialParallelThreshold: normalizedOpts.ParallelThreshold,
 			AdjustmentInterval:       interval,

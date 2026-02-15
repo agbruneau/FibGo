@@ -129,8 +129,6 @@ Support packages: `internal/calibration`, `internal/config`, `internal/app`, `in
 
 **DoublingStepExecutor** (`internal/fibonacci/strategy.go`): Extends `Multiplier` with `ExecuteStep()` for optimized doubling steps (e.g., FFT transform reuse). Strategies: `AdaptiveStrategy` (selects math/big vs FFT by operand size), `FFTOnlyStrategy` (always FFT), `KaratsubaStrategy` (always math/big, for testing).
 
-**MultiplicationStrategy** (`internal/fibonacci/strategy.go`): **Deprecated** type alias for `DoublingStepExecutor`. New code should use `Multiplier` or `DoublingStepExecutor`.
-
 **DoublingFramework** (`internal/fibonacci/doubling_framework.go`): Encapsulates the Fast Doubling loop logic (bit iteration, parallelization decisions, progress reporting). Pluggable via `DoublingStepExecutor`. Optionally supports `DynamicThresholdManager` for runtime threshold adjustment.
 
 **MatrixFramework** (`internal/fibonacci/matrix_framework.go`): Encapsulates the Matrix Exponentiation loop (binary exponentiation, symmetric matrix squaring, Strassen switching).

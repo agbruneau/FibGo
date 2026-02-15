@@ -26,8 +26,13 @@ import (
 	"github.com/ncw/gmp"
 )
 
+// RegisterGMPCalculator registers the GMP calculator in the given factory.
+func RegisterGMPCalculator(f *DefaultFactory) {
+	f.Register("gmp", func() coreCalculator { return &GMPCalculator{} })
+}
+
 func init() {
-	RegisterCalculator("gmp", func() coreCalculator { return &GMPCalculator{} })
+	RegisterGMPCalculator(globalFactory)
 }
 
 // GMPCalculator implements the Fibonacci calculation using the GMP library.

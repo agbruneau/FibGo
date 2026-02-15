@@ -1,22 +1,21 @@
 package orchestration
 
 import (
-	"github.com/agbru/fibcalc/internal/config"
 	"github.com/agbru/fibcalc/internal/fibonacci"
 )
 
 // GetCalculatorsToRun determines which calculators should be executed based on
-// the configuration. Returns calculators in alphabetically sorted order for
+// the algorithm name. Returns calculators in alphabetically sorted order for
 // consistent, reproducible behavior.
 //
 // Parameters:
-//   - cfg: The application configuration containing the algorithm selection.
+//   - algo: The algorithm name ("fast", "matrix", "fft", "all").
 //   - factory: The calculator factory to retrieve implementations from.
 //
 // Returns:
 //   - []fibonacci.Calculator: A slice of calculators to execute.
-func GetCalculatorsToRun(cfg config.AppConfig, factory fibonacci.CalculatorFactory) []fibonacci.Calculator {
-	if cfg.Algo == "all" {
+func GetCalculatorsToRun(algo string, factory fibonacci.CalculatorFactory) []fibonacci.Calculator {
+	if algo == "all" {
 		keys := factory.List() // List() returns sorted keys
 		calculators := make([]fibonacci.Calculator, 0, len(keys))
 		for _, k := range keys {
@@ -26,7 +25,7 @@ func GetCalculatorsToRun(cfg config.AppConfig, factory fibonacci.CalculatorFacto
 		}
 		return calculators
 	}
-	if calc, err := factory.Get(cfg.Algo); err == nil {
+	if calc, err := factory.Get(algo); err == nil {
 		return []fibonacci.Calculator{calc}
 	}
 	return nil

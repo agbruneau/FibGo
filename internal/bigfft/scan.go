@@ -1,6 +1,7 @@
 package bigfft
 
 import (
+	"fmt"
 	"math/big"
 )
 
@@ -64,16 +65,16 @@ func (s *scanner) scanWithTemp(z *big.Int, str string, temp *big.Int) error {
 	sz, pow := s.chunkSize(len(str))
 	// Scan the left half.
 	if err := s.scanWithTemp(z, str[:len(str)-sz], temp); err != nil {
-		return err
+		return fmt.Errorf("scan left half failed: %w", err)
 	}
 	// Multiply left half by power of 10, reusing temp to avoid allocation.
 	left, err := Mul(z, pow)
 	if err != nil {
-		return err
+		return fmt.Errorf("scan multiply failed: %w", err)
 	}
 	// Scan the right half into temp, then add to avoid overwriting z prematurely.
 	if err := s.scanWithTemp(temp, str[len(str)-sz:], new(big.Int)); err != nil {
-		return err
+		return fmt.Errorf("scan right half failed: %w", err)
 	}
 	z.Add(left, temp)
 	return nil

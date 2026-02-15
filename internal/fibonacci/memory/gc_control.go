@@ -1,9 +1,11 @@
-package fibonacci
+package memory
 
 import (
 	"math"
 	"runtime"
 	"runtime/debug"
+
+	"github.com/rs/zerolog"
 )
 
 // GCMode controls the garbage collector behavior during calculation.
@@ -25,6 +27,7 @@ type GCController struct {
 	mode              GCMode
 	originalGCPercent int
 	active            bool
+	logger            zerolog.Logger
 	startStats        runtime.MemStats
 	endStats          runtime.MemStats
 }
@@ -39,7 +42,7 @@ type GCStats struct {
 
 // NewGCController creates a GC controller for the given mode and N.
 func NewGCController(mode string, n uint64) *GCController {
-	gc := &GCController{mode: GCMode(mode)}
+	gc := &GCController{mode: GCMode(mode), logger: zerolog.Nop()}
 	switch gc.mode {
 	case GCModeAggressive:
 		gc.active = true
@@ -49,6 +52,11 @@ func NewGCController(mode string, n uint64) *GCController {
 		gc.active = false
 	}
 	return gc
+}
+
+// SetLogger configures the logger for GC control events.
+func (gc *GCController) SetLogger(l zerolog.Logger) {
+	gc.logger = l
 }
 
 // Begin disables GC if the controller is active.
@@ -65,6 +73,10 @@ func (gc *GCController) Begin() {
 			debug.SetMemoryLimit(limit)
 		}
 	}
+	gc.logger.Debug().
+		Str("mode", string(gc.mode)).
+		Uint64("heap_alloc_bytes", gc.startStats.HeapAlloc).
+		Msg("gc disabled")
 }
 
 // End restores original GC settings and triggers a collection.
@@ -76,6 +88,12 @@ func (gc *GCController) End() {
 	debug.SetGCPercent(gc.originalGCPercent)
 	debug.SetMemoryLimit(math.MaxInt64)
 	runtime.GC()
+	gc.logger.Debug().
+		Str("mode", string(gc.mode)).
+		Uint64("heap_alloc_bytes", gc.endStats.HeapAlloc).
+		Uint64("total_alloc_bytes", gc.endStats.TotalAlloc-gc.startStats.TotalAlloc).
+		Uint32("gc_cycles", gc.endStats.NumGC-gc.startStats.NumGC).
+		Msg("gc re-enabled")
 }
 
 // Stats returns GC statistics delta between Begin and End.

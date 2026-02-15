@@ -1,6 +1,11 @@
-package fibonacci
+package memory
 
 import "math/big"
+
+// fibonacciGrowthFactor is log2(phi), where phi ~ 1.618 (golden ratio).
+// Used to estimate bit length of F(n). This is a local copy to avoid
+// importing the parent fibonacci package.
+const fibonacciGrowthFactor = 0.69424
 
 // CalculationArena pre-allocates a contiguous block of big.Word memory
 // for all big.Int temporaries in a Fibonacci calculation. This eliminates
@@ -15,15 +20,16 @@ type CalculationArena struct {
 }
 
 // NewCalculationArena creates an arena sized for F(n).
-// It estimates the total memory needed for 10 big.Int temporaries
-// (5 state + 5 margin for multiplications) of size ~ n * 0.69424 bits.
+// It estimates the total memory needed for 15 big.Int temporaries
+// of size ~ n * fibonacciGrowthFactor bits.
 func NewCalculationArena(n uint64) *CalculationArena {
 	if n < 1000 {
 		return &CalculationArena{}
 	}
-	estimatedBits := float64(n) * 0.69424
+	estimatedBits := float64(n) * fibonacciGrowthFactor
 	wordsPerInt := int(estimatedBits/64) + 1
-	totalWords := wordsPerInt * 10 // 5 state + 5 margin
+	// 15 temporaries: sufficient for FFT doubling steps which use up to 12 temporaries
+	totalWords := wordsPerInt * 15
 	return &CalculationArena{
 		buf: make([]big.Word, totalWords),
 	}
@@ -49,7 +55,7 @@ func (a *CalculationArena) AllocBigInt(words int) *big.Int {
 }
 
 // PreSizeFromArena sets z's backing array to a slice from the arena.
-// If the arena is exhausted, falls back to preSizeBigInt.
+// If the arena is exhausted, falls back to heap pre-sizing.
 func (a *CalculationArena) PreSizeFromArena(z *big.Int, words int) {
 	if z == nil || words <= 0 {
 		return
@@ -64,6 +70,24 @@ func (a *CalculationArena) PreSizeFromArena(z *big.Int, words int) {
 	} else {
 		preSizeBigInt(z, words)
 	}
+}
+
+// preSizeBigInt ensures a big.Int has at least the specified word capacity.
+// This avoids repeated reallocation during the doubling loop as values grow.
+// Uses SetBits with a length-0 capacity-N slice to pre-allocate without
+// changing the numeric value.
+func preSizeBigInt(z *big.Int, words int) {
+	if z == nil || words <= 0 {
+		return
+	}
+	// Only pre-size if current capacity is smaller
+	if cap(z.Bits()) >= words {
+		return
+	}
+	// SetBits([]big.Word{}) with length 0 sets z to 0.
+	// We use a slice with length=0, cap=words to give z the backing array.
+	buf := make([]big.Word, 0, words)
+	z.SetBits(buf)
 }
 
 // Reset resets the arena for reuse without freeing the backing block.

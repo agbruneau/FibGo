@@ -84,7 +84,6 @@ Previous report (pre-audit) had 6 WARNINGs. All have been resolved.
 | CalculatorFactory interface | PASS | All 5 methods match source |
 | Multiplier interface (narrow) | PASS | 3 methods verified |
 | DoublingStepExecutor interface (wide) | PASS | Extends Multiplier correctly |
-| MultiplicationStrategy deprecation | PASS | Correctly documented as type alias |
 | ProgressObserver interface | PASS | `Update(calcIndex int, progress float64)` verified |
 | ProgressReporter interface | PASS | Signature matches `interfaces.go` |
 | ResultPresenter interface | PASS | All 4 methods verified |

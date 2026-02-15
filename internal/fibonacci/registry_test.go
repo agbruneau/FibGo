@@ -3,6 +3,7 @@ package fibonacci
 import (
 	"context"
 	"math/big"
+	"sync"
 	"testing"
 )
 
@@ -106,6 +107,40 @@ func TestDefaultFactory(t *testing.T) {
 			t.Error("List should contain 'test'")
 		}
 	})
+}
+
+// TestCalculatorFactory_ConcurrentCreation verifies that DefaultFactory.Create
+// is safe for concurrent use. 10 goroutines call Create("fast") simultaneously
+// on a shared factory and all must receive non-nil calculators without panics.
+func TestCalculatorFactory_ConcurrentCreation(t *testing.T) {
+	t.Parallel()
+
+	factory := NewDefaultFactory()
+	const goroutines = 10
+
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+
+	calculators := make([]Calculator, goroutines)
+	errs := make([]error, goroutines)
+
+	for i := range goroutines {
+		go func(idx int) {
+			defer wg.Done()
+			calculators[idx], errs[idx] = factory.Create("fast")
+		}(i)
+	}
+
+	wg.Wait()
+
+	for i := range goroutines {
+		if errs[i] != nil {
+			t.Errorf("goroutine %d: Create returned error: %v", i, errs[i])
+		}
+		if calculators[i] == nil {
+			t.Errorf("goroutine %d: Create returned nil calculator", i)
+		}
+	}
 }
 
 func TestGlobalFactory(t *testing.T) {

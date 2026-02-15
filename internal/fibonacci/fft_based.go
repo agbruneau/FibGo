@@ -3,6 +3,8 @@ package fibonacci
 import (
 	"context"
 	"math/big"
+
+	"github.com/agbru/fibcalc/internal/fibonacci/memory"
 )
 
 // FFTBasedCalculator is a specialized Fibonacci calculator that uses the Fast
@@ -49,9 +51,9 @@ func (c *FFTBasedCalculator) CalculateCore(ctx context.Context, reporter Progres
 	defer ReleaseState(s)
 
 	// Create arena for contiguous memory allocation.
-	arena := NewCalculationArena(n)
+	arena := memory.NewCalculationArena(n)
 	if n > 1000 {
-		estimatedBits := int(float64(n) * 0.69424)
+		estimatedBits := int(float64(n) * FibonacciGrowthFactor)
 		estimatedWords := (estimatedBits + 63) / 64
 		arena.PreSizeFromArena(s.FK, estimatedWords)
 		arena.PreSizeFromArena(s.FK1, estimatedWords)

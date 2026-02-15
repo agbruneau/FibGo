@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+
+	"github.com/rs/zerolog"
 )
 
 // CalculatorFactory is an interface for creating Calculator instances.
@@ -29,6 +31,15 @@ type CalculatorFactory interface {
 
 	// GetAll returns a map of all registered calculators.
 	GetAll() map[string]Calculator
+}
+
+// registryLogger is the package-level logger for the registry.
+// Defaults to zerolog.Nop() (no output) to avoid performance impact.
+var registryLogger = zerolog.Nop()
+
+// SetRegistryLogger configures the logger used by the calculator registry.
+func SetRegistryLogger(l zerolog.Logger) {
+	registryLogger = l
 }
 
 // DefaultFactory is the default implementation of CalculatorFactory.
@@ -96,9 +107,12 @@ func (f *DefaultFactory) Create(name string) (Calculator, error) {
 	f.mu.RUnlock()
 
 	if !ok {
+		registryLogger.Debug().Str("calculator", name).Msg("calculator not found")
 		return nil, fmt.Errorf("unknown calculator: %s", name)
 	}
-	return NewCalculator(creator()), nil
+	calc := NewCalculator(creator())
+	registryLogger.Debug().Str("calculator", name).Msg("calculator created")
+	return calc, nil
 }
 
 // Get returns a Calculator instance by name.
@@ -131,11 +145,13 @@ func (f *DefaultFactory) Get(name string) (Calculator, error) {
 
 	creator, ok := f.creators[name]
 	if !ok {
+		registryLogger.Debug().Str("calculator", name).Msg("calculator not found")
 		return nil, fmt.Errorf("unknown calculator: %s", name)
 	}
 
 	calc := NewCalculator(creator())
 	f.calculators[name] = calc
+	registryLogger.Debug().Str("calculator", name).Msg("calculator created and cached")
 	return calc, nil
 }
 
