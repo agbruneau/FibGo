@@ -5,7 +5,7 @@
 ![Coverage](https://img.shields.io/badge/Coverage-80%25-green?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Production--Ready-success?style=for-the-badge)
 
-**FibCalc**, that is an academic project in software engineering, is a state-of-the-art command-line tool and library designed for computing arbitrarily large Fibonacci numbers with extreme speed and efficiency. Written in Go, it leverages advanced algorithmic optimizations — including Fast Doubling, Matrix Exponentiation with Strassen's algorithm, and FFT-based multiplication — to handle indices in the hundreds of millions.
+**FibCalc**, that is an academic prototype in software engineering, is a state-of-the-art command-line tool and library designed for computing arbitrarily large Fibonacci numbers with extreme speed and efficiency. Written in Go, it leverages advanced algorithmic optimizations — including Fast Doubling, Matrix Exponentiation with Strassen's algorithm, and FFT-based multiplication — to handle indices in the hundreds of millions.
 
 > **"The fastest, most over-engineered Fibonacci calculator you will ever use."**
 
