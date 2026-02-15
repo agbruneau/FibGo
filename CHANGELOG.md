@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Package restructuring**: Extracted `internal/progress/` package from `internal/fibonacci/` (observer pattern, progress types); backward-compatible type aliases in `progress_aliases.go`
+- **Package restructuring**: Extracted `internal/fibonacci/memory/` sub-package (arena, GC control, memory budget)
+- **Package restructuring**: Extracted `internal/fibonacci/threshold/` sub-package (dynamic threshold manager)
+- Extracted `internal/app/calculate.go` — calculation dispatch logic from `app.go`
+- Extracted `internal/config/thresholds.go` — adaptive threshold estimation (canonical implementation)
+- Added `internal/orchestration/progress.go` — `ProgressAggregator` for multi-calculator progress
+- Dependency injection: `app.New()` accepts `WithFactory()` option for custom `CalculatorFactory`
+- Removed `MultiplicationStrategy` deprecated type alias from `strategy.go`
 - Removed server, REPL, and observability layers to simplify the codebase
 - Cleaned up documentation to reflect CLI + TUI architecture
 

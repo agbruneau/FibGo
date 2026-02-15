@@ -115,7 +115,7 @@ Business (internal/fibonacci, internal/bigfft)  — algorithms, FFT multiplicati
 Presentation (internal/cli, internal/tui)  — CLI output or TUI dashboard
 ```
 
-Support packages: `internal/calibration`, `internal/config`, `internal/app`, `internal/errors`, `internal/parallel`, `internal/format`, `internal/metrics`, `internal/ui`, `internal/sysmon`, `internal/testutil`.
+Support packages: `internal/calibration`, `internal/config`, `internal/app`, `internal/errors`, `internal/parallel`, `internal/format`, `internal/metrics`, `internal/progress`, `internal/ui`, `internal/sysmon`, `internal/testutil`.
 
 ### Key Interfaces and Their Relationships
 
@@ -123,7 +123,7 @@ Support packages: `internal/calibration`, `internal/config`, `internal/app`, `in
 
 **coreCalculator** (`internal/fibonacci/calculator.go`): Internal interface for algorithm implementations. Methods: `CalculateCore()`, `Name()`. Wrapped by `FibCalculator` (decorator) which adds small-N optimization (iterative for n ≤ 93) and observer-based progress reporting.
 
-**CalculatorFactory** (`internal/fibonacci/registry.go`): Creates/caches `Calculator` instances. `DefaultFactory` pre-registers "fast", "matrix", "fft". Global instance via `GlobalFactory()`. GMP calculator auto-registers via `init()` when built with `-tags=gmp`.
+**CalculatorFactory** (`internal/fibonacci/registry.go`): Creates/caches `Calculator` instances. `DefaultFactory` pre-registers "fast", "matrix", "fft". App uses dependency injection via `WithFactory()`; `GlobalFactory()` available for convenience. GMP calculator auto-registers via `init()` when built with `-tags=gmp`.
 
 **Multiplier** (`internal/fibonacci/strategy.go`): Narrow interface for multiply/square operations. Methods: `Multiply()`, `Square()`, `Name()`. Consumed by code that only needs basic arithmetic.
 
@@ -135,11 +135,11 @@ Support packages: `internal/calibration`, `internal/config`, `internal/app`, `in
 
 **Options** (`internal/fibonacci/options.go`): Configuration struct for calculations: `ParallelThreshold`, `FFTThreshold`, `StrassenThreshold`, `GCMode`, FFT cache settings, and dynamic threshold options. Normalized via `normalizeOptions()` to fill zero values with defaults from `constants.go`.
 
-**DynamicThresholdManager** (`internal/fibonacci/dynamic_threshold.go`): Runtime threshold adjustment based on per-iteration timing metrics. Uses a ring buffer of `IterationMetric` records, hysteresis to prevent oscillation, and separate analysis for FFT and parallel thresholds.
+**DynamicThresholdManager** (`internal/fibonacci/threshold/manager.go`): Runtime threshold adjustment based on per-iteration timing metrics. Uses a ring buffer of `IterationMetric` records, hysteresis to prevent oscillation, and separate analysis for FFT and parallel thresholds.
 
 **ProgressReporter / ResultPresenter** (`internal/orchestration/interfaces.go`): Decouple orchestration from presentation. CLI implementations in `internal/cli/presenter.go`. TUI implementations in `internal/tui/bridge.go`. `NullProgressReporter` for quiet mode/testing.
 
-**ProgressObserver** (`internal/fibonacci/observer.go`): Observer pattern for progress updates. `ProgressSubject` manages observers with `Freeze()` for lock-free snapshots in hot loops. Concrete observers in `observers.go`: `ChannelObserver` (bridges to channel-based reporting), `LoggingObserver` (zerolog with throttling), `NoOpObserver` (null object).
+**ProgressObserver** (`internal/progress/observer.go`): Observer pattern for progress updates. `ProgressSubject` manages observers with `Freeze()` for lock-free snapshots in hot loops. Concrete observers in `internal/progress/observers.go`: `ChannelObserver` (bridges to channel-based reporting), `LoggingObserver` (zerolog with throttling), `NoOpObserver` (null object). Backward-compatible type aliases in `internal/fibonacci/progress_aliases.go`.
 
 **SequenceGenerator** (`internal/fibonacci/generator.go`): Interface for iterative/streaming Fibonacci generation. `IterativeGenerator` in `generator_iterative.go` produces consecutive terms with `Next(ctx)`.
 
@@ -153,18 +153,16 @@ Support packages: `internal/calibration`, `internal/config`, `internal/app`, `in
 | `internal/fibonacci`     | `doubling_framework.go`, `matrix_framework.go`          | Shared computation frameworks                                             |
 | `internal/fibonacci`     | `registry.go`, `calculator.go`, `strategy.go`         | Factory, public interfaces, strategies                                    |
 | `internal/fibonacci`     | `options.go`, `constants.go`                            | Calculation options, default thresholds                                   |
-| `internal/fibonacci`     | `observer.go`, `observers.go`, `progress.go`          | Observer pattern, progress utilities                                      |
 | `internal/fibonacci`     | `common.go`                                               | Task semaphore, state pool,`executeTasks` generics                      |
 | `internal/fibonacci`     | `fft.go`                                                  | FFT wrappers (`mulFFT`, `sqrFFT`, `smartMultiply`, `smartSquare`) |
-| `internal/fibonacci`     | `dynamic_threshold.go`, `threshold_types.go`            | Runtime threshold adjustment                                              |
 | `internal/fibonacci`     | `generator.go`, `generator_iterative.go`                | Sequence generation interface and implementation                          |
 | `internal/fibonacci`     | `matrix_ops.go`, `matrix_types.go`                      | Matrix operations and types (`matrix`, `matrixState`)                 |
 | `internal/fibonacci`     | `calculator_gmp.go`                                       | GMP calculator (build tag `gmp`)                                        |
 | `internal/fibonacci`     | `testing.go`                                              | Test helpers (exported for test packages)                                 |
-| `internal/fibonacci`     | `arena.go`                                                | `CalculationArena` bump allocator for calculation state                 |
-| `internal/fibonacci`     | `gc_control.go`                                           | `GCController` for GC management during computation                     |
-| `internal/fibonacci`     | `memory_budget.go`                                        | Memory estimation and budget validation                                   |
 | `internal/fibonacci`     | `modular.go`                                              | `FastDoublingMod` for modular arithmetic (`--last-digits`)            |
+| `internal/fibonacci`     | `progress_aliases.go`                                     | Backward-compatible type aliases for `internal/progress` types            |
+| `internal/fibonacci/memory` | `arena.go`, `gc_control.go`, `budget.go`              | Calculation arena, GC control, memory budget validation                   |
+| `internal/fibonacci/threshold` | `manager.go`, `types.go`                             | `DynamicThresholdManager`, runtime threshold adjustment                   |
 | `internal/bigfft`        | `fft.go`, `fft_core.go`, `fft_recursion.go`           | FFT multiplication core                                                   |
 | `internal/bigfft`        | `fft_poly.go`                                             | Polynomial operations for FFT                                             |
 | `internal/bigfft`        | `fft_cache.go`                                            | Thread-safe LRU cache for FFT transforms                                  |
@@ -175,11 +173,11 @@ Support packages: `internal/calibration`, `internal/config`, `internal/app`, `in
 | `internal/bigfft`        | `memory_est.go`, `scan.go`                              | Memory estimation, scanning utilities                                     |
 | `internal/bigfft`        | `arith_amd64.go`, `arith_generic.go`, `arith_decl.go` | Vector arithmetic via `go:linkname` to `math/big`                     |
 | `internal/bigfft`        | `cpu_amd64.go`                                            | Runtime CPU feature detection (AVX2/AVX-512)                              |
-| `internal/orchestration` | `orchestrator.go`, `interfaces.go`                      | Parallel execution via `errgroup`, result analysis                      |
+| `internal/progress`      | `observer.go`, `observers.go`, `progress.go`            | Observer pattern, `ProgressSubject`, progress utilities                    |
+| `internal/orchestration` | `orchestrator.go`, `interfaces.go`, `progress.go`      | Parallel execution via `errgroup`, result analysis, `ProgressAggregator`|
 | `internal/orchestration` | `calculator_selection.go`                                 | Calculator selection logic from config                                    |
 | `internal/cli`           | `output.go`, `presenter.go`                             | CLI output formatting, result presentation                                |
-| `internal/cli`           | `ui.go`, `ui_display.go`, `ui_format.go`              | UI helpers (spinners, formatting, display)                                |
-| `internal/cli`           | `progress_eta.go`                                         | ETA calculation and progress display                                      |
+| `internal/cli`           | `ui.go`, `ui_display.go`                                | UI helpers (spinners, display)                                            |
 | `internal/cli`           | `completion.go`                                           | Shell completion generation (bash, zsh, fish, powershell)                 |
 | `internal/cli`           | `provider.go`                                             | Progress reporter and config display providers                            |
 | `internal/cli`           | `calculate.go`                                            | Calculation result display helpers                                        |
@@ -194,8 +192,8 @@ Support packages: `internal/calibration`, `internal/config`, `internal/app`, `in
 | `internal/calibration`   | `adaptive.go`                                             | Hardware-adaptive threshold estimation                                    |
 | `internal/calibration`   | `profile.go`, `io.go`                                   | Calibration profile persistence (JSON)                                    |
 | `internal/calibration`   | `microbench.go`                                           | Micro-benchmarks for threshold determination                              |
-| `internal/config`        | `config.go`, `env.go`, `usage.go`                     | Flag parsing, env var overrides, custom usage                             |
-| `internal/app`           | `app.go`, `version.go`                                  | Application lifecycle, dispatching, version info                          |
+| `internal/config`        | `config.go`, `env.go`, `usage.go`, `thresholds.go`   | Flag parsing, env vars, custom usage, adaptive threshold estimation       |
+| `internal/app`           | `app.go`, `calculate.go`, `version.go`                  | Application lifecycle, calculation dispatch, version info                 |
 | `internal/errors`        | `errors.go`, `handler.go`                               | Custom error types (`ConfigError`, `CalculationError`), exit codes    |
 | `internal/parallel`      | `errors.go`                                               | `ErrorCollector` for concurrent error aggregation                       |
 | `internal/format`        | `duration.go`, `numbers.go`, `progress_eta.go`        | Duration/number formatting, ETA display (shared by CLI and TUI)           |
@@ -209,9 +207,9 @@ Support packages: `internal/calibration`, `internal/config`, `internal/app`, `in
 
 1. `app.New()` calls `config.ParseConfig()` to parse CLI flags + env vars → `AppConfig`
 2. `calibration.LoadCachedCalibration()` attempts to load stored calibration profile
-3. If no profile, `applyAdaptiveThresholds()` estimates thresholds from hardware characteristics
+3. If no profile, `config.ApplyAdaptiveThresholds()` estimates thresholds from hardware characteristics
 4. `app.Run()` dispatches to completion, calibration, TUI, or CLI mode
-5. `orchestration.GetCalculatorsToRun()` selects calculators from `fibonacci.GlobalFactory()`
+5. `orchestration.GetCalculatorsToRun()` selects calculators from the injected `CalculatorFactory`
 6. `orchestration.ExecuteCalculations()` runs calculators concurrently via `errgroup`
 7. Each `Calculator.Calculate()` creates a `ProgressSubject`, registers a `ChannelObserver`, and delegates to `CalculateWithObservers()`
 8. `DoublingFramework.ExecuteDoublingLoop()` or `MatrixFramework.ExecuteMatrixLoop()` runs the core algorithm
@@ -238,19 +236,19 @@ Support packages: `internal/calibration`, `internal/config`, `internal/app`, `in
 ## Key Patterns
 
 - **Decorator**: `FibCalculator` wraps `coreCalculator` to add small-N fast path (iterative for n ≤ 93) and observer-based progress reporting
-- **Factory + Registry**: `DefaultFactory` with lazy creation and caching; GMP auto-registers via `init()`
+- **Factory + Registry**: `DefaultFactory` with lazy creation and caching; app uses DI via `WithFactory()`; GMP auto-registers via `init()`
 - **Strategy + ISP**: `Multiplier` (narrow) and `DoublingStepExecutor` (wide) interfaces; `AdaptiveStrategy`, `FFTOnlyStrategy`, `KaratsubaStrategy` implementations
 - **Framework**: `DoublingFramework` and `MatrixFramework` encapsulate algorithm loops, decoupled from multiplication strategies
-- **Observer**: `ProgressSubject`/`ProgressObserver` for progress events; `Freeze()` creates lock-free snapshots for hot loops; concrete: `ChannelObserver`, `LoggingObserver`, `NoOpObserver`
+- **Observer**: `ProgressSubject`/`ProgressObserver` in `internal/progress/` for progress events; `Freeze()` creates lock-free snapshots for hot loops; concrete: `ChannelObserver`, `LoggingObserver`, `NoOpObserver`; backward-compatible aliases in `internal/fibonacci/progress_aliases.go`
 - **Object Pooling**: `sync.Pool` for `big.Int`, `CalculationState`, and `matrixState`; `MaxPooledBitLen = 100M bits` cap to prevent oversized objects staying in pool
 - **Bump Allocator**: O(1) temporary allocation for FFT operations via pointer bump; zero fragmentation and excellent cache locality
 - **FFT Transform Cache**: Thread-safe LRU cache in `bigfft/fft_cache.go`; configurable via `TransformCacheConfig`; 15-30% speedup for iterative algorithms
-- **Dynamic Threshold Adjustment**: `DynamicThresholdManager` monitors per-iteration timing, adjusts FFT/parallel thresholds with hysteresis to prevent oscillation
+- **Dynamic Threshold Adjustment**: `DynamicThresholdManager` in `internal/fibonacci/threshold/` monitors per-iteration timing, adjusts FFT/parallel thresholds with hysteresis to prevent oscillation
 - **Zero-Copy Result Return**: Algorithms "steal" the result pointer from pooled state, replacing it with a fresh `big.Int`, avoiding O(n) copy
 - **Interface-Based Decoupling**: Orchestration depends on `ProgressReporter`/`ResultPresenter` interfaces, not CLI directly
 - **Generics**: `executeTasks[T, PT]()` in `common.go` uses Go generics with pointer constraint pattern to eliminate duplication between multiplication and squaring tasks
-- **Calculation Arena**: Contiguous bump-pointer pre-allocation for state `big.Int` backing arrays in `internal/fibonacci/arena.go`
-- **GC Controller**: Disables GC during large calculations with soft memory limit safety net in `internal/fibonacci/gc_control.go`
+- **Calculation Arena**: Contiguous bump-pointer pre-allocation for state `big.Int` backing arrays in `internal/fibonacci/memory/arena.go`
+- **GC Controller**: Disables GC during large calculations with soft memory limit safety net in `internal/fibonacci/memory/gc_control.go`
 
 ## Build Tags & Platform-Specific Code
 
@@ -278,7 +276,7 @@ Support packages: `internal/calibration`, `internal/config`, `internal/app`, `in
 
 CLI flags > Environment variables (`FIBCALC_*` prefix) > Adaptive hardware estimation > Static defaults. See `.env.example`.
 
-**Threshold resolution**: CLI flag defaults are `0` (auto). When `0`, the app first tries to load a cached calibration profile, then falls back to `calibration.EstimateOptimal*Threshold()` functions that adapt based on CPU core count and architecture. Static defaults in `constants.go` (`DefaultParallelThreshold=4096`, `DefaultFFTThreshold=500,000`, `DefaultStrassenThreshold=3072`) are used inside algorithm code when `normalizeOptions()` encounters zero values.
+**Threshold resolution**: CLI flag defaults are `0` (auto). When `0`, the app first tries to load a cached calibration profile, then falls back to `config.ApplyAdaptiveThresholds()` which calls `config.EstimateOptimal*Threshold()` functions (in `internal/config/thresholds.go`) that adapt based on CPU core count and architecture. Static defaults in `constants.go` (`DefaultParallelThreshold=4096`, `DefaultFFTThreshold=500,000`, `DefaultStrassenThreshold=3072`) are used inside algorithm code when `normalizeOptions()` encounters zero values.
 
 ## Key Dependencies
 

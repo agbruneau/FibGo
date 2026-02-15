@@ -171,14 +171,15 @@ graph TD
 |-----------|----------------|
 | `cmd/fibcalc` | Application entry point. Delegates to `app.New()` and `app.Run()`. |
 | `cmd/generate-golden` | Golden file generator for test data. |
-| `internal/fibonacci` | Core domain logic. Algorithms (`FastDoubling`, `MatrixExponentiation`, `FFTBased`), frameworks, interfaces, strategies (ISP: `Multiplier`/`DoublingStepExecutor`), observer pattern, state pooling, dynamic thresholds, sequence generation. |
+| `internal/fibonacci` | Core domain logic. Algorithms (`FastDoubling`, `MatrixExponentiation`, `FFTBased`), frameworks, interfaces, strategies (ISP: `Multiplier`/`DoublingStepExecutor`), state pooling, sequence generation. Sub-packages: `memory/` (arena, GC control, budget), `threshold/` (dynamic threshold manager). |
 | `internal/bigfft` | Specialized FFT arithmetic for `big.Int`: Fermat ring arithmetic, FFT core and recursion with runtime-configurable parallelism, polynomial operations, thread-safe LRU transform cache, bump allocator, memory pool with pre-warming. |
-| `internal/orchestration` | Concurrent calculator execution via `errgroup`, result aggregation and comparison, calculator selection. Defines `ProgressReporter`/`ResultPresenter` interfaces. |
+| `internal/progress` | Observer pattern for progress events (`ProgressSubject`/`ProgressObserver`), concrete observers (`ChannelObserver`, `LoggingObserver`, `NoOpObserver`). |
+| `internal/orchestration` | Concurrent calculator execution via `errgroup`, result aggregation and comparison, calculator selection, progress aggregation. Defines `ProgressReporter`/`ResultPresenter` interfaces. |
 | `internal/cli` | Progress bar with ETA, spinner, output formatting (Display\*/Format\*/Write\*/Print\*), shell completion (bash/zsh/fish/powershell). |
 | `internal/tui` | Interactive TUI dashboard (btop-style) powered by Bubble Tea: model (Elm architecture), header/footer panels, scrollable logs, runtime metrics, progress chart with sparklines. |
 | `internal/calibration` | Auto-tuning: full calibration mode, adaptive hardware-based threshold estimation, micro-benchmarks, calibration profile persistence (JSON). |
-| `internal/config` | Configuration parsing (`flag`), environment variable overrides (`FIBCALC_*` prefix), validation. |
-| `internal/app` | Application lifecycle, command dispatching (completion/calibration/TUI/CLI modes), version info with ldflags injection. |
+| `internal/config` | Configuration parsing (`flag`), environment variable overrides (`FIBCALC_*` prefix), adaptive threshold estimation, validation. |
+| `internal/app` | Application lifecycle, calculation dispatch, command dispatching (completion/calibration/TUI/CLI modes), version info with ldflags injection. |
 | `internal/errors` | Custom error types (`ConfigError`, `CalculationError`) with standardized exit codes (0-4, 130). |
 | `internal/parallel` | `ErrorCollector` for thread-safe first-error aggregation across goroutines. |
 | `internal/format` | Duration/number formatting and ETA display utilities shared by CLI and TUI. |
@@ -187,7 +188,7 @@ graph TD
 | `internal/ui` | Color themes, terminal formatting, `NO_COLOR` support. |
 | `internal/testutil` | Shared test utilities (ANSI escape code stripping). |
 
-> **Full architecture documentation**: [docs/architecture/README.md](docs/architecture/README.md) | [Design Patterns](docs/architecture/patterns/design-patterns.md)
+> **Full architecture documentation**: [docs/architecture/README.md](docs/architecture/README.md) | [Interface Hierarchy](docs/architecture/patterns/interface-hierarchy.mermaid)
 
 ---
 
@@ -510,17 +511,20 @@ fibcalc/
 │   └── generate-golden/     # Golden test data generator
 ├── internal/
 │   ├── fibonacci/           # Core algorithms, interfaces, strategies, frameworks
+│   │   ├── memory/          # Calculation arena, GC control, memory budget
+│   │   └── threshold/       # Dynamic threshold adjustment
 │   ├── bigfft/              # FFT multiplication, caching, bump allocator
-│   ├── orchestration/       # Concurrent execution, result analysis
+│   ├── orchestration/       # Concurrent execution, result analysis, progress aggregation
 │   ├── cli/                 # CLI output, progress, completion
 │   ├── tui/                 # Interactive TUI dashboard (Bubble Tea)
 │   ├── calibration/         # Auto-tuning, micro-benchmarks, profiles
-│   ├── config/              # Configuration parsing, env vars
-│   ├── app/                 # Application lifecycle, version
+│   ├── config/              # Configuration parsing, env vars, adaptive thresholds
+│   ├── app/                 # Application lifecycle, calculation dispatch, version
 │   ├── errors/              # Custom error types, exit codes
 │   ├── parallel/            # Concurrent error aggregation
 │   ├── format/              # Duration/number formatting (shared CLI/TUI)
 │   ├── metrics/             # Performance indicators
+│   ├── progress/            # Observer pattern, progress reporting
 │   ├── sysmon/              # System CPU/memory monitoring
 │   ├── ui/                  # Color themes, NO_COLOR support
 │   └── testutil/            # Shared test utilities

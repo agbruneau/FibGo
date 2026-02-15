@@ -6,7 +6,7 @@ The Fibonacci Calculator is designed according to **Clean Architecture** princip
 
 **Go Module**: `github.com/agbru/fibcalc` (Go 1.25.0)
 
-**Codebase stats**: 17 Go packages | 102 source files | 85 test files | 38 documentation files (~8,000 lines)
+**Codebase stats**: 20 Go packages | 103 source files | 89 test files | 20 documentation files
 
 ---
 
@@ -17,7 +17,7 @@ The Fibonacci Calculator is designed according to **Clean Architecture** princip
 | Document | Description |
 |----------|-------------|
 | **[This file](README.md)** | Master index — package structure, interfaces, ADRs, data flow |
-| [patterns/design-patterns.md](patterns/design-patterns.md) | 14 design patterns catalog (1,023 lines) |
+| [patterns/interface-hierarchy.mermaid](patterns/interface-hierarchy.mermaid) | Interface hierarchy diagram |
 
 ### C4 Diagrams (in `docs/architecture/`)
 
@@ -32,10 +32,12 @@ The Fibonacci Calculator is designed according to **Clean Architecture** princip
 
 | Document | Description |
 |----------|-------------|
-| [flows/cli-flow.md](flows/cli-flow.md) | CLI mode execution flow |
-| [flows/tui-flow.md](flows/tui-flow.md) | TUI mode execution flow |
-| [flows/config-flow.md](flows/config-flow.md) | Configuration resolution flow |
-| [flows/algorithm-flows.md](flows/algorithm-flows.md) | Algorithm execution flows (Fast Doubling, Matrix, FFT) |
+| [flows/cli-flow.mermaid](flows/cli-flow.mermaid) | CLI mode execution flow |
+| [flows/tui-flow.mermaid](flows/tui-flow.mermaid) | TUI mode execution flow |
+| [flows/config-flow.mermaid](flows/config-flow.mermaid) | Configuration resolution flow |
+| [flows/fastdoubling.mermaid](flows/fastdoubling.mermaid) | Fast Doubling execution flow |
+| [flows/matrix.mermaid](flows/matrix.mermaid) | Matrix Exponentiation execution flow |
+| [flows/fft-pipeline.mermaid](flows/fft-pipeline.mermaid) | FFT pipeline execution flow |
 
 ### Operational Guides (in `docs/`)
 
@@ -154,12 +156,9 @@ Business core of the application. Contains algorithm implementations, the factor
 | `calculator.go` | `Calculator` and `coreCalculator` interfaces, `FibCalculator` decorator |
 | `registry.go` | `CalculatorFactory` interface, `DefaultFactory` with lazy creation and caching |
 | `strategy.go` | `Multiplier` (narrow) and `DoublingStepExecutor` (wide) interfaces; `AdaptiveStrategy`, `FFTOnlyStrategy`, `KaratsubaStrategy` |
-| `observer.go` | `ProgressObserver` interface, `ProgressSubject` (observable) |
-| `observers.go` | Observer implementations: `ChannelObserver`, `LoggingObserver`, `NoOpObserver` |
+| `progress_aliases.go` | Backward-compatible type aliases for `internal/progress` types |
 | `options.go` | `Options` struct: `ParallelThreshold`, `FFTThreshold`, `StrassenThreshold`, FFT cache settings (`FFTCacheMinBitLen`, `FFTCacheMaxEntries`, `FFTCacheEnabled`), dynamic threshold settings (`EnableDynamicThresholds`, `DynamicAdjustmentInterval`); `normalizeOptions()` fills zero values with defaults |
 | `constants.go` | Performance tuning constants: `DefaultParallelThreshold` (4096), `DefaultFFTThreshold` (500,000), `DefaultStrassenThreshold` (3072), `ParallelFFTThreshold` (5,000,000), `CalibrationN` (10,000,000), `ProgressReportThreshold` (0.01) |
-| `threshold_types.go` | Threshold type definitions |
-| `dynamic_threshold.go` | Runtime threshold adjustment logic |
 | `fastdoubling.go` | `OptimizedFastDoubling` algorithm implementation, `CalculationState` type and pool |
 | `doubling_framework.go` | `DoublingFramework` — shared iteration framework for doubling-based algorithms |
 | `matrix.go` | `MatrixExponentiation` algorithm implementation |
@@ -168,16 +167,41 @@ Business core of the application. Contains algorithm implementations, the factor
 | `matrix_types.go` | `matrix` type (2x2), `matrixState` pool type |
 | `fft_based.go` | `FFTBasedCalculator` — forces FFT for all multiplications |
 | `fft.go` | `smartMultiply` / `smartSquare` — 2-tier multiplication selection (FFT or standard math/big) |
-| `progress.go` | `ProgressCallback` type, progress utilities (`CalcTotalWork`, `ReportStepProgress`) |
 | `common.go` | Task semaphore, `MaxPooledBitLen`, `executeTasks` generics, `executeMixedTasks` |
 | `generator.go` | `SequenceGenerator` interface for Fibonacci sequence generation |
 | `generator_iterative.go` | Iterative generator implementation |
 | `testing.go` | Test helpers and utilities |
-| `arena.go` | `CalculationArena` — contiguous bump allocator for state big.Int |
-| `gc_control.go` | `GCController` — GC control during calculation (auto/aggressive/disabled) |
-| `memory_budget.go` | `EstimateMemoryUsage`, `ParseMemoryLimit` — pre-calculation memory validation |
 | `modular.go` | `FastDoublingMod` — modular fast doubling for `--last-digits` mode |
 | `calculator_gmp.go` | GMP calculator, auto-registers via `init()` (build tag: `gmp`) |
+
+### `internal/fibonacci/memory`
+
+Memory management sub-package extracted from `internal/fibonacci`.
+
+| File | Responsibility |
+|------|---------------|
+| `arena.go` | `CalculationArena` — contiguous bump allocator for state big.Int |
+| `gc_control.go` | `GCController` — GC control during calculation (auto/aggressive/disabled) |
+| `budget.go` | `EstimateMemoryUsage`, `ParseMemoryLimit` — pre-calculation memory validation |
+
+### `internal/fibonacci/threshold`
+
+Dynamic threshold management sub-package extracted from `internal/fibonacci`.
+
+| File | Responsibility |
+|------|---------------|
+| `manager.go` | `DynamicThresholdManager` — runtime threshold adjustment logic |
+| `types.go` | `IterationMetric`, `ThresholdStats`, `DynamicThresholdConfig` type definitions |
+
+### `internal/progress`
+
+Observer pattern and progress reporting, extracted from `internal/fibonacci`. Backward-compatible type aliases in `internal/fibonacci/progress_aliases.go`.
+
+| File | Responsibility |
+|------|---------------|
+| `observer.go` | `ProgressObserver` interface, `ProgressSubject` (observable) |
+| `observers.go` | Observer implementations: `ChannelObserver`, `LoggingObserver`, `NoOpObserver` |
+| `progress.go` | `ProgressUpdate`, `ProgressCallback` types, utilities (`CalcTotalWork`, `ReportStepProgress`) |
 
 ### `internal/bigfft`
 
@@ -211,6 +235,7 @@ Concurrent execution management with Clean Architecture decoupling.
 | `orchestrator.go` | `ExecuteCalculations()`, `AnalyzeComparisonResults()` — parallel execution via `errgroup` |
 | `interfaces.go` | `ProgressReporter`, `ResultPresenter` interfaces, `NullProgressReporter` |
 | `calculator_selection.go` | `GetCalculatorsToRun()` — calculator selection logic from config |
+| `progress.go` | `ProgressAggregator` — multi-calculator progress aggregation |
 
 ### `internal/cli`
 
@@ -222,8 +247,6 @@ Command-line user interface and presentation layer.
 | `presenter.go` | `CLIProgressReporter` and `CLIResultPresenter` implementations |
 | `ui.go` | Spinner management and terminal interaction |
 | `ui_display.go` | Display functions for progress reporting and result presentation |
-| `ui_format.go` | Number formatting and duration/ETA formatting utilities |
-| `progress_eta.go` | ETA estimation algorithm |
 | `calculate.go` | Calculation orchestration entry point for CLI |
 | `completion.go` | Shell completion script generation (bash, zsh, fish, powershell) |
 | `provider.go` | Dependency provider for CLI components |
@@ -269,6 +292,7 @@ Configuration management.
 | `config.go` | `ParseConfig()`, `AppConfig` struct, flag parsing |
 | `env.go` | Environment variable support (`FIBCALC_*` prefix) |
 | `usage.go` | Help text and usage formatting |
+| `thresholds.go` | `ApplyAdaptiveThresholds()`, `EstimateOptimal*Threshold()` — hardware-adaptive threshold estimation |
 
 ### `internal/errors`
 
@@ -285,7 +309,8 @@ Application lifecycle management.
 
 | File | Responsibility |
 |------|---------------|
-| `app.go` | Application initialization and lifecycle (`SetupContext`, signal handling) |
+| `app.go` | Application initialization and lifecycle (`SetupContext`, signal handling), DI via `WithFactory()` |
+| `calculate.go` | Calculation dispatch logic (extracted from app.go) |
 | `version.go` | Version information |
 | `doc.go` | Package documentation |
 
@@ -472,10 +497,10 @@ type ResultPresenter interface {
 
 ```
 1. app.New(args) → config.ParseConfig() parses CLI flags + env vars → AppConfig
-2. app.New() → calibration.LoadCachedCalibration() or applyAdaptiveThresholds()
+2. app.New() → calibration.LoadCachedCalibration() or config.ApplyAdaptiveThresholds()
 3. app.Run() dispatches to: completion | calibration | auto-calibration | TUI | CLI
 4. ui.InitTheme() initializes terminal color support (respects NO_COLOR)
-5. orchestration.GetCalculatorsToRun() selects calculators from fibonacci.GlobalFactory()
+5. orchestration.GetCalculatorsToRun() selects calculators from the injected CalculatorFactory
 6. context.WithTimeout() + signal.NotifyContext() creates lifecycle context
 7. orchestration.ExecuteCalculations() runs calculators concurrently via errgroup
    - Each Calculator.Calculate() creates ProgressSubject + ChannelObserver
@@ -494,7 +519,7 @@ For detailed flow diagrams, see [flows/](flows/).
 
 ## Design Patterns
 
-This codebase employs 14 documented design patterns. See the full catalog: **[patterns/design-patterns.md](patterns/design-patterns.md)**.
+This codebase employs 14 design patterns. See also: **[patterns/interface-hierarchy.mermaid](patterns/interface-hierarchy.mermaid)**.
 
 Key patterns: Decorator (FibCalculator), Factory+Registry (DefaultFactory), Strategy+ISP (Multiplier/DoublingStepExecutor), Framework (DoublingFramework/MatrixFramework), Observer (ProgressSubject), Object Pooling, Bump Allocator, FFT Transform Cache, Dynamic Threshold Adjustment, Zero-Copy Result Return, Interface-Based Decoupling, Generics with Pointer Constraints, Calculation Arena, GC Controller.
 
